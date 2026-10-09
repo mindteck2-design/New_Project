@@ -17,6 +17,8 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -115,6 +117,62 @@ class WorkflowApiIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"action\":\"DECISION\"}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void ndtRadiographyAcceptPathCompletes() throws Exception {
+        String token = login("admin");
+        String instanceId = startWorkflow(token, "ndt-radiography");
+
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"partNo":"P-1","serialNo":"S-1"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"filmType":"D4","kV":"120"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"shots":"2"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"processed":"Yes"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"findings":"No cracks"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"YES"}
+                """);
+        JsonNode endorsed = transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"endorsed":"Yes","registerRef":"MR-9"}}
+                """);
+        assertEquals("COMPLETED", endorsed.path("status").asText());
+        assertEquals("dispatch", endorsed.path("currentNode").path("key").asText());
+    }
+
+    @Test
+    void attachmentDownloadRequiresAuthAndInstanceAccess() throws Exception {
+        String token = login("admin");
+        String instanceId = startWorkflow(token, "ndt-radiography");
+
+        MvcResult upload = mockMvc.perform(multipart("/api/v1/instances/" + instanceId + "/documents")
+                        .file("file", "rt-film-note.txt".getBytes())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        String docId = mapper.readTree(upload.getResponse().getContentAsString()).path("id").asText();
+
+        // Anonymous callers must be rejected (Spring Security may return 401 or 403).
+        mockMvc.perform(get("/api/v1/instances/" + instanceId + "/documents/" + docId + "/content"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    if (status != 401 && status != 403) {
+                        throw new AssertionError("Expected 401/403 for anonymous download, got " + status);
+                    }
+                });
+
+        mockMvc.perform(get("/api/v1/instances/" + instanceId + "/documents/" + docId + "/content")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
     }
 
     private String login(String username) throws Exception {

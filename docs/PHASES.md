@@ -37,6 +37,16 @@
 - Stores / plating / metrology chart imports
 - Partitioned audit archive, server PDF reports, Vault secrets
 
+## Agent review checklist (Phase 6 dry-run)
+
+Completed against [`docs/AGENT_REVIEW_CHECKLIST.md`](AGENT_REVIEW_CHECKLIST.md):
+
+- Docs/code inspected; no invented procedure steps; inventory marks deferred charts
+- RBAC on transitions/documents; audit on Pass/Fail/Complete; attachment download authenticated
+- UI never chooses next node; DecisionEngine + integration tests cover PASS/FAIL, 403, 409, 400
+- `./scripts/verify.sh` green (server tests + UI build + healthcheck)
+- Secrets only in `.env` / `config/.env` (examples committed)
+
 ## Verify locally
 
 ```bash
