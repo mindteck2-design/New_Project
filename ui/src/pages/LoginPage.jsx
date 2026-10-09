@@ -1,4 +1,4 @@
-import { useForm, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
@@ -9,7 +9,6 @@ import { useAuth } from '@/stores/authStore'
 import { DEMO_USERS } from '@/lib/demoUsers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -18,6 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 
 const loginSchema = z.object({
   username: z.string().trim().min(1, 'Username is required'),
@@ -28,13 +35,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm({
+  const form = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: 'admin',
@@ -70,9 +71,15 @@ export default function LoginPage() {
             Overhaul Division workflow control — role-gated steps, decision graphs, and a living audit trail.
           </p>
           <div className="mt-8 grid gap-3 text-sm text-muted-foreground">
-            <div className="rounded-xl border bg-card/70 px-4 py-3 backdrop-blur">Server-driven next steps</div>
-            <div className="rounded-xl border bg-card/70 px-4 py-3 backdrop-blur">Clickable action notifications</div>
-            <div className="rounded-xl border bg-card/70 px-4 py-3 backdrop-blur">XY workflow charts per definition</div>
+            <Card>
+              <CardContent className="px-4 py-3">Server-driven next steps</CardContent>
+            </Card>
+            <Card>
+              <CardContent className="px-4 py-3">Clickable action notifications</CardContent>
+            </Card>
+            <Card>
+              <CardContent className="px-4 py-3">XY workflow charts per definition</CardContent>
+            </Card>
           </div>
         </motion.div>
 
@@ -83,63 +90,69 @@ export default function LoginPage() {
               <CardDescription>Select a demo role/user or enter credentials.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-                <div className="space-y-2">
-                  <Label>Quick select user</Label>
-                  <Controller
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+                  <FormField
+                    control={form.control}
                     name="username"
-                    control={control}
                     render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={(v) => {
-                          field.onChange(v)
-                          setValue('password', 'Passw0rd!')
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose user" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DEMO_USERS.map((u) => (
-                            <SelectItem key={u.username} value={u.username}>
-                              {u.displayName} · {u.roles.join(', ')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormItem>
+                        <FormLabel>Quick select user</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={(v) => {
+                            field.onChange(v)
+                            form.setValue('password', 'Passw0rd!')
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose user" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {DEMO_USERS.map((u) => (
+                              <SelectItem key={u.username} value={u.username}>
+                                {u.displayName} · {u.roles.join(', ')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    autoComplete="username"
-                    aria-invalid={!!errors.username}
-                    {...register('username')}
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input autoComplete="username" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  {errors.username && (
-                    <p className="text-xs text-destructive">{errors.username.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    aria-invalid={!!errors.password}
-                    {...register('password')}
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" autoComplete="current-password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  {errors.password && (
-                    <p className="text-xs text-destructive">{errors.password.message}</p>
-                  )}
-                </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Signing in…' : 'Continue'}
-                </Button>
-              </form>
+                  <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? 'Signing in…' : 'Continue'}
+                  </Button>
+                </form>
+              </Form>
               <p className="hal-watermark mt-6 text-center">Property of HAL — Restricted</p>
             </CardContent>
           </Card>

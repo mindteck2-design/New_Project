@@ -11,6 +11,7 @@ import DocumentPanel from '@/components/DocumentPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function InstancePage() {
   const { id } = useParams()
@@ -78,9 +79,11 @@ export default function InstancePage() {
               </CardHeader>
               <CardContent>
                 {data.status === 'COMPLETED' && (
-                  <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    Workflow completed. Review the audit trail for the full chain of custody.
-                  </p>
+                  <Alert variant="success">
+                    <AlertDescription>
+                      Workflow completed. Review the audit trail for the full chain of custody.
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 {data.status === 'RUNNING' && node?.type === 'DECISION' && (
@@ -113,14 +116,14 @@ export default function InstancePage() {
                 )}
 
                 {data.status === 'RUNNING' && (data.allowedActions || []).length === 0 && (
-                  <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>
+                  <Alert variant="warning">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertDescription>
                       Your current role cannot act here. Use the role/user switcher and select{' '}
                       <strong>{node?.roleCode}</strong> (or admin), then return — or open the matching
                       notification after switching.
-                    </span>
-                  </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CardContent>
             </Card>

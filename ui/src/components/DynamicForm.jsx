@@ -4,7 +4,14 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 
 const FIELD_HINTS = {
   'spares-demand': [
@@ -56,20 +63,15 @@ export default function DynamicForm({ formKey, disabled, onSubmit }) {
     return values
   }, [fields])
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm({
+  const form = useForm({
     resolver: zodResolver(schema),
     defaultValues,
     mode: 'onSubmit',
   })
 
   useEffect(() => {
-    reset(defaultValues)
-  }, [defaultValues, reset])
+    form.reset(defaultValues)
+  }, [defaultValues, form])
 
   function submit(values) {
     const { signaturePlaceholder, ...formPayload } = values
@@ -80,37 +82,44 @@ export default function DynamicForm({ formKey, disabled, onSubmit }) {
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit(submit)} noValidate>
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        Form · {formKey || 'generic'}
-      </p>
-      {fields.map((f) => (
-        <div key={f.name} className="space-y-2">
-          <Label htmlFor={f.name}>{f.label}</Label>
-          <Input
-            id={f.name}
-            placeholder={f.placeholder || ''}
-            disabled={disabled}
-            aria-invalid={!!errors[f.name]}
-            {...register(f.name)}
+    <Form {...form}>
+      <form className="space-y-4" onSubmit={form.handleSubmit(submit)} noValidate>
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Form · {formKey || 'generic'}
+        </p>
+        {fields.map((f) => (
+          <FormField
+            key={f.name}
+            control={form.control}
+            name={f.name}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{f.label}</FormLabel>
+                <FormControl>
+                  <Input placeholder={f.placeholder || ''} disabled={disabled} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {errors[f.name] && (
-            <p className="text-xs text-destructive">{errors[f.name].message}</p>
+        ))}
+        <FormField
+          control={form.control}
+          name="signaturePlaceholder"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Digital signature placeholder</FormLabel>
+              <FormControl>
+                <Input disabled={disabled} placeholder="Typed acknowledgement" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
-        </div>
-      ))}
-      <div className="space-y-2">
-        <Label htmlFor="signaturePlaceholder">Digital signature placeholder</Label>
-        <Input
-          id="signaturePlaceholder"
-          disabled={disabled}
-          placeholder="Typed acknowledgement"
-          {...register('signaturePlaceholder')}
         />
-      </div>
-      <Button type="submit" disabled={disabled || isSubmitting}>
-        Complete step
-      </Button>
-    </form>
+        <Button type="submit" disabled={disabled || form.formState.isSubmitting}>
+          Complete step
+        </Button>
+      </form>
+    </Form>
   )
 }

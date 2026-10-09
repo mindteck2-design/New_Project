@@ -90,21 +90,25 @@ export default function DashboardPage() {
                 </p>
               )}
               {inbox.map((item, idx) => (
-                <motion.button
+                <motion.div
                   key={item.id}
-                  type="button"
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.04 }}
-                  onClick={() => navigate(item.href)}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-all hover:border-primary/40 hover:shadow-sm active:scale-[0.995]"
                 >
-                  <div>
-                    <div className="font-medium">{item.title}</div>
-                    <div className="text-xs text-muted-foreground">{item.description}</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-primary" />
-                </motion.button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-auto w-full justify-between gap-3 px-4 py-3 text-left font-normal"
+                    onClick={() => navigate(item.href)}
+                  >
+                    <span>
+                      <span className="block font-medium text-foreground">{item.title}</span>
+                      <span className="block text-xs text-muted-foreground">{item.description}</span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                  </Button>
+                </motion.div>
               ))}
             </CardContent>
           </Card>
@@ -125,12 +129,17 @@ export default function DashboardPage() {
                     activeKey === w.key ? 'border-primary/50 bg-accent/40' : 'bg-card hover:border-border'
                   }`}
                 >
-                  <button type="button" className="w-full text-left" onClick={() => setSelectedKey(w.key)}>
-                    <div className="font-semibold">{w.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto w-full flex-col items-start gap-1 px-0 py-0 text-left hover:bg-transparent"
+                    onClick={() => setSelectedKey(w.key)}
+                  >
+                    <span className="font-semibold text-foreground">{w.name}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
                       {w.key} · v{w.version}
-                    </div>
-                  </button>
+                    </span>
+                  </Button>
                   <Button
                     size="sm"
                     className="mt-3"
@@ -198,15 +207,16 @@ export default function DashboardPage() {
                 </TabsContent>
                 <TabsContent value="mine" className="space-y-2">
                   {inbox.map((item) => (
-                    <button
+                    <Button
                       key={item.id}
                       type="button"
+                      variant="outline"
+                      className="h-auto w-full justify-between px-3 py-2.5 font-normal"
                       onClick={() => navigate(item.href)}
-                      className="flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm hover:bg-muted/60"
                     >
                       <span>{item.title}</span>
                       <ArrowRight className="h-4 w-4 text-primary" />
-                    </button>
+                    </Button>
                   ))}
                 </TabsContent>
               </Tabs>

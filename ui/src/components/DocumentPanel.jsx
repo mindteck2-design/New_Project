@@ -8,7 +8,15 @@ import { documentDownloadUrl, fetchDocuments, uploadDocument } from '@/api/clien
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 
 const uploadSchema = z.object({
   file: z
@@ -25,12 +33,7 @@ export default function DocumentPanel({ instanceId }) {
     enabled: !!instanceId,
   })
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm({
+  const form = useForm({
     resolver: zodResolver(uploadSchema),
     defaultValues: { file: undefined },
   })
@@ -39,7 +42,7 @@ export default function DocumentPanel({ instanceId }) {
     mutationFn: (file) => uploadDocument(instanceId, file),
     onSuccess: () => {
       toast.success('Attachment uploaded')
-      reset()
+      form.reset()
       qc.invalidateQueries({ queryKey: ['documents', instanceId] })
       qc.invalidateQueries({ queryKey: ['audit', instanceId] })
     },
@@ -61,37 +64,44 @@ export default function DocumentPanel({ instanceId }) {
         <CardDescription>Secure upload; download requires sign-in.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleSubmit(onUpload)} className="space-y-3" noValidate>
-          <div className="space-y-2">
-            <Label htmlFor="attachment-file">File</Label>
-            <input
-              id="attachment-file"
-              type="file"
-              className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground"
-              disabled={upload.isPending || isSubmitting}
-              {...register('file')}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onUpload)} className="space-y-3" noValidate>
+            <FormField
+              control={form.control}
+              name="file"
+              render={({ field: { onChange, value: _value, ...field } }) => (
+                <FormItem>
+                  <FormLabel>File</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      disabled={upload.isPending || form.formState.isSubmitting}
+                      {...field}
+                      onChange={(e) => onChange(e.target.files)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {errors.file && (
-              <p className="text-xs text-destructive">{errors.file.message}</p>
-            )}
-          </div>
-          <Button type="submit" size="sm" variant="outline" disabled={upload.isPending || isSubmitting}>
-            <Upload className="h-3.5 w-3.5" />
-            {upload.isPending ? 'Uploading…' : 'Upload'}
-          </Button>
-        </form>
+            <Button type="submit" size="sm" variant="outline" disabled={upload.isPending || form.formState.isSubmitting}>
+              <Upload className="h-3.5 w-3.5" />
+              {upload.isPending ? 'Uploading…' : 'Upload'}
+            </Button>
+          </form>
+        </Form>
 
         <div className="space-y-2">
           {(docs.data || []).length === 0 && (
             <p className="text-sm text-muted-foreground">No files attached yet.</p>
           )}
           {(docs.data || []).map((d) => (
-            <a
+            <Button
               key={d.id}
-              href={documentDownloadUrl(instanceId, d.id)}
-              className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
-              onClick={(e) => {
-                e.preventDefault()
+              type="button"
+              variant="outline"
+              className="h-auto w-full justify-between px-3 py-2 font-normal"
+              onClick={() => {
                 const token = useAuthStore.getState().token
                 fetch(documentDownloadUrl(instanceId, d.id), {
                   headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -113,7 +123,7 @@ export default function DocumentPanel({ instanceId }) {
             >
               <span className="truncate">{d.fileName}</span>
               <Download className="h-4 w-4 shrink-0 text-primary" />
-            </a>
+            </Button>
           ))}
         </div>
       </CardContent>

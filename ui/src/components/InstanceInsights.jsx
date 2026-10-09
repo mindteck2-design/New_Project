@@ -25,6 +25,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Card, CardContent } from '@/components/ui/card'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -81,21 +83,14 @@ export default function InstanceInsights({ instances = [] }) {
       {
         accessorKey: 'workflowName',
         header: ({ column }) => (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 font-medium"
-            onClick={column.getToggleSortingHandler()}
-          >
+          <Button type="button" variant="ghost" size="sm" className="-ml-3 h-8" onClick={column.getToggleSortingHandler()}>
             Workflow <SortIcon column={column} />
-          </button>
+          </Button>
         ),
         cell: ({ row }) => (
-          <Link
-            to={`/instances/${row.original.instanceId}`}
-            className="font-medium text-foreground no-underline hover:text-primary"
-          >
-            {row.original.workflowName}
-          </Link>
+          <Button asChild variant="link" className="h-auto p-0 font-medium">
+            <Link to={`/instances/${row.original.instanceId}`}>{row.original.workflowName}</Link>
+          </Button>
         ),
       },
       {
@@ -112,13 +107,9 @@ export default function InstanceInsights({ instances = [] }) {
       {
         accessorKey: 'status',
         header: ({ column }) => (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 font-medium"
-            onClick={column.getToggleSortingHandler()}
-          >
+          <Button type="button" variant="ghost" size="sm" className="-ml-3 h-8" onClick={column.getToggleSortingHandler()}>
             Status <SortIcon column={column} />
-          </button>
+          </Button>
         ),
         cell: ({ getValue }) => (
           <Badge variant={getValue() === 'COMPLETED' ? 'success' : 'warning'}>{getValue()}</Badge>
@@ -131,13 +122,9 @@ export default function InstanceInsights({ instances = [] }) {
       {
         accessorKey: 'startedAt',
         header: ({ column }) => (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 font-medium"
-            onClick={column.getToggleSortingHandler()}
-          >
+          <Button type="button" variant="ghost" size="sm" className="-ml-3 h-8" onClick={column.getToggleSortingHandler()}>
             Started <SortIcon column={column} />
-          </button>
+          </Button>
         ),
         cell: ({ getValue }) => (
           <span className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(getValue())}</span>
@@ -280,117 +267,121 @@ export default function InstanceInsights({ instances = [] }) {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-card/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-          <Label htmlFor="instance-search">Global search</Label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="instance-search"
-              value={globalFilter}
-              onChange={(e) => {
-                setGlobalFilter(e.target.value)
+      <Card>
+        <CardContent className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+            <Label htmlFor="instance-search">Global search</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="instance-search"
+                value={globalFilter}
+                onChange={(e) => {
+                  setGlobalFilter(e.target.value)
+                  setPagination((p) => ({ ...p, pageIndex: 0 }))
+                }}
+                placeholder="Workflow, key, step…"
+                className="h-9 pl-8"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v)
                 setPagination((p) => ({ ...p, pageIndex: 0 }))
               }}
-              placeholder="Workflow, key, step…"
-              className="h-9 pl-8"
-            />
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All statuses</SelectItem>
+                <SelectItem value="RUNNING">RUNNING</SelectItem>
+                <SelectItem value="COMPLETED">COMPLETED</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Status</Label>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v)
-              setPagination((p) => ({ ...p, pageIndex: 0 }))
-            }}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All statuses</SelectItem>
-              <SelectItem value="RUNNING">RUNNING</SelectItem>
-              <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="date-from">Started from</Label>
-          <Input
-            id="date-from"
-            type="date"
-            className="h-9"
-            value={dateFrom}
-            onChange={(e) => {
-              setDateFrom(e.target.value)
-              setPagination((p) => ({ ...p, pageIndex: 0 }))
-            }}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="date-to">Started to</Label>
-          <div className="flex gap-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="date-from">Started from</Label>
             <Input
-              id="date-to"
+              id="date-from"
               type="date"
               className="h-9"
-              value={dateTo}
+              value={dateFrom}
               onChange={(e) => {
-                setDateTo(e.target.value)
+                setDateFrom(e.target.value)
                 setPagination((p) => ({ ...p, pageIndex: 0 }))
               }}
             />
-            {hasFilters && (
-              <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={clearFilters} title="Clear filters">
-                <X className="h-4 w-4" />
-              </Button>
-            )}
           </div>
-        </div>
-      </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="date-to">Started to</Label>
+            <div className="flex gap-2">
+              <Input
+                id="date-to"
+                type="date"
+                className="h-9"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value)
+                  setPagination((p) => ({ ...p, pageIndex: 0 }))
+                }}
+              />
+              {hasFilters && (
+                <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={clearFilters} title="Clear filters">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id}>
-                {hg.headers.map((header) => (
-                  <th key={header.id} className="px-3 py-2 font-medium">
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b last:border-0 hover:bg-muted/30">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-3 py-2.5">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-            {instances.length === 0 && (
-              <tr>
-                <td colSpan={columns.length} className="px-3 py-8 text-center text-muted-foreground">
-                  No instances yet — start a workflow above.
-                </td>
-              </tr>
-            )}
-            {instances.length > 0 && filteredRows.length === 0 && (
-              <tr>
-                <td colSpan={columns.length} className="px-3 py-8 text-center text-muted-foreground">
-                  No instances match the current search and filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+              {instances.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                    No instances yet — start a workflow above.
+                  </TableCell>
+                </TableRow>
+              )}
+              {instances.length > 0 && filteredRows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                    No instances match the current search and filters.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
