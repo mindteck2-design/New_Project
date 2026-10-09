@@ -50,3 +50,10 @@ Start with [`AGENTS.md`](AGENTS.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMEN
 
 - Accessories Bench Check / Repair
 - NDT Radiography
+
+## UI notes
+
+- **shadcn-style** teal theme (Plus Jakarta Sans), motion micro-interactions
+- **Role/user switcher** in the header to act as seeded demo accounts
+- **XYFlow** workflow charts on dashboard + instance (current node highlighted)
+- **Action notifications** (bell + inbox + toasts): click to navigate to the instance step you must complete
