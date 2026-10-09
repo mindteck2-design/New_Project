@@ -29,7 +29,17 @@ public class FormController {
         this.schemas = schemas;
     }
 
-    public record FormFieldDto(String name, String label, String type, String placeholder, Boolean required) {}
+    public record FormFieldDto(
+            String name,
+            String label,
+            String type,
+            String placeholder,
+            Boolean required,
+            List<String> options,
+            String accept,
+            Boolean multiple,
+            String helpText
+    ) {}
 
     public record UpsertFormRequest(String formKey, String name, List<FormFieldDto> fields) {}
 
@@ -98,6 +108,18 @@ public class FormController {
                     m.put("type", f.type());
                     m.put("placeholder", f.placeholder());
                     m.put("required", f.required());
+                    if (f.options() != null) {
+                        m.put("options", f.options());
+                    }
+                    if (f.accept() != null) {
+                        m.put("accept", f.accept());
+                    }
+                    if (f.multiple() != null) {
+                        m.put("multiple", f.multiple());
+                    }
+                    if (f.helpText() != null) {
+                        m.put("helpText", f.helpText());
+                    }
                     return m;
                 })
                 .toList();

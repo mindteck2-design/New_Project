@@ -1,18 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Trash2, ArrowDown } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { createWorkflow, fetchFormSchemas, fetchRoles } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { ROLE_LABELS } from '@/lib/demoUsers'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
+import WorkflowBuilderCanvas from '@/components/WorkflowBuilderCanvas'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -24,7 +24,7 @@ import {
 /**
  * Admin workflow builder:
  * 1) Master forms are created separately (/forms)
- * 2) Here admin picks role + master form per step and creates the chart
+ * 2) Here admin paints the chart on an xyflow canvas (role + master form per step)
  */
 export default function WorkflowBuilderPage() {
   const navigate = useNavigate()
@@ -45,6 +45,14 @@ export default function WorkflowBuilderPage() {
     () => (roles.data || []).map((r) => r.code),
     [roles.data],
   )
+
+  const updateStep = useCallback((id, patch) => {
+    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+  }, [])
+
+  const removeStep = useCallback((id) => {
+    setSteps((prev) => (prev.length <= 1 ? prev : prev.filter((s) => s.id !== id)))
+  }, [])
 
   const save = useMutation({
     mutationFn: () => {
@@ -131,10 +139,6 @@ export default function WorkflowBuilderPage() {
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not create workflow'),
   })
 
-  function updateStep(id, patch) {
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
-  }
-
   const canSave =
     key.trim() &&
     name.trim() &&
@@ -146,7 +150,7 @@ export default function WorkflowBuilderPage() {
       <PageFrame>
         <PageHeader
           title="Create workflow"
-          description="Pick a role and a master form for each step. Master forms are maintained by admin; this chart only binds them."
+          description="Paint the chart on the canvas — assign a role and master form to each step. Master forms stay in the catalog; this only binds them."
           backTo="/workflows"
           backLabel="Workflows"
           breadcrumbs={[
@@ -199,9 +203,9 @@ export default function WorkflowBuilderPage() {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold tracking-tight">Steps</h2>
+              <h2 className="text-sm font-semibold tracking-tight">Canvas</h2>
               <p className="text-xs text-muted-foreground">
-                Flow: START → your steps → END. Decision FAIL branches to a reject end.
+                START → steps → END on xyflow. Decision FAIL branches right to a reject end.
               </p>
             </div>
             <div className="flex gap-2">
@@ -248,83 +252,15 @@ export default function WorkflowBuilderPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <FlowChip label={`START · ${ROLE_LABELS[startRole] || startRole}`} />
-            {steps.map((step, index) => (
-              <div key={step.id} className="space-y-2">
-                <div className="flex justify-center text-muted-foreground">
-                  <ArrowDown className="h-4 w-4" />
-                </div>
-                <div className="rounded-lg border bg-card p-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">Step {index + 1}</Badge>
-                      <Badge variant="outline">{step.type}</Badge>
-                    </div>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      disabled={steps.length <= 1}
-                      onClick={() => setSteps((p) => p.filter((s) => s.id !== step.id))}
-                      aria-label="Remove step"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <Label>Step label</Label>
-                      <Input
-                        placeholder={step.type === 'DECISION' ? 'Inspection result' : 'Spares demand'}
-                        value={step.label}
-                        onChange={(e) => updateStep(step.id, { label: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Role</Label>
-                      <RoleSelect
-                        value={step.roleCode}
-                        roles={roleCodes}
-                        onChange={(v) => updateStep(step.id, { roleCode: v })}
-                      />
-                    </div>
-                    {step.type === 'TASK' ? (
-                      <div className="space-y-1.5">
-                        <Label>Master form</Label>
-                        <Select
-                          value={step.formKey || undefined}
-                          onValueChange={(v) => updateStep(step.id, { formKey: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select form" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {masterForms.map((f) => (
-                              <SelectItem key={f.formKey} value={f.formKey}>
-                                {f.name} ({f.formKey})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <Label>Decision</Label>
-                        <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                          PASS → continue · FAIL → reject end
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="flex justify-center text-muted-foreground">
-              <ArrowDown className="h-4 w-4" />
-            </div>
-            <FlowChip label={`END · ${ROLE_LABELS[endRole] || endRole}`} />
-          </div>
+          <WorkflowBuilderCanvas
+            steps={steps}
+            startRole={startRole}
+            endRole={endRole}
+            roles={roleCodes}
+            masterForms={masterForms}
+            onUpdateStep={updateStep}
+            onRemoveStep={removeStep}
+          />
         </section>
 
         <div className="flex flex-wrap gap-2">
@@ -358,13 +294,5 @@ function RoleSelect({ value, roles, onChange }) {
         ))}
       </SelectContent>
     </Select>
-  )
-}
-
-function FlowChip({ label }) {
-  return (
-    <div className="rounded-md border bg-muted/40 px-3 py-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-      {label}
-    </div>
   )
 }

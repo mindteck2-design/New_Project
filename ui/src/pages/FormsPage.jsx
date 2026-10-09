@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Paperclip } from 'lucide-react'
 import {
   createFormSchema,
   deleteFormSchema,
@@ -11,6 +11,13 @@ import {
   updateFormSchema,
 } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import {
+  FORM_FIELD_TYPES,
+  emptyFormField,
+  fieldNeedsOptions,
+  fieldToApiPayload,
+  normalizeFieldFromApi,
+} from '@/lib/formFieldTypes'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -28,10 +35,6 @@ import {
 } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
-function emptyField() {
-  return { name: '', label: '', type: 'text', placeholder: '', required: true }
-}
-
 function FormEditor({ mode, initial, onCancel, workflowKey }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -39,28 +42,31 @@ function FormEditor({ mode, initial, onCancel, workflowKey }) {
   const [name, setName] = useState(initial?.name || '')
   const [fields, setFields] = useState(
     initial?.fields?.length
-      ? initial.fields.map((f) => ({
-          name: f.name || '',
-          label: f.label || '',
-          type: f.type || 'text',
-          placeholder: f.placeholder || '',
-          required: f.required !== false,
-        }))
-      : [emptyField(), emptyField()],
+      ? initial.fields.map(normalizeFieldFromApi)
+      : [emptyFormField(), emptyFormField()],
   )
 
   const save = useMutation({
     mutationFn: async () => {
+      for (const f of fields) {
+        if (!f.name.trim() || !f.label.trim()) continue
+        if (fieldNeedsOptions(f.type)) {
+          const opts = String(f.optionsText || '')
+            .split(/[\n,]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+          if (!opts.length) {
+            throw new Error(`${f.label || f.name}: add at least one option (one per line)`)
+          }
+        }
+      }
       const body = {
         formKey: formKey.trim().toLowerCase(),
         name: name.trim(),
-        fields: fields.map((f) => ({
-          name: f.name.trim(),
-          label: f.label.trim(),
-          type: f.type || 'text',
-          placeholder: f.placeholder?.trim() || undefined,
-          required: !!f.required,
-        })),
+        fields: fields.filter((f) => f.name.trim() && f.label.trim()).map(fieldToApiPayload),
+      }
+      if (!body.fields.length) {
+        throw new Error('Add at least one complete field')
       }
       if (mode === 'create') return createFormSchema(body)
       return updateFormSchema(initial.formKey, { name: body.name, fields: body.fields })
@@ -76,7 +82,8 @@ function FormEditor({ mode, initial, onCancel, workflowKey }) {
         navigate(`/forms/${data.formKey}`)
       }
     },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Could not save form schema'),
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || err?.message || 'Could not save form schema'),
   })
 
   function updateField(index, patch) {
@@ -112,8 +119,19 @@ function FormEditor({ mode, initial, onCancel, workflowKey }) {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold tracking-tight">Fields</h3>
-          <Button type="button" size="sm" variant="outline" onClick={() => setFields((p) => [...p, emptyField()])}>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight">Fields</h3>
+            <p className="text-xs text-muted-foreground">
+              Text, select, radio, checkbox, date, attachment, and more — options for selectors are
+              one per line.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setFields((p) => [...p, emptyFormField()])}
+          >
             <Plus className="h-3.5 w-3.5" />
             Add field
           </Button>
@@ -121,61 +139,139 @@ function FormEditor({ mode, initial, onCancel, workflowKey }) {
 
         <div className="space-y-3">
           {fields.map((field, index) => (
-            <div
-              key={index}
-              className="grid gap-3 rounded-md border bg-background/60 p-3 sm:grid-cols-[1fr_1fr_140px_auto]"
-            >
-              <div className="space-y-1.5">
-                <Label>Field name</Label>
-                <Input
-                  value={field.name}
-                  placeholder="torqueValue"
-                  onChange={(e) =>
-                    updateField(index, { name: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })
-                  }
-                />
+            <div key={index} className="space-y-3 rounded-md border bg-background/60 p-3">
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto]">
+                <div className="space-y-1.5">
+                  <Label>Field name</Label>
+                  <Input
+                    value={field.name}
+                    placeholder="torqueValue"
+                    onChange={(e) =>
+                      updateField(index, { name: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Label</Label>
+                  <Input
+                    value={field.label}
+                    placeholder="Torque value (Nm)"
+                    onChange={(e) => updateField(index, { label: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Type</Label>
+                  <Select
+                    value={field.type}
+                    onValueChange={(v) =>
+                      updateField(index, {
+                        type: v,
+                        optionsText:
+                          fieldNeedsOptions(v) && !field.optionsText
+                            ? 'Option A\nOption B'
+                            : field.optionsText,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FORM_FIELD_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <label className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-primary"
+                      checked={!!field.required}
+                      onChange={(e) => updateField(index, { required: e.target.checked })}
+                    />
+                    Required
+                  </label>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    disabled={fields.length <= 1}
+                    onClick={() => setFields((p) => p.filter((_, i) => i !== index))}
+                    aria-label="Remove field"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Label</Label>
-                <Input
-                  value={field.label}
-                  placeholder="Torque value (Nm)"
-                  onChange={(e) => updateField(index, { label: e.target.value })}
-                />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {!fieldNeedsOptions(field.type) && field.type !== 'attachment' && field.type !== 'checkbox' && (
+                  <div className="space-y-1.5">
+                    <Label>Placeholder</Label>
+                    <Input
+                      value={field.placeholder}
+                      placeholder="Optional hint shown in the input"
+                      onChange={(e) => updateField(index, { placeholder: e.target.value })}
+                    />
+                  </div>
+                )}
+                {field.type === 'checkbox' && (
+                  <div className="space-y-1.5">
+                    <Label>Checkbox caption</Label>
+                    <Input
+                      value={field.placeholder}
+                      placeholder="I confirm this check"
+                      onChange={(e) => updateField(index, { placeholder: e.target.value })}
+                    />
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label>Help text</Label>
+                  <Input
+                    value={field.helpText}
+                    placeholder="Optional guidance under the field"
+                    onChange={(e) => updateField(index, { helpText: e.target.value })}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Type</Label>
-                <Select value={field.type} onValueChange={(v) => updateField(index, { type: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Text</SelectItem>
-                    <SelectItem value="textarea">Long text</SelectItem>
-                    <SelectItem value="number">Number</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  disabled={fields.length <= 1}
-                  onClick={() => setFields((p) => p.filter((_, i) => i !== index))}
-                  aria-label="Remove field"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-1.5 sm:col-span-3">
-                <Label>Placeholder</Label>
-                <Input
-                  value={field.placeholder}
-                  placeholder="Optional hint shown in the input"
-                  onChange={(e) => updateField(index, { placeholder: e.target.value })}
-                />
-              </div>
+
+              {fieldNeedsOptions(field.type) && (
+                <div className="space-y-1.5">
+                  <Label>Options (one per line)</Label>
+                  <Textarea
+                    rows={3}
+                    value={field.optionsText}
+                    placeholder={'PASS\nFAIL\nN/A'}
+                    onChange={(e) => updateField(index, { optionsText: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {field.type === 'attachment' && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Accepted file types</Label>
+                    <Input
+                      value={field.accept}
+                      placeholder="e.g. .pdf,.png,image/*"
+                      onChange={(e) => updateField(index, { accept: e.target.value })}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 pt-6 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-primary"
+                      checked={!!field.multiple}
+                      onChange={(e) => updateField(index, { multiple: e.target.checked })}
+                    />
+                    Allow multiple files
+                  </label>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -188,16 +284,89 @@ function FormEditor({ mode, initial, onCancel, workflowKey }) {
         <div className="space-y-3">
           {fields
             .filter((f) => f.label)
-            .map((f) => (
-              <div key={f.name || f.label} className="space-y-1.5">
-                <Label>{f.label}</Label>
-                {f.type === 'textarea' ? (
-                  <Textarea disabled placeholder={f.placeholder || ''} rows={2} />
-                ) : (
-                  <Input disabled type={f.type === 'number' ? 'number' : 'text'} placeholder={f.placeholder || ''} />
-                )}
-              </div>
-            ))}
+            .map((f) => {
+              const options = String(f.optionsText || '')
+                .split(/[\n,]/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+              return (
+                <div key={f.name || f.label} className="space-y-1.5">
+                  <Label>
+                    {f.label}
+                    {!f.required && (
+                      <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
+                    )}
+                  </Label>
+                  {f.type === 'textarea' && (
+                    <Textarea disabled placeholder={f.placeholder || ''} rows={2} />
+                  )}
+                  {f.type === 'select' && (
+                    <Select disabled>
+                      <SelectTrigger>
+                        <SelectValue placeholder={f.placeholder || options[0] || 'Select…'} />
+                      </SelectTrigger>
+                    </Select>
+                  )}
+                  {f.type === 'radio' && (
+                    <div className="space-y-1.5 rounded-md border bg-card px-3 py-2">
+                      {options.map((opt) => (
+                        <label key={opt} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <input type="radio" disabled className="h-3.5 w-3.5" />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {f.type === 'checkbox' && (
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input type="checkbox" disabled className="h-3.5 w-3.5" />
+                      {f.placeholder || 'Yes'}
+                    </label>
+                  )}
+                  {f.type === 'multiselect' && (
+                    <div className="space-y-1.5 rounded-md border bg-card px-3 py-2">
+                      {options.map((opt) => (
+                        <label key={opt} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <input type="checkbox" disabled className="h-3.5 w-3.5" />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {f.type === 'attachment' && (
+                    <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                      <Paperclip className="h-3.5 w-3.5" />
+                      {f.multiple ? 'Choose files' : 'Choose file'}
+                      {f.accept ? ` · ${f.accept}` : ''}
+                    </div>
+                  )}
+                  {!['textarea', 'select', 'radio', 'checkbox', 'multiselect', 'attachment'].includes(
+                    f.type,
+                  ) && (
+                    <Input
+                      disabled
+                      type={
+                        f.type === 'number'
+                          ? 'number'
+                          : f.type === 'email'
+                            ? 'email'
+                            : f.type === 'date'
+                              ? 'date'
+                              : f.type === 'time'
+                                ? 'time'
+                                : f.type === 'datetime'
+                                  ? 'datetime-local'
+                                  : 'text'
+                      }
+                      placeholder={f.placeholder || ''}
+                    />
+                  )}
+                  {f.helpText && (
+                    <p className="text-xs text-muted-foreground">{f.helpText}</p>
+                  )}
+                </div>
+              )
+            })}
           {!fields.some((f) => f.label) && (
             <p className="text-sm text-muted-foreground">Add field labels to preview the operator form.</p>
           )}

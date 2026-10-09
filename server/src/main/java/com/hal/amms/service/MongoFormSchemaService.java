@@ -25,6 +25,10 @@ public class MongoFormSchemaService {
 
     public static final String COLLECTION = "form_schemas";
     private static final Pattern FORM_KEY = Pattern.compile("^[a-z][a-z0-9-]{1,62}$");
+    private static final java.util.Set<String> ALLOWED_TYPES = java.util.Set.of(
+            "text", "textarea", "number", "email", "date", "time", "datetime",
+            "select", "radio", "checkbox", "multiselect", "attachment"
+    );
 
     private final MongoTemplate mongoTemplate;
 
@@ -127,6 +131,18 @@ public class MongoFormSchemaService {
             if (!String.valueOf(n).matches("^[a-zA-Z][a-zA-Z0-9_]{0,63}$")) {
                 throw new IllegalArgumentException("field name must be a simple identifier: " + n);
             }
+            String type = field.get("type") == null || String.valueOf(field.get("type")).isBlank()
+                    ? "text"
+                    : String.valueOf(field.get("type")).trim().toLowerCase();
+            if (!ALLOWED_TYPES.contains(type)) {
+                throw new IllegalArgumentException("unsupported field type: " + type);
+            }
+            if ("select".equals(type) || "radio".equals(type) || "multiselect".equals(type)) {
+                List<String> options = asStringList(field.get("options"));
+                if (options.isEmpty()) {
+                    throw new IllegalArgumentException(type + " field " + n + " needs at least one option");
+                }
+            }
         }
     }
 
@@ -137,14 +153,68 @@ public class MongoFormSchemaService {
             f.put("name", String.valueOf(raw.get("name")).trim());
             f.put("label", String.valueOf(raw.get("label")).trim());
             Object type = raw.get("type");
-            f.put("type", type == null || String.valueOf(type).isBlank() ? "text" : String.valueOf(type));
+            String normalizedType = type == null || String.valueOf(type).isBlank()
+                    ? "text"
+                    : String.valueOf(type).trim().toLowerCase();
+            f.put("type", normalizedType);
             Object placeholder = raw.get("placeholder");
             if (placeholder != null && !String.valueOf(placeholder).isBlank()) {
                 f.put("placeholder", String.valueOf(placeholder).trim());
             }
             Object required = raw.get("required");
             f.put("required", required == null || Boolean.parseBoolean(String.valueOf(required)));
+            List<String> options = asStringList(raw.get("options"));
+            if (!options.isEmpty()) {
+                f.put("options", options);
+            }
+            Object accept = raw.get("accept");
+            if (accept != null && !String.valueOf(accept).isBlank()) {
+                f.put("accept", String.valueOf(accept).trim());
+            }
+            Object multiple = raw.get("multiple");
+            if (multiple != null) {
+                f.put("multiple", Boolean.parseBoolean(String.valueOf(multiple)));
+            }
+            if ("attachment".equals(normalizedType) && multiple == null) {
+                f.put("multiple", false);
+            }
+            Object helpText = raw.get("helpText");
+            if (helpText != null && !String.valueOf(helpText).isBlank()) {
+                f.put("helpText", String.valueOf(helpText).trim());
+            }
             out.add(f);
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> asStringList(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        if (value instanceof List<?> list) {
+            List<String> out = new ArrayList<>();
+            for (Object item : list) {
+                if (item == null) {
+                    continue;
+                }
+                String s = String.valueOf(item).trim();
+                if (!s.isEmpty()) {
+                    out.add(s);
+                }
+            }
+            return out;
+        }
+        String raw = String.valueOf(value).trim();
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (String part : raw.split("[,\\n]")) {
+            String s = part.trim();
+            if (!s.isEmpty()) {
+                out.add(s);
+            }
         }
         return out;
     }

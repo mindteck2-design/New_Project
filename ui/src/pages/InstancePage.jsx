@@ -131,6 +131,7 @@ export default function InstancePage() {
                   {data.status === 'RUNNING' && node?.type === 'TASK' && (
                     <DynamicForm
                       formKey={node.formKey}
+                      instanceId={id}
                       disabled={mutate.isPending || (data.allowedActions || []).length === 0}
                       onSubmit={({ formPayload, signaturePlaceholder }) =>
                         mutate.mutate({
