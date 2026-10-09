@@ -1,8 +1,8 @@
 # Mirror of server/src/main/resources/application-prod.yml — prod overlay reference
 spring:
-  data:
-    mongodb:
-      uri: ${MONGODB_URI}
+  mongodb:
+    uri: ${MONGODB_URI}
+    database: ${MONGODB_DATABASE:amms}
 
 amms:
   forms:

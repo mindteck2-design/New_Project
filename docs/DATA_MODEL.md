@@ -4,7 +4,7 @@
 
 - **PostgreSQL** schema via **Flyway** (`server/src/main/resources/db/migration/V*.sql`)
 - **Access layer:** **jOOQ** (`DSLContext` + table/field definitions / DAOs). No JPA/Hibernate.
-- **MongoDB** collections managed in application code when `amms.forms.store=mongo`
+- **MongoDB** (required for dynamic forms — ADR-002): `form_schemas` + `form_submissions` when `amms.forms.store=mongo` (default)
 - Never edit applied migrations; add a new version
 
 ## Core tables (PostgreSQL)
@@ -38,18 +38,18 @@ audit_logs(id UUID PK, instance_id, user_id, action, from_node, to_node, payload
 
 `workflow_instances.status`: `RUNNING` | `COMPLETED` | `CANCELLED`
 
-### local form fallback
+### form fallback (Postgres JSONB — `amms.forms.store=postgres` only)
 
 ```sql
 form_documents(id UUID PK, instance_id, form_key, node_key, payload_json JSONB, created_by, created_at)
 ```
 
-## MongoDB
+## MongoDB (default forms store)
 
 | Collection | Purpose |
 |------------|---------|
-| `form_schemas` | `{ formKey, fields[] }` |
-| `form_submissions` | `{ instanceId, formKey, nodeKey, payload, userId, createdAt }` |
+| `form_schemas` | `{ formKey, name, fields[] }` served by `GET /api/v1/forms/{formKey}` |
+| `form_submissions` | `{ instanceId, formKey, nodeKey, payloadJson, createdBy, createdAt }` |
 
 ## Migration rules
 

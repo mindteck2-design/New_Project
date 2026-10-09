@@ -1,8 +1,8 @@
 # Overlay notes for Docker-backed dev profile
 spring:
-  data:
-    mongodb:
-      uri: ${MONGODB_URI}
+  mongodb:
+    uri: ${MONGODB_URI}
+    database: ${MONGODB_DATABASE:amms}
 
 amms:
   forms:

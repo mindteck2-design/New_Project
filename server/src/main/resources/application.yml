@@ -36,7 +36,8 @@ amms:
     secret: ${JWT_SECRET:change-me-to-a-long-random-dev-secret-at-least-32-chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   forms:
-    store: ${AMMS_FORMS_STORE:postgres}
+    # ADR-002: mongo for dynamic forms; postgres JSONB is test/offline fallback only
+    store: ${AMMS_FORMS_STORE:mongo}
   attachments:
     store: ${AMMS_ATTACHMENTS_STORE:filesystem}
     dir: ${AMMS_ATTACHMENTS_DIR:.data/attachments}

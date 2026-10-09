@@ -18,7 +18,7 @@
 - `WorkflowApiIntegrationTest` — 403 wrong role, FAIL→repair, 400 missing decision
 - `scripts/verify.sh` — server tests, UI build, optional healthcheck
 - Modern UI: shadcn theme, XYFlow charts, role switcher, actionable notifications
-- `FormSubmissionStore`: PostgreSQL (`local`/`test`) or MongoDB (`dev`/`prod` via `amms.forms.store=mongo`)
+- `FormSubmissionStore` + `form_schemas`: **MongoDB** by default (`amms.forms.store=mongo`, ADR-002); PostgreSQL JSONB is offline/test fallback only
 - Dashboard instance insights: TanStack Table, Recharts, ExcelJS export (HAL watermark on export)
 
 ## Production readiness

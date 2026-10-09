@@ -57,7 +57,7 @@ Add libraries only when existing stack cannot cover the need. Record additions h
 
 | Addition | Reason |
 |----------|--------|
-| `spring-boot-starter-data-mongodb` | `FormSubmissionStore` when `amms.forms.store=mongo` (ADR-002) |
+| `spring-boot-starter-data-mongodb` | Dynamic `form_schemas` + `form_submissions` when `amms.forms.store=mongo` (ADR-002; default for local/dev/prod) |
 | `io.minio:minio` | `MinioAttachmentStore` when `amms.attachments.store=minio` (ADR-006) |
 | `zustand` (UI) | Global client session (auth token/user); server state stays in TanStack Query |
 | `@tanstack/react-table`, `recharts`, `exceljs` (UI) | Plan stack: instance table, status chart, confidential exports |

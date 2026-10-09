@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { fetchFormSchema } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -13,6 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 
+/** Offline fallback when Mongo schema API is unavailable (tests / degraded local). */
 const FIELD_HINTS = {
   'spares-demand': [
     { name: 'sparesRequired', label: 'Spares required', placeholder: 'Yes / No / part list' },
@@ -51,10 +54,27 @@ function buildSchema(fields) {
 }
 
 export default function DynamicForm({ formKey, disabled, onSubmit }) {
-  const fields = useMemo(
-    () => FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }],
-    [formKey],
-  )
+  const schemaQuery = useQuery({
+    queryKey: ['form-schema', formKey],
+    queryFn: () => fetchFormSchema(formKey),
+    enabled: !!formKey,
+    retry: false,
+    staleTime: 60_000,
+  })
+
+  const fields = useMemo(() => {
+    const remote = schemaQuery.data?.fields
+    if (Array.isArray(remote) && remote.length > 0) {
+      return remote.map((f) => ({
+        name: f.name,
+        label: f.label || f.name,
+        placeholder: f.placeholder || '',
+      }))
+    }
+    return FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }]
+  }, [formKey, schemaQuery.data])
+
+  const fromMongo = schemaQuery.isSuccess && Array.isArray(schemaQuery.data?.fields)
   const schema = useMemo(() => buildSchema(fields), [fields])
 
   const defaultValues = useMemo(() => {
@@ -86,7 +106,11 @@ export default function DynamicForm({ formKey, disabled, onSubmit }) {
       <form className="space-y-4" onSubmit={form.handleSubmit(submit)} noValidate>
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Form · {formKey || 'generic'}
+          {fromMongo ? ' · Mongo schema' : schemaQuery.isError ? ' · local fallback' : ''}
         </p>
+        {schemaQuery.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading form schema from MongoDB…</p>
+        )}
         {fields.map((f) => (
           <FormField
             key={f.name}

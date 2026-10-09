@@ -47,7 +47,7 @@ Used in constrained environments:
 | Service | Port (default) |
 |---------|----------------|
 | postgres | 5432 |
-| mongo | 27017 |
+| mongo | 27017 (`MONGODB_URI`, `AMMS_FORMS_STORE=mongo`; Spring Boot 4 uses `spring.mongodb.uri`) |
 | minio | 9000 / 9001 |
 | server | 18080 |
 | ui (optional compose) | 15173 |

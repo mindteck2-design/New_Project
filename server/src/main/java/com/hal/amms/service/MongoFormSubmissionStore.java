@@ -1,6 +1,8 @@
 package com.hal.amms.service;
 
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
@@ -8,11 +10,15 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Persists dynamic form submissions to MongoDB (ADR-002 required store for forms).
+ */
 @Component
 @ConditionalOnProperty(name = "amms.forms.store", havingValue = "mongo")
 public class MongoFormSubmissionStore implements FormSubmissionStore {
 
-    private static final String COLLECTION = "form_submissions";
+    private static final Logger log = LoggerFactory.getLogger(MongoFormSubmissionStore.class);
+    public static final String COLLECTION = "form_submissions";
 
     private final MongoTemplate mongoTemplate;
 
@@ -31,5 +37,6 @@ public class MongoFormSubmissionStore implements FormSubmissionStore {
                 .append("createdBy", createdBy.toString())
                 .append("createdAt", Instant.now());
         mongoTemplate.insert(doc, COLLECTION);
+        log.debug("Mongo form_submissions saved formKey={} instanceId={}", formKey, instanceId);
     }
 }

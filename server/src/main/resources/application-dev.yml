@@ -1,7 +1,7 @@
 spring:
-  data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://127.0.0.1:27017/amms}
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://127.0.0.1:27017/amms}
+    database: ${MONGODB_DATABASE:amms}
 
 amms:
   forms:

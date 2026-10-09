@@ -1,11 +1,13 @@
+# Local operator profile: Mongo for dynamic forms (ADR-002), filesystem attachments.
+# Set AMMS_FORMS_STORE=postgres only if mongod is unavailable.
+# Spring Boot 4: spring.mongodb.* (spring.data.mongodb.* is removed).
 spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://127.0.0.1:27017/amms}
+    database: ${MONGODB_DATABASE:amms}
 
 amms:
   forms:
-    store: postgres
+    store: ${AMMS_FORMS_STORE:mongo}
   attachments:
     store: filesystem

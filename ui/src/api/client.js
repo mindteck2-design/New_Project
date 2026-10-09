@@ -84,6 +84,13 @@ export async function fetchRoleAnalytics() {
   return data
 }
 
+/** Dynamic form schema from MongoDB (falls back client-side if 404). */
+export async function fetchFormSchema(formKey) {
+  if (!formKey) return null
+  const { data } = await api.get(`/forms/${encodeURIComponent(formKey)}`)
+  return data
+}
+
 /** Instances waiting on one of the current user's roles. */
 export function actionableNotifications(instances, user) {
   if (!user?.roles?.length || !instances?.length) return []

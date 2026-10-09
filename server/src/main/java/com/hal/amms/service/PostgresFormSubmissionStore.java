@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 @Component
-@ConditionalOnProperty(name = "amms.forms.store", havingValue = "postgres", matchIfMissing = true)
+/** Offline / test fallback only — production and local prefer Mongo (ADR-002). */
+@ConditionalOnProperty(name = "amms.forms.store", havingValue = "postgres")
 public class PostgresFormSubmissionStore implements FormSubmissionStore {
 
     private final WorkflowDao dao;
