@@ -2,6 +2,7 @@ import { Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/stores/authStore'
 import { DEMO_USERS, ROLE_LABELS } from '@/lib/demoUsers'
+import { primaryRoleGuidance } from '@/lib/roleGuidance'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -19,8 +20,12 @@ export default function RoleUserSwitcher({ compact = false }) {
     if (!username || username === user?.username) return
     try {
       const data = await switchUser(username)
-      toast.success(`Switched to ${data.user.displayName}`, {
-        description: (data.user.roles || []).map((r) => ROLE_LABELS[r] || r).join(' · '),
+      const guide = primaryRoleGuidance(data.user.roles || [])
+      toast.success(`Now acting as ${data.user.displayName}`, {
+        description: guide
+          ? guide.charge.slice(0, 140) + (guide.charge.length > 140 ? '…' : '')
+          : (data.user.roles || []).map((r) => ROLE_LABELS[r] || r).join(' · '),
+        duration: 5000,
       })
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not switch user')

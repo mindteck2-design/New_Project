@@ -105,6 +105,8 @@ export function actionableNotifications(instances, user) {
     .map((i) => ({
       id: i.instanceId,
       instanceId: i.instanceId,
+      workflowKey: i.workflowKey,
+      businessKey: i.businessKey,
       title: i.currentNode?.label || 'Action required',
       description: `${i.workflowName}${i.businessKey ? ` · ${i.businessKey}` : ''}`,
       roleCode: i.currentNode?.roleCode,

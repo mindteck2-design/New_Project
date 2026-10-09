@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Bell, ClipboardList, GitBranch, Play, BarChart3 } from 'lucide-react'
 import { actionableNotifications, fetchInstances, fetchWorkflows } from '@/api/client'
@@ -8,22 +8,23 @@ import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
+import RoleWorkBriefing from '@/components/RoleWorkBriefing'
+import PendingWorkQueue from '@/components/PendingWorkQueue'
 import RoleAnalytics from '@/components/RoleAnalytics'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 const QUICK_LINKS = [
-  { to: '/inbox', label: 'Action inbox', description: 'Steps waiting on your roles', icon: Bell },
+  { to: '/inbox', label: 'Action inbox', description: 'Full role-grouped pending queue', icon: Bell },
   { to: '/workflows', label: 'Workflows', description: 'Definitions and start actions', icon: Play },
   { to: '/process', label: 'Process map', description: 'XY graph for seeded charts', icon: GitBranch },
   { to: '/instances', label: 'Instances', description: 'Table, filters, Excel export', icon: ClipboardList },
   { to: '/analytics', label: 'Analytics', description: 'Role-curated KPIs', icon: BarChart3 },
 ]
 
-/** Overview home — links into dedicated activity routes (not a single mega-page). */
+/** Overview home — role briefing first, then pending work, then modules. */
 export default function WorkflowDashboard() {
   const { user } = useAuth()
-  const navigate = useNavigate()
 
   const workflows = useQuery({ queryKey: queryKeys.workflows.all, queryFn: fetchWorkflows })
   const instances = useQuery({ queryKey: queryKeys.instances.all(user?.id), queryFn: fetchInstances })
@@ -40,8 +41,8 @@ export default function WorkflowDashboard() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title="Workflow dashboard"
-          description="Operational overview. Open a module from the sidebar or cards below."
+          title="Your work today"
+          description="Curated for your active roles — pending steps first, then the modules you need."
           breadcrumbs={[{ label: 'Dashboard' }]}
           actions={
             <Button asChild size="sm">
@@ -52,6 +53,8 @@ export default function WorkflowDashboard() {
             </Button>
           }
         />
+
+        <RoleWorkBriefing user={user} pendingCount={inbox.length} />
 
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
           <div className="bg-card px-4 py-3.5">
@@ -81,6 +84,25 @@ export default function WorkflowDashboard() {
             </div>
           </div>
         </div>
+
+        <PendingWorkQueue
+          user={user}
+          items={inbox}
+          loading={instances.isLoading}
+          limit={8}
+          heading="Do these next"
+        />
+
+        {inbox.length > 8 && (
+          <div className="-mt-2">
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/inbox">
+                View all {inbox.length} in action inbox
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        )}
 
         <section aria-labelledby="modules-heading">
           <h2 id="modules-heading" className="mb-3 text-sm font-semibold tracking-tight">
@@ -127,39 +149,6 @@ export default function WorkflowDashboard() {
             </Button>
           </div>
           <RoleAnalytics />
-        </section>
-
-        <section aria-labelledby="recent-heading">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 id="recent-heading" className="text-sm font-semibold tracking-tight">
-              Recent actions
-            </h2>
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/inbox">Open inbox</Link>
-            </Button>
-          </div>
-          <div className="divide-y rounded-lg border bg-card">
-            {inbox.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No steps waiting — start a workflow or switch role.
-              </p>
-            )}
-            {inbox.slice(0, 5).map((item) => (
-              <Button
-                key={item.id}
-                type="button"
-                variant="ghost"
-                className="h-auto w-full justify-between gap-3 rounded-none px-4 py-3 text-left font-normal"
-                onClick={() => navigate(item.href)}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{item.title}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{item.description}</span>
-                </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Button>
-            ))}
-          </div>
         </section>
       </PageFrame>
     </Shell>

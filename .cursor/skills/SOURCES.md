@@ -14,5 +14,7 @@ Downloaded for AMMS Dynamic Workflow Engine development. Project skills live in 
 | `java-springboot` | https://github.com/github/awesome-copilot | Spring Boot practices |
 | `spring-boot-enterprise` | Adapted from https://github.com/jdubois/dr-jskill | Security/DB/React/Test refs |
 | `amms-enterprise-stack` | Project-authored | Binds skills to AMMS locked stack |
+| `building-components` | https://github.com/vercel/components.build | Accessible composable UI components |
+| `role-work-queue` | Project-authored (review-queue UX research) | Role briefing + pending action curation |
 
 **AMMS overrides:** jOOQ (not JPA), React Router DOM (not inventing TanStack Router), shadcn-only UI, Flyway-only schema, server-driven workflow.

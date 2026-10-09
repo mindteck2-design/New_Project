@@ -21,6 +21,8 @@ Project skills live in [`.cursor/skills/`](.cursor/skills/) — see [SOURCES.md]
 |-------|----------|
 | `amms-enterprise-stack` | Any AMMS feature work (master router) |
 | `anti-ui-slop` | Designing / redesigning UI (no toy UI) |
+| `role-work-queue` | Post-login role briefing + pending action queues |
+| `building-components` | Accessible composable component APIs |
 | `react-best-practices` | React components / pages |
 | `composition-patterns` | Component composition |
 | `web-design-guidelines` | UI/UX review |

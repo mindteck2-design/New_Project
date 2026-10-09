@@ -9,7 +9,8 @@ Read [`AGENTS.md`](../../../AGENTS.md) first. Then apply the matching installed 
 
 | Work type | Skill to load |
 |-----------|----------------|
-| React UI / pages / components | `react-best-practices`, `composition-patterns`, `anti-ui-slop` |
+| React UI / pages / components | `react-best-practices`, `composition-patterns`, `anti-ui-slop`, `building-components` |
+| Role inbox / post-login briefing | `role-work-queue` |
 | UI review / a11y / polish | `web-design-guidelines` |
 | TanStack Query / mutations / cache | `tanstack-query` |
 | Spring Boot / Security / tests | `spring-boot-enterprise`, `java-springboot` |

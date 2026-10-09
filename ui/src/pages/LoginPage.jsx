@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Workflow } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
-import { DEMO_USERS } from '@/lib/demoUsers'
+import { DEMO_USERS, ROLE_LABELS } from '@/lib/demoUsers'
+import { primaryRoleGuidance } from '@/lib/roleGuidance'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -44,8 +45,16 @@ export default function LoginPage() {
 
   async function onSubmit(values) {
     try {
-      await login(values.username, values.password)
-      toast.success('Welcome back')
+      const session = await login(values.username, values.password)
+      const roles = session?.user?.roles || []
+      const guide = primaryRoleGuidance(roles)
+      const roleLine = roles.map((r) => ROLE_LABELS[r] || r).join(' · ')
+      toast.success(guide ? `${guide.title} signed in` : 'Signed in', {
+        description: guide
+          ? `${guide.charge.slice(0, 120)}${guide.charge.length > 120 ? '…' : ''}`
+          : roleLine || 'Open your briefing on the dashboard.',
+        duration: 5500,
+      })
       navigate('/')
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Login failed')
