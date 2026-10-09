@@ -8,14 +8,14 @@ export const ROLE_GUIDANCE = {
   PROGRESS: {
     title: 'Progress Officer',
     charge:
-      'You own intake, spares demand, and document handoffs on Accessories Bench Check. When a step waits on Progress, complete the form and release the instance to Inspection.',
+      'You own work packages against aircraft PO/SO — ROUTINE or REPAIR — plus intake and document handoffs. Create the package, add parts, and open each part to start its master workflow.',
     whenClear:
-      'Nothing is waiting on Progress right now. Start an Accessories Bench Check when a unit arrives, or stay ready for the next handoff.',
-    primaryWhenClear: { to: '/workflows', label: 'Start a workflow' },
+      'Nothing is waiting on Progress right now. Open Work packages to map a PO/SO, or stay ready for the next handoff.',
+    primaryWhenClear: { to: '/packages', label: 'Open work packages' },
     typicalDuties: [
-      'Receive units for bench check and open the Accessories instance',
-      'Record spares demand / supply before Inspection tests',
-      'Return rotable documents when Inspection permits repair',
+      'Create a work package from PO/SO and choose ROUTINE or REPAIR',
+      'Add parts and open them one by one for test / reassemble',
+      'Record spares demand and document handoffs on running steps',
     ],
   },
   INSPECTION: {
@@ -47,12 +47,12 @@ export const ROLE_GUIDANCE = {
   QA: {
     title: 'QA / ORDAQA',
     charge:
-      'You oversee completed work and quality visibility. Running steps rarely assign QA in the MVP charts — use analytics and completed instances for assurance.',
+      'You oversee completed work and quality visibility. Review package test reports by PO/SO and use analytics for assurance.',
     whenClear:
-      'No live steps require QA action. Review completed instances and role analytics for assurance coverage.',
-    primaryWhenClear: { to: '/analytics', label: 'Open role analytics' },
+      'No live steps require QA action. Open package reports or role analytics for assurance coverage.',
+    primaryWhenClear: { to: '/packages', label: 'Review work packages' },
     typicalDuties: [
-      'Review completed Accessories and NDT outcomes',
+      'Review package test reports after all parts close',
       'Monitor role analytics for backlog and throughput',
       'Escalate process gaps through the audit trail',
     ],

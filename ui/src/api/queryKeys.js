@@ -26,4 +26,9 @@ export const queryKeys = {
   roles: {
     all: ['roles'],
   },
+  packages: {
+    all: ['packages'],
+    detail: (id) => ['package', id],
+    report: (id) => ['package-report', id],
+  },
 }

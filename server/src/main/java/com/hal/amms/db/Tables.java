@@ -120,4 +120,30 @@ public final class Tables {
     public static final Field<UUID> NR_NOTIFICATION_ID = DSL.field(DSL.name("notification_reads", "notification_id"), UUID.class);
     public static final Field<UUID> NR_USER_ID = DSL.field(DSL.name("notification_reads", "user_id"), UUID.class);
     public static final Field<OffsetDateTime> NR_READ_AT = DSL.field(DSL.name("notification_reads", "read_at"), OffsetDateTime.class);
+
+    public static final Table<Record> WORK_PACKAGES = DSL.table(DSL.name("work_packages"));
+    public static final Field<UUID> WP_ID = DSL.field(DSL.name("work_packages", "id"), UUID.class);
+    public static final Field<String> WP_PACKAGE_NO = DSL.field(DSL.name("work_packages", "package_no"), String.class);
+    public static final Field<String> WP_AIRCRAFT_ID = DSL.field(DSL.name("work_packages", "aircraft_id"), String.class);
+    public static final Field<String> WP_PO = DSL.field(DSL.name("work_packages", "po_number"), String.class);
+    public static final Field<String> WP_SO = DSL.field(DSL.name("work_packages", "so_number"), String.class);
+    public static final Field<String> WP_TESTING_TYPE = DSL.field(DSL.name("work_packages", "testing_type"), String.class);
+    public static final Field<UUID> WP_DEFINITION_ID = DSL.field(DSL.name("work_packages", "workflow_definition_id"), UUID.class);
+    public static final Field<String> WP_STATUS = DSL.field(DSL.name("work_packages", "status"), String.class);
+    public static final Field<String> WP_NOTES = DSL.field(DSL.name("work_packages", "notes"), String.class);
+    public static final Field<UUID> WP_CREATED_BY = DSL.field(DSL.name("work_packages", "created_by"), UUID.class);
+    public static final Field<OffsetDateTime> WP_CREATED_AT = DSL.field(DSL.name("work_packages", "created_at"), OffsetDateTime.class);
+    public static final Field<OffsetDateTime> WP_UPDATED_AT = DSL.field(DSL.name("work_packages", "updated_at"), OffsetDateTime.class);
+
+    public static final Table<Record> WORK_PACKAGE_PARTS = DSL.table(DSL.name("work_package_parts"));
+    public static final Field<UUID> WPP_ID = DSL.field(DSL.name("work_package_parts", "id"), UUID.class);
+    public static final Field<UUID> WPP_PACKAGE_ID = DSL.field(DSL.name("work_package_parts", "package_id"), UUID.class);
+    public static final Field<Integer> WPP_SEQ = DSL.field(DSL.name("work_package_parts", "sequence_no"), Integer.class);
+    public static final Field<String> WPP_PART_NO = DSL.field(DSL.name("work_package_parts", "part_no"), String.class);
+    public static final Field<String> WPP_SERIAL = DSL.field(DSL.name("work_package_parts", "serial_no"), String.class);
+    public static final Field<String> WPP_DESCRIPTION = DSL.field(DSL.name("work_package_parts", "description"), String.class);
+    public static final Field<String> WPP_STATUS = DSL.field(DSL.name("work_package_parts", "status"), String.class);
+    public static final Field<UUID> WPP_INSTANCE_ID = DSL.field(DSL.name("work_package_parts", "instance_id"), UUID.class);
+    public static final Field<OffsetDateTime> WPP_OPENED_AT = DSL.field(DSL.name("work_package_parts", "opened_at"), OffsetDateTime.class);
+    public static final Field<OffsetDateTime> WPP_CLOSED_AT = DSL.field(DSL.name("work_package_parts", "closed_at"), OffsetDateTime.class);
 }

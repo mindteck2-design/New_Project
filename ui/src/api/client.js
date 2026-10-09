@@ -139,6 +139,37 @@ export async function deleteFormSchema(formKey) {
   return data
 }
 
+/** Aircraft work packages (PO/SO + ROUTINE|REPAIR + parts). */
+export async function fetchPackages() {
+  const { data } = await api.get('/packages')
+  return data
+}
+
+export async function fetchPackage(id) {
+  const { data } = await api.get(`/packages/${id}`)
+  return data
+}
+
+export async function createPackage(body) {
+  const { data } = await api.post('/packages', body)
+  return data
+}
+
+export async function addPackagePart(packageId, body) {
+  const { data } = await api.post(`/packages/${packageId}/parts`, body)
+  return data
+}
+
+export async function openPackagePart(packageId, partId) {
+  const { data } = await api.post(`/packages/${packageId}/parts/${partId}/open`)
+  return data
+}
+
+export async function fetchPackageReport(packageId) {
+  const { data } = await api.get(`/packages/${packageId}/report`)
+  return data
+}
+
 /** Instances waiting on one of the current user's roles. */
 export function actionableNotifications(instances, user) {
   if (!user?.roles?.length || !instances?.length) return []

@@ -11,6 +11,7 @@ import InstancePage from '@/pages/InstancePage'
 import FormsPage from '@/pages/FormsPage'
 import WorkflowDetailPage from '@/pages/WorkflowDetailPage'
 import WorkflowBuilderPage from '@/pages/WorkflowBuilderPage'
+import PackagesPage from '@/pages/PackagesPage'
 
 function RequireAuth({ children }) {
   const { isAuthenticated } = useAuth()
@@ -126,6 +127,38 @@ export default function App() {
         element={
           <RequireAuth>
             <FormsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/packages"
+        element={
+          <RequireAuth>
+            <PackagesPage mode="list" />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/packages/new"
+        element={
+          <RequireAuth>
+            <PackagesPage mode="new" />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/packages/:id"
+        element={
+          <RequireAuth>
+            <PackagesPage mode="detail" />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/packages/:id/report"
+        element={
+          <RequireAuth>
+            <PackagesPage mode="report" />
           </RequireAuth>
         }
       />

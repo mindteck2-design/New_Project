@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Bell, ClipboardList, GitBranch, Play, BarChart3 } from 'lucide-react'
+import { ArrowRight, Bell, ClipboardList, GitBranch, Package, Play, BarChart3 } from 'lucide-react'
 import { actionableNotifications, fetchInstances, fetchWorkflows } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 
 const QUICK_LINKS = [
   { to: '/inbox', label: 'Action inbox', description: 'Full role-grouped pending queue', icon: Bell },
+  { to: '/packages', label: 'Work packages', description: 'PO/SO · ROUTINE or REPAIR · parts', icon: Package },
   { to: '/workflows', label: 'Workflows', description: 'Definitions and start actions', icon: Play },
   { to: '/process', label: 'Process map', description: 'XY graph for seeded charts', icon: GitBranch },
   { to: '/instances', label: 'Instances', description: 'Table, filters, Excel export', icon: ClipboardList },
@@ -45,12 +46,20 @@ export default function WorkflowDashboard() {
           description="Curated for your active roles — pending steps first, then the modules you need."
           breadcrumbs={[{ label: 'Dashboard' }]}
           actions={
-            <Button asChild size="sm">
-              <Link to="/workflows">
-                <Play className="h-3.5 w-3.5" />
-                Start workflow
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link to="/packages">
+                  <Package className="h-3.5 w-3.5" />
+                  Work packages
+                </Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/workflows">
+                  <Play className="h-3.5 w-3.5" />
+                  Start workflow
+                </Link>
+              </Button>
+            </div>
           }
         />
 

@@ -9,8 +9,10 @@ import com.hal.amms.security.UserPrincipal;
 import com.hal.amms.service.AttachmentStorageService;
 import com.hal.amms.service.FormSubmissionStore;
 import com.hal.amms.service.NotificationService;
+import com.hal.amms.service.WorkPackageService;
 import com.hal.amms.web.ApiException;
 import com.hal.amms.web.dto.ApiDtos.*;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,7 @@ public class WorkflowService {
     private final AttachmentStorageService attachments;
     private final FormSubmissionStore formStore;
     private final NotificationService notifications;
+    private final ObjectProvider<WorkPackageService> workPackages;
 
     public WorkflowService(
             WorkflowDao dao,
@@ -34,7 +37,8 @@ public class WorkflowService {
             ObjectMapper mapper,
             AttachmentStorageService attachments,
             FormSubmissionStore formStore,
-            NotificationService notifications
+            NotificationService notifications,
+            ObjectProvider<WorkPackageService> workPackages
     ) {
         this.dao = dao;
         this.decisionEngine = decisionEngine;
@@ -42,6 +46,7 @@ public class WorkflowService {
         this.attachments = attachments;
         this.formStore = formStore;
         this.notifications = notifications;
+        this.workPackages = workPackages;
     }
 
     public List<WorkflowSummary> listWorkflows() {
@@ -401,6 +406,13 @@ public class WorkflowService {
                     next.label(),
                     def.name() + " — next step waiting"
             );
+        }
+        // Keep work-package part lines in sync when this instance is bound to a part.
+        if ("COMPLETED".equals(status) || "CANCELLED".equals(status)) {
+            WorkPackageService wp = workPackages.getIfAvailable();
+            if (wp != null) {
+                wp.syncPartFromInstance(updated.id());
+            }
         }
         return toView(updated, def, user);
     }

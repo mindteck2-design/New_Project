@@ -10,6 +10,7 @@ import {
   GitBranch,
   LayoutDashboard,
   LogOut,
+  Package,
   Play,
   Workflow,
 } from 'lucide-react'
@@ -61,6 +62,13 @@ const NAV_GROUPS = [
         icon: Bell,
         badge: true,
         match: (pathname) => pathname.startsWith('/inbox'),
+      },
+      {
+        id: 'packages',
+        to: '/packages',
+        label: 'Work packages',
+        icon: Package,
+        match: (pathname) => pathname === '/packages' || pathname.startsWith('/packages/'),
       },
       {
         id: 'workflows',

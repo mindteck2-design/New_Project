@@ -62,4 +62,11 @@ cp .env.example .env
 - Accessories Bench Check / Repair
 - NDT Radiography
 
+## Work packages (PO/SO)
+
+Master workflows stay as templates. Shop execution uses **work packages** mapped to aircraft **PO/SO** with testing type **ROUTINE** or **REPAIR**. Operators add parts, open them one by one (starts a workflow instance), complete disassemble → test → reassemble steps, and view the consolidated **test report** in-app.
+
+- UI: `/packages` · API: `/api/v1/packages`
+- Design: [`docs/AIRCRAFT_WORK_PACKAGE.md`](docs/AIRCRAFT_WORK_PACKAGE.md)
+
 Deferred aircraft A-2/A-3/A-4, Stores, plating — see `docs/workflows/INVENTORY.md`.
