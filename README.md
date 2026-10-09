@@ -44,7 +44,11 @@ cp config/.env.example config/.env
 
 ## Docs
 
-Start with [`AGENTS.md`](AGENTS.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+Start with [`AGENTS.md`](AGENTS.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md). Phase completion: [`docs/PHASES.md`](docs/PHASES.md).
+
+```bash
+./scripts/verify.sh   # tests + UI build (+ healthcheck if server up)
+```
 
 ## MVP workflows
 

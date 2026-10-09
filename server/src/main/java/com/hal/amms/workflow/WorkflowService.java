@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hal.amms.dao.WorkflowDao;
 import com.hal.amms.model.Models.*;
 import com.hal.amms.security.UserPrincipal;
+import com.hal.amms.service.AttachmentStorageService;
 import com.hal.amms.web.ApiException;
 import com.hal.amms.web.dto.ApiDtos.*;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +22,18 @@ public class WorkflowService {
     private final WorkflowDao dao;
     private final DecisionEngine decisionEngine;
     private final ObjectMapper mapper;
+    private final AttachmentStorageService attachments;
 
-    public WorkflowService(WorkflowDao dao, DecisionEngine decisionEngine, ObjectMapper mapper) {
+    public WorkflowService(
+            WorkflowDao dao,
+            DecisionEngine decisionEngine,
+            ObjectMapper mapper,
+            AttachmentStorageService attachments
+    ) {
         this.dao = dao;
         this.decisionEngine = decisionEngine;
         this.mapper = mapper;
+        this.attachments = attachments;
     }
 
     public List<WorkflowSummary> listWorkflows() {
@@ -74,6 +83,10 @@ public class WorkflowService {
 
     public List<InstanceView> listInstances(UserPrincipal user) {
         return dao.listInstances().stream()
+                .filter(i -> {
+                    WorkflowDefinition def = dao.findDefinitionById(i.definitionId()).orElseThrow();
+                    return canViewInstance(i, def, user);
+                })
                 .map(i -> {
                     WorkflowDefinition def = dao.findDefinitionById(i.definitionId()).orElseThrow();
                     return toView(i, def, user);
@@ -85,6 +98,9 @@ public class WorkflowService {
         WorkflowInstance instance = dao.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
         WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        if (!canViewInstance(instance, def, user)) {
+            throw ApiException.forbidden("Not authorized to view this instance");
+        }
         return toView(instance, def, user);
     }
 
@@ -176,13 +192,55 @@ public class WorkflowService {
                 .toList();
     }
 
-    public List<DocumentView> listDocuments(UUID id) {
-        if (!dao.instanceExists(id)) {
-            throw ApiException.notFound("Instance not found");
+    public List<DocumentView> listDocuments(UUID id, UserPrincipal user) {
+        WorkflowInstance instance = dao.findInstance(id)
+                .orElseThrow(() -> ApiException.notFound("Instance not found"));
+        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        if (!canViewInstance(instance, def, user)) {
+            throw ApiException.forbidden("Not authorized to view instance documents");
         }
         return dao.documentsFor(id).stream()
                 .map(d -> new DocumentView(d.id(), d.fileName(), d.contentType(), d.nodeKey(), d.uploadedAt()))
                 .toList();
+    }
+
+    public Resource loadDocument(UUID instanceId, UUID documentId, UserPrincipal user) {
+        WorkflowInstance instance = dao.findInstance(instanceId)
+                .orElseThrow(() -> ApiException.notFound("Instance not found"));
+        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        if (!canViewInstance(instance, def, user)) {
+            throw ApiException.forbidden("Not authorized to download attachment");
+        }
+        DocumentEntry doc = dao.findDocument(documentId)
+                .orElseThrow(() -> ApiException.notFound("Document not found"));
+        if (!doc.instanceId().equals(instanceId)) {
+            throw ApiException.notFound("Document not found");
+        }
+        Resource resource = attachments.loadAsResource(doc.storageKey());
+        if (resource == null || !resource.exists()) {
+            throw ApiException.notFound("File missing from storage");
+        }
+        return resource;
+    }
+
+    public String documentContentType(UUID instanceId, UUID documentId, UserPrincipal user) {
+        WorkflowInstance instance = dao.findInstance(instanceId).orElseThrow();
+        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        if (!canViewInstance(instance, def, user)) {
+            throw ApiException.forbidden("Not authorized");
+        }
+        return dao.findDocument(documentId)
+                .filter(d -> d.instanceId().equals(instanceId))
+                .map(DocumentEntry::contentType)
+                .orElse("application/octet-stream");
+    }
+
+    public String documentFileName(UUID instanceId, UUID documentId, UserPrincipal user) {
+        dao.findInstance(instanceId).orElseThrow(() -> ApiException.notFound("Instance not found"));
+        return dao.findDocument(documentId)
+                .filter(d -> d.instanceId().equals(instanceId))
+                .map(DocumentEntry::fileName)
+                .orElse("download.bin");
     }
 
     @Transactional
@@ -202,6 +260,23 @@ public class WorkflowService {
     private Optional<String> resolveNext(UUID definitionId, String from, String decisionValue) {
         return decisionEngine.resolve(dao.transitionsFrom(definitionId, from), decisionValue)
                 .map(WorkflowTransition::toNodeKey);
+    }
+
+    private boolean canViewInstance(WorkflowInstance instance, WorkflowDefinition def, UserPrincipal user) {
+        if (instance.startedBy() != null && instance.startedBy().equals(user.getId())) {
+            return true;
+        }
+        if (dao.userParticipated(instance.id(), user.getId())) {
+            return true;
+        }
+        WorkflowNode node = dao.findNode(def.id(), instance.currentNodeKey()).orElse(null);
+        if (node == null) {
+            return false;
+        }
+        if (node.roleCode() == null || node.roleCode().isBlank()) {
+            return true;
+        }
+        return user.getRoles().stream().anyMatch(r -> r.equalsIgnoreCase(node.roleCode()));
     }
 
     private void assertRole(UserPrincipal user, WorkflowNode node) {

@@ -226,6 +226,23 @@ public class WorkflowDao {
                 ));
     }
 
+    public Optional<DocumentEntry> findDocument(UUID documentId) {
+        return dsl.select(DOC_ID, DOC_INSTANCE_ID, DOC_NODE_KEY, DOC_FILE_NAME, DOC_CONTENT_TYPE, DOC_STORAGE_KEY, DOC_UPLOADED_BY, DOC_UPLOADED_AT)
+                .from(DOCUMENTS)
+                .where(DOC_ID.eq(documentId))
+                .fetchOptional(r -> new DocumentEntry(
+                        r.get(DOC_ID), r.get(DOC_INSTANCE_ID), r.get(DOC_NODE_KEY), r.get(DOC_FILE_NAME),
+                        r.get(DOC_CONTENT_TYPE), r.get(DOC_STORAGE_KEY), r.get(DOC_UPLOADED_BY),
+                        toInstant(r.get(DOC_UPLOADED_AT))
+                ));
+    }
+
+    public boolean userParticipated(UUID instanceId, UUID userId) {
+        return dsl.fetchExists(
+                dsl.selectOne().from(AUDIT_LOGS).where(AL_INSTANCE_ID.eq(instanceId).and(AL_USER_ID.eq(userId)))
+        );
+    }
+
     private WorkflowInstance mapInstance(org.jooq.Record r) {
         return new WorkflowInstance(
                 r.get(WI_ID), r.get(WI_DEFINITION_ID), r.get(WI_BUSINESS_KEY), r.get(WI_STATUS),

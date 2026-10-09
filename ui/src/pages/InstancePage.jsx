@@ -7,6 +7,7 @@ import Shell from '@/components/Shell'
 import DecisionNode from '@/components/DecisionNode'
 import DynamicForm from '@/components/DynamicForm'
 import WorkflowChart from '@/components/WorkflowChart'
+import DocumentPanel from '@/components/DocumentPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -135,6 +136,8 @@ export default function InstancePage() {
             </Card>
           </div>
 
+          <div className="space-y-6">
+          <DocumentPanel instanceId={id} />
           <Card className="h-fit">
             <CardHeader>
               <CardTitle>Audit trail</CardTitle>
@@ -159,6 +162,7 @@ export default function InstancePage() {
               </ol>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
     </Shell>

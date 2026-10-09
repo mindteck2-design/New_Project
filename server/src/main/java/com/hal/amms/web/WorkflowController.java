@@ -1,14 +1,17 @@
 package com.hal.amms.web;
 
 import com.hal.amms.security.UserPrincipal;
+import com.hal.amms.service.AttachmentStorageService;
 import com.hal.amms.web.dto.ApiDtos.*;
 import com.hal.amms.workflow.WorkflowService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,14 +21,11 @@ import java.util.UUID;
 public class WorkflowController {
 
     private final WorkflowService workflowService;
-    private final Path attachmentsDir;
+    private final AttachmentStorageService attachmentStorage;
 
-    public WorkflowController(
-            WorkflowService workflowService,
-            @org.springframework.beans.factory.annotation.Value("${amms.attachments.dir:.data/attachments}") String attachmentsDir
-    ) {
+    public WorkflowController(WorkflowService workflowService, AttachmentStorageService attachmentStorage) {
         this.workflowService = workflowService;
-        this.attachmentsDir = Path.of(attachmentsDir).toAbsolutePath().normalize();
+        this.attachmentStorage = attachmentStorage;
     }
 
     @GetMapping("/workflows")
@@ -77,13 +77,29 @@ public class WorkflowController {
     }
 
     @GetMapping("/instances/{id}/audit")
-    public List<AuditView> audit(@PathVariable UUID id) {
+    public List<AuditView> audit(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal user) {
+        workflowService.getInstance(id, user);
         return workflowService.audit(id);
     }
 
     @GetMapping("/instances/{id}/documents")
-    public List<DocumentView> documents(@PathVariable UUID id) {
-        return workflowService.listDocuments(id);
+    public List<DocumentView> documents(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal user) {
+        return workflowService.listDocuments(id, user);
+    }
+
+    @GetMapping("/instances/{instanceId}/documents/{documentId}/content")
+    public ResponseEntity<Resource> downloadDocument(
+            @PathVariable UUID instanceId,
+            @PathVariable UUID documentId,
+            @AuthenticationPrincipal UserPrincipal user
+    ) {
+        Resource body = workflowService.loadDocument(instanceId, documentId, user);
+        String fileName = workflowService.documentFileName(instanceId, documentId, user);
+        String contentType = workflowService.documentContentType(instanceId, documentId, user);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentType(MediaType.parseMediaType(contentType == null ? "application/octet-stream" : contentType))
+                .body(body);
     }
 
     @PostMapping("/instances/{id}/documents")
@@ -92,11 +108,8 @@ public class WorkflowController {
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal user
     ) throws Exception {
-        Files.createDirectories(attachmentsDir);
         String storageKey = id + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
-        Path target = attachmentsDir.resolve(storageKey);
-        Files.createDirectories(target.getParent());
-        file.transferTo(target);
+        attachmentStorage.store(storageKey, file);
         return workflowService.storeDocument(
                 id,
                 file.getOriginalFilename() == null ? "upload.bin" : file.getOriginalFilename(),

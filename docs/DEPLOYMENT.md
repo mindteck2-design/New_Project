@@ -50,3 +50,13 @@ Used in constrained environments:
 
 - Server: `GET /actuator/health`
 - Script: `scripts/healthcheck.sh`
+
+## Full verification (all phases)
+
+```bash
+./scripts/verify.sh
+```
+
+Runs server unit + integration tests (PostgreSQL required for integration), UI production build, and healthcheck when the server is already running.
+
+See [`docs/PHASES.md`](docs/PHASES.md) for phase completion status.

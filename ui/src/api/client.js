@@ -68,6 +68,25 @@ export async function fetchAudit(id) {
   return data
 }
 
+export async function fetchDocuments(id) {
+  const { data } = await api.get(`/instances/${id}/documents`)
+  return data
+}
+
+export async function uploadDocument(id, file) {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post(`/instances/${id}/documents`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export function documentDownloadUrl(instanceId, documentId) {
+  const base = import.meta.env.VITE_API_URL || 'http://127.0.0.1:18080/api/v1'
+  return `${base}/instances/${instanceId}/documents/${documentId}/content`
+}
+
 /** Instances waiting on one of the current user's roles. */
 export function actionableNotifications(instances, user) {
   if (!user?.roles?.length || !instances?.length) return []

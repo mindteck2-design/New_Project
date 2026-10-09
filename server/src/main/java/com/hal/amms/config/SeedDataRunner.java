@@ -15,6 +15,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 @Component
+@ConditionalOnProperty(name = "amms.seed.enabled", havingValue = "true", matchIfMissing = true)
 public class SeedDataRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedDataRunner.class);

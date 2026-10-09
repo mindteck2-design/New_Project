@@ -38,6 +38,7 @@ amms:
   attachments:
     dir: ${AMMS_ATTACHMENTS_DIR:.data/attachments}
   seed:
+    enabled: ${AMMS_SEED_ENABLED:true}
     password: ${SEED_PASSWORD:Passw0rd!}
   workflows-dir: ${AMMS_WORKFLOWS_DIR:../docs/workflows}
 
