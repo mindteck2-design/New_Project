@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   Bell,
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  GitBranch,
   LayoutDashboard,
   LogOut,
+  Play,
   Workflow,
 } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
@@ -36,15 +38,14 @@ const NAV_GROUPS = [
         to: '/',
         label: 'Dashboard',
         icon: LayoutDashboard,
-        match: (pathname, hash) => pathname === '/' && !hash,
+        match: (pathname) => pathname === '/',
       },
       {
         id: 'analytics',
-        to: '/#analytics',
+        to: '/analytics',
         label: 'Analytics',
         icon: BarChart3,
-        hash: 'analytics',
-        match: (pathname, hash) => pathname === '/' && hash === 'analytics',
+        match: (pathname) => pathname.startsWith('/analytics'),
       },
     ],
   },
@@ -54,40 +55,36 @@ const NAV_GROUPS = [
     items: [
       {
         id: 'inbox',
-        to: '/#inbox',
+        to: '/inbox',
         label: 'Action inbox',
         icon: Bell,
-        hash: 'inbox',
         badge: true,
-        match: (pathname, hash) => pathname === '/' && hash === 'inbox',
+        match: (pathname) => pathname.startsWith('/inbox'),
+      },
+      {
+        id: 'workflows',
+        to: '/workflows',
+        label: 'Workflows',
+        icon: Play,
+        match: (pathname) => pathname.startsWith('/workflows'),
       },
       {
         id: 'process',
-        to: '/#process',
+        to: '/process',
         label: 'Process map',
-        icon: ClipboardList,
-        hash: 'process',
-        match: (pathname, hash) => pathname === '/' && hash === 'process',
+        icon: GitBranch,
+        match: (pathname) => pathname.startsWith('/process'),
       },
       {
         id: 'instances',
-        to: '/#instances',
+        to: '/instances',
         label: 'Instances',
-        icon: Workflow,
-        hash: 'instances',
-        match: (pathname, hash) =>
-          pathname.startsWith('/instances') || (pathname === '/' && hash === 'instances'),
+        icon: ClipboardList,
+        match: (pathname) => pathname.startsWith('/instances'),
       },
     ],
   },
 ]
-
-function scrollToHash(hash) {
-  if (!hash) return
-  window.setTimeout(() => {
-    document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, 60)
-}
 
 function NavItem({ item, collapsed, active, unreadCount, onNavigate }) {
   const Icon = item.icon
@@ -103,11 +100,7 @@ function NavItem({ item, collapsed, active, unreadCount, onNavigate }) {
         active && 'bg-accent text-accent-foreground',
       )}
     >
-      <Link
-        to={item.hash ? '/' : item.to}
-        onClick={(e) => onNavigate(item, e)}
-        aria-current={active ? 'page' : undefined}
-      >
+      <Link to={item.to} onClick={() => onNavigate?.()} aria-current={active ? 'page' : undefined}>
         <Icon className="h-4 w-4 shrink-0" />
         {!collapsed && (
           <>
@@ -140,8 +133,7 @@ function NavItem({ item, collapsed, active, unreadCount, onNavigate }) {
 }
 
 /**
- * Persistent app navigation rail — expanded or icon-collapsed.
- * Desktop: fixed column. Mobile: rendered inside Sheet by Shell.
+ * Persistent app navigation rail — React Router links (no hash scrolling).
  */
 export default function AppSidebar({
   className,
@@ -152,10 +144,8 @@ export default function AppSidebar({
   showCollapseToggle = true,
 }) {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const roles = user?.roles || []
-  const hash = (location.hash || '').replace(/^#/, '')
 
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
     try {
@@ -180,24 +170,6 @@ export default function AppSidebar({
     onCollapsedChange?.(next)
   }
 
-  useEffect(() => {
-    if (location.pathname === '/' && hash) {
-      scrollToHash(hash)
-    }
-  }, [location.pathname, hash])
-
-  function handleNav(item, e) {
-    onNavigate?.()
-    if (!item.hash) return
-    e.preventDefault()
-    if (location.pathname !== '/') {
-      navigate(`/#${item.hash}`)
-    } else {
-      window.history.replaceState(null, '', `/#${item.hash}`)
-      scrollToHash(item.hash)
-    }
-  }
-
   const initials = (user?.displayName || 'U')
     .split(' ')
     .map((p) => p[0])
@@ -215,28 +187,37 @@ export default function AppSidebar({
         )}
         data-collapsed={collapsed || undefined}
       >
-        {/* Brand */}
         <div
           className={cn(
             'flex h-14 shrink-0 items-center border-b border-border',
             collapsed ? 'justify-center px-2' : 'gap-2.5 px-4',
           )}
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Workflow className="h-4 w-4" />
-          </span>
-          {!collapsed && (
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold leading-none tracking-tight">AMMS</div>
-              <div className="mt-1 truncate text-[10px] text-muted-foreground">
-                Workflow Engine
+          <Link
+            to="/"
+            onClick={() => onNavigate?.()}
+            className={cn(
+              'flex min-w-0 items-center no-underline',
+              collapsed ? 'justify-center' : 'gap-2.5',
+            )}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Workflow className="h-4 w-4" />
+            </span>
+            {!collapsed && (
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold leading-none tracking-tight text-foreground">
+                  AMMS
+                </div>
+                <div className="mt-1 truncate text-[10px] text-muted-foreground">
+                  Workflow Engine
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Primary">
           {NAV_GROUPS.map((group, gi) => (
             <div key={group.id} className={cn(gi > 0 && 'mt-4')}>
               {!collapsed ? (
@@ -247,25 +228,21 @@ export default function AppSidebar({
                 gi > 0 && <Separator className="mx-auto mb-3 w-6" />
               )}
               <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => {
-                  const active = item.match(location.pathname, hash)
-                  return (
-                    <NavItem
-                      key={item.id}
-                      item={item}
-                      collapsed={collapsed}
-                      active={active}
-                      unreadCount={unreadCount}
-                      onNavigate={handleNav}
-                    />
-                  )
-                })}
+                {group.items.map((item) => (
+                  <NavItem
+                    key={item.id}
+                    item={item}
+                    collapsed={collapsed}
+                    active={item.match(location.pathname)}
+                    unreadCount={unreadCount}
+                    onNavigate={onNavigate}
+                  />
+                ))}
               </div>
             </div>
           ))}
         </nav>
 
-        {/* Footer: roles + user + collapse */}
         <div className="mt-auto shrink-0 border-t border-border">
           {!collapsed && roles.length > 0 && (
             <div className="px-3 pt-3">

@@ -5,6 +5,7 @@ import { ShieldAlert } from 'lucide-react'
 import { fetchAudit, fetchInstance, fetchWorkflowDefinition, transition } from '@/api/client'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
+import PageFrame from '@/components/PageFrame'
 import DecisionNode from '@/components/DecisionNode'
 import DynamicForm from '@/components/DynamicForm'
 import WorkflowChart from '@/components/WorkflowChart'
@@ -50,7 +51,7 @@ export default function InstancePage() {
 
   return (
     <Shell>
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 animate-soft-in">
+      <PageFrame>
         <PageHeader
           title={data?.workflowName || 'Instance'}
           description={
@@ -60,11 +61,15 @@ export default function InstancePage() {
                 ? 'Loading instance…'
                 : 'Instance unavailable'
           }
-          backTo="/"
-          backLabel="Dashboard"
+          backTo="/instances"
+          backLabel="Instances"
           breadcrumbs={[
             { label: 'Dashboard', to: '/' },
-            { label: data?.workflowName || 'Workflow', to: '/#process' },
+            { label: 'Instances', to: '/instances' },
+            {
+              label: data?.workflowName || 'Workflow',
+              to: data?.workflowKey ? `/process/${data.workflowKey}` : '/process',
+            },
             { label: shortId },
           ]}
           actions={
@@ -208,7 +213,7 @@ export default function InstancePage() {
             </section>
           </>
         )}
-      </div>
+      </PageFrame>
     </Shell>
   )
 }
