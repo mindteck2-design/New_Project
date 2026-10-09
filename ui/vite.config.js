@@ -24,9 +24,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      host: '127.0.0.1',
+      // 0.0.0.0 so Cursor cloud / remote browser previews can reach the UI
+      host: '0.0.0.0',
       port: uiPort,
       strictPort: true,
+      allowedHosts: true,
       // Same-origin /api proxy avoids browser CORS during local/preview development
       proxy: {
         '/api': {
@@ -37,8 +39,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     preview: {
-      host: '127.0.0.1',
+      host: '0.0.0.0',
       port: uiPort,
+      allowedHosts: true,
       proxy: {
         '/api': {
           target: apiProxyTarget,

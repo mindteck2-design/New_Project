@@ -16,6 +16,7 @@ cd "$ROOT/ui"
 if [[ ! -d node_modules ]]; then
   npm install
 fi
-nohup npm run dev -- --host 127.0.0.1 --port "$UI_PORT" >"$ROOT/.data/ui.log" 2>&1 &
+# Bind all interfaces so Cursor cloud / forwarded browser can open the UI
+nohup npm run dev -- --host 0.0.0.0 --port "$UI_PORT" >"$ROOT/.data/ui.log" 2>&1 &
 echo $! >"$PID_DIR/ui.pid"
-echo "UI starting on http://127.0.0.1:${UI_PORT} (pid $(cat "$PID_DIR/ui.pid")) — API via Vite proxy ${VITE_API_PROXY_TARGET}"
+echo "UI starting on http://0.0.0.0:${UI_PORT} (open http://127.0.0.1:${UI_PORT}) — API via Vite proxy ${VITE_API_PROXY_TARGET}"
