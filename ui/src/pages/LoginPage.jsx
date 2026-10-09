@@ -155,7 +155,6 @@ export default function LoginPage() {
                 </Button>
               </form>
             </Form>
-            <p className="hal-watermark mt-6 text-center">Property of HAL — Restricted</p>
           </CardContent>
         </Card>
       </div>

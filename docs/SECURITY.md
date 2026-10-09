@@ -6,7 +6,7 @@ These practices support quality-management expectations; they do **not** claim f
 
 1. **Least privilege** — RBAC on every mutating workflow API
 2. **Traceability** — immutable audit log for Pass/Fail/Reject/Approve/transition
-3. **Confidentiality** — UI footer/banner: “Property of HAL — Restricted”
+3. **Confidentiality** — restrict exports and attachment downloads to authenticated roles
 4. **Integrity** — server-side decision evaluation; clients cannot pick next node
 5. **Attachment ACL** — documents scoped to instance; download requires authz
 6. **Safe logging** — no passwords, tokens, or full form PII dumps

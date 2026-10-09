@@ -15,8 +15,6 @@ Use before merging or claiming a phase complete.
 - [ ] RBAC enforced on mutating endpoints
 - [ ] Audit log written for Pass/Fail/Reject/Approve/transition
 - [ ] Attachments not anonymously accessible
-- [ ] “Property of HAL” retained on user-facing surfaces
-
 ## Workflow engine
 
 - [ ] UI does not choose next node

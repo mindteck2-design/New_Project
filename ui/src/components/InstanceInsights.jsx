@@ -228,8 +228,6 @@ export default function InstanceInsights({ instances = [] }) {
         i.updatedAt || '',
       ])
     }
-    sheet.addRow([])
-    sheet.addRow(['Property of HAL — Restricted export'])
     const buffer = await wb.xlsx.writeBuffer()
     const blob = new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

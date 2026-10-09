@@ -25,6 +25,17 @@ Errors: `{ "code": string, "message": string, "details": object|null }`
 | GET | `/instances/{id}/audit` | Audit trail |
 | POST | `/instances/{id}/documents` | multipart upload |
 | GET | `/instances/{id}/documents` | List attachments |
+| GET | `/instances/{instanceId}/documents/{documentId}/content` | Authenticated attachment download |
+
+## Dynamic forms (MongoDB `form_schemas`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/forms` | List schemas `{ formKey, name, fields[], store }` |
+| GET | `/forms/{formKey}` | Get one schema |
+| POST | `/forms` | Create `{ formKey, name, fields[{ name, label, type?, placeholder?, required? }] }` |
+| PUT | `/forms/{formKey}` | Update name/fields |
+| DELETE | `/forms/{formKey}` | Delete schema |
 
 ## Transition response shape
 

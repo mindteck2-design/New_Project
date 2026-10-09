@@ -19,4 +19,8 @@ export const queryKeys = {
   analytics: {
     me: (userId) => ['analytics-me', userId],
   },
+  forms: {
+    all: ['form-schemas'],
+    detail: (formKey) => ['form-schema', formKey],
+  },
 }

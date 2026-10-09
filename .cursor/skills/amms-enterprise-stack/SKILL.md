@@ -24,8 +24,6 @@ Read [`AGENTS.md`](../../../AGENTS.md) first. Then apply the matching installed 
 4. **jOOQ + Flyway + PostgreSQL** for workflow/RBAC/audit.
 5. **Mongo** (or PG JSONB fallback) for dynamic forms only.
 6. **MinIO / filesystem** attachments behind auth.
-7. **Property of HAL** on screens and exports.
-
 ## Routes (must stay)
 
 `/`, `/analytics`, `/inbox`, `/workflows`, `/process/:key`, `/instances`, `/instances/:id`, `/login`

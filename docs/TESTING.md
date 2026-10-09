@@ -38,4 +38,4 @@ Seeded password: `Passw0rd!` (`amms.seed.password`).
 2. Switch to `inspection.user` → `/inbox` → complete Pass/Fail
 3. On FAIL path switch to `shop.user` for repair
 4. Login as `inspection.user` → start NDT → accept/reject
-5. Confirm breadcrumbs + routes (`/inbox`, `/instances/:id`) and Property of HAL footer
+5. Confirm breadcrumbs + routes (`/inbox`, `/instances/:id`)

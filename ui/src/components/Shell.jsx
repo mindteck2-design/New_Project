@@ -180,8 +180,7 @@ export default function Shell({ children }) {
           {children}
         </main>
 
-        <footer className="flex h-9 shrink-0 items-center justify-between border-t border-border bg-card px-4 text-[10px] sm:px-6">
-          <span className="hal-watermark">Property of HAL — Restricted</span>
+        <footer className="flex h-9 shrink-0 items-center justify-end border-t border-border bg-card px-4 text-[10px] sm:px-6">
           <span className="text-muted-foreground">AS 9110 C–aligned audit trail</span>
         </footer>
       </div>

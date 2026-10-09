@@ -41,7 +41,7 @@ Senior Full Stack Software Architect / Lead Developer for an Aerospace Maintenan
 
 ## Confidentiality
 
-All UI and exports: **Property of HAL**. Attachments behind auth. Immutable audit for Pass/Fail/Reject/Approve.
+Attachments behind auth. Immutable audit for Pass/Fail/Reject/Approve.
 
 ## Repo layout (operator-facing)
 

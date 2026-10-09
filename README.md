@@ -63,7 +63,3 @@ cp .env.example .env
 - NDT Radiography
 
 Deferred aircraft A-2/A-3/A-4, Stores, plating — see `docs/workflows/INVENTORY.md`.
-
-## Confidentiality
-
-All screens and exports: **Property of HAL — Restricted**.

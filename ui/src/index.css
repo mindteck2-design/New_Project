@@ -77,13 +77,6 @@ body {
   background: color-mix(in oklab, var(--primary) 25%, white);
 }
 
-.hal-watermark {
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-size: 0.65rem;
-  color: var(--muted-foreground);
-}
-
 /* XYFlow polish */
 .react-flow__node {
   font-family: var(--font-sans);

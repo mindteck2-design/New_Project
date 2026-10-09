@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { fetchFormSchema } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Form,
   FormControl,
@@ -69,9 +70,13 @@ export default function DynamicForm({ formKey, disabled, onSubmit }) {
         name: f.name,
         label: f.label || f.name,
         placeholder: f.placeholder || '',
+        type: f.type || 'text',
       }))
     }
-    return FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }]
+    return (FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }]).map((f) => ({
+      ...f,
+      type: 'text',
+    }))
   }, [formKey, schemaQuery.data])
 
   const fromMongo = schemaQuery.isSuccess && Array.isArray(schemaQuery.data?.fields)
@@ -120,7 +125,16 @@ export default function DynamicForm({ formKey, disabled, onSubmit }) {
               <FormItem>
                 <FormLabel>{f.label}</FormLabel>
                 <FormControl>
-                  <Input placeholder={f.placeholder || ''} disabled={disabled} {...field} />
+                  {f.type === 'textarea' ? (
+                    <Textarea placeholder={f.placeholder || ''} disabled={disabled} rows={3} {...field} />
+                  ) : (
+                    <Input
+                      type={f.type === 'number' ? 'number' : 'text'}
+                      placeholder={f.placeholder || ''}
+                      disabled={disabled}
+                      {...field}
+                    />
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>

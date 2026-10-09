@@ -19,7 +19,8 @@
 - `scripts/verify.sh` — server tests, UI build, optional healthcheck
 - Modern UI: shadcn theme, XYFlow charts, role switcher, actionable notifications
 - `FormSubmissionStore` + `form_schemas`: **MongoDB** by default (`amms.forms.store=mongo`, ADR-002); PostgreSQL JSONB is offline/test fallback only
-- Dashboard instance insights: TanStack Table, Recharts, ExcelJS export (HAL watermark on export)
+- Dashboard instance insights: TanStack Table, Recharts, ExcelJS export
+- Dynamic form schema CRUD UI (`/forms`) backed by MongoDB
 
 ## Production readiness
 

@@ -6,6 +6,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  FileText,
   GitBranch,
   LayoutDashboard,
   LogOut,
@@ -81,6 +82,13 @@ const NAV_GROUPS = [
         label: 'Instances',
         icon: ClipboardList,
         match: (pathname) => pathname.startsWith('/instances'),
+      },
+      {
+        id: 'forms',
+        to: '/forms',
+        label: 'Dynamic forms',
+        icon: FileText,
+        match: (pathname) => pathname.startsWith('/forms'),
       },
     ],
   },
@@ -339,11 +347,6 @@ export default function AppSidebar({
             )}
           </div>
 
-          {!collapsed && (
-            <p className="px-3 pb-2 text-center text-[9px] uppercase tracking-wider text-muted-foreground">
-              Property of HAL
-            </p>
-          )}
         </div>
       </aside>
     </TooltipProvider>

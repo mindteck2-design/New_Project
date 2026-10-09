@@ -130,8 +130,6 @@ scripts/     start/stop/seed/healthcheck/verify
 - Illegal transition → `409`; authz → `403`; missing → `404`
 - Every Pass/Fail/Reject/Approve → immutable `audit_logs`
 - Sonner for user-facing UI errors
-- Banner/footer: **Property of HAL**
-
 ## Config
 
 ```bash

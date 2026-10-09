@@ -91,6 +91,26 @@ export async function fetchFormSchema(formKey) {
   return data
 }
 
+export async function fetchFormSchemas() {
+  const { data } = await api.get('/forms')
+  return data
+}
+
+export async function createFormSchema(body) {
+  const { data } = await api.post('/forms', body)
+  return data
+}
+
+export async function updateFormSchema(formKey, body) {
+  const { data } = await api.put(`/forms/${encodeURIComponent(formKey)}`, body)
+  return data
+}
+
+export async function deleteFormSchema(formKey) {
+  const { data } = await api.delete(`/forms/${encodeURIComponent(formKey)}`)
+  return data
+}
+
 /** Instances waiting on one of the current user's roles. */
 export function actionableNotifications(instances, user) {
   if (!user?.roles?.length || !instances?.length) return []

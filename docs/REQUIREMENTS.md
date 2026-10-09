@@ -43,8 +43,6 @@ Digitize HAL Overhaul Division maintenance procedures as a **Dynamic Workflow En
 - FR2: Users see only steps/forms allowed for their role on the current node
 - FR3: UI never computes next node; server returns `currentNode` + actions
 - FR4: Every Pass/Fail/Reject/Approve writes an audit row
-- FR5: Confidential banner: “Property of HAL”
-
 ## Non-functional
 
 - Profiles: `dev`, `prod`, `local` (no-Docker fallbacks)
