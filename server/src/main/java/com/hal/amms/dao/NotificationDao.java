@@ -24,7 +24,7 @@ public class NotificationDao {
 
     public void insert(UUID id, UUID instanceId, String targetRole, String title, String body, String actionPath) {
         dsl.insertInto(WORKFLOW_NOTIFICATIONS)
-                .columns(WN_ID, WN_INSTANCE_ID, WN_TARGET_ROLE, WN_TITLE, WN_BODY, WN_ACTION_PATH, WN_CREATED_AT)
+                .columns(WFN_ID, WFN_INSTANCE_ID, WFN_TARGET_ROLE, WFN_TITLE, WFN_BODY, WFN_ACTION_PATH, WFN_CREATED_AT)
                 .values(id, instanceId, targetRole, title, body, actionPath, OffsetDateTime.now(ZoneOffset.UTC))
                 .execute();
     }
@@ -36,13 +36,13 @@ public class NotificationDao {
         var readExists = DSL.exists(
                 dsl.selectOne()
                         .from(NOTIFICATION_READS)
-                        .where(NR_NOTIFICATION_ID.eq(WN_ID).and(NR_USER_ID.eq(userId)))
+                        .where(NR_NOTIFICATION_ID.eq(WFN_ID).and(NR_USER_ID.eq(userId)))
         );
         return dsl.select(WORKFLOW_NOTIFICATIONS.fields())
                 .select(readExists.as("is_read"))
                 .from(WORKFLOW_NOTIFICATIONS)
-                .where(WN_TARGET_ROLE.in(roles))
-                .orderBy(WN_CREATED_AT.desc())
+                .where(WFN_TARGET_ROLE.in(roles))
+                .orderBy(WFN_CREATED_AT.desc())
                 .limit(limit)
                 .fetch();
     }
@@ -58,7 +58,7 @@ public class NotificationDao {
 
     public boolean exists(UUID notificationId) {
         return dsl.fetchExists(
-                dsl.selectOne().from(WORKFLOW_NOTIFICATIONS).where(WN_ID.eq(notificationId))
+                dsl.selectOne().from(WORKFLOW_NOTIFICATIONS).where(WFN_ID.eq(notificationId))
         );
     }
 }

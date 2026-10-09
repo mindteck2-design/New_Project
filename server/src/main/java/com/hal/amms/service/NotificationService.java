@@ -58,15 +58,15 @@ public class NotificationService {
     }
 
     private NotificationView toView(Record r) {
-        OffsetDateTime created = r.get(WN_CREATED_AT);
+        OffsetDateTime created = r.get(WFN_CREATED_AT);
         Boolean read = r.get("is_read", Boolean.class);
         return new NotificationView(
-                r.get(WN_ID),
-                r.get(WN_INSTANCE_ID),
-                r.get(WN_TARGET_ROLE),
-                r.get(WN_TITLE),
-                r.get(WN_BODY),
-                r.get(WN_ACTION_PATH),
+                r.get(WFN_ID),
+                r.get(WFN_INSTANCE_ID),
+                r.get(WFN_TARGET_ROLE),
+                r.get(WFN_TITLE),
+                r.get(WFN_BODY),
+                r.get(WFN_ACTION_PATH),
                 Boolean.TRUE.equals(read),
                 created == null ? Instant.now() : created.toInstant()
         );

@@ -34,7 +34,7 @@ CREATE INDEX idx_audit_logs_instance_created
     ON audit_logs (instance_id, created_at DESC);
 
 CREATE INDEX idx_inspection_records_instance
-    ON inspection_records (instance_id, created_at DESC);
+    ON inspection_records (instance_id, recorded_at DESC);
 
 CREATE INDEX idx_form_documents_instance
     ON form_documents (instance_id, created_at DESC);
