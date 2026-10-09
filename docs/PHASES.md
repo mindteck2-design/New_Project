@@ -12,7 +12,7 @@
 
 ## Phase 6 deliverables
 
-- `AttachmentStorageService` — path-safe local storage (MinIO in Compose; disk on `local`)
+- `AttachmentStore` — filesystem (`local`/`test`) or MinIO (`dev`/Compose via `amms.attachments.store=minio`)
 - `GET /api/v1/instances/{id}/documents/{docId}/content` — authenticated download
 - Instance list/get filtered by role / participation / starter
 - `WorkflowApiIntegrationTest` — 403 wrong role, FAIL→repair, 400 missing decision

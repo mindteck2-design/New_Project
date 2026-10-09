@@ -36,7 +36,13 @@ amms:
   forms:
     store: ${AMMS_FORMS_STORE:postgres}
   attachments:
+    store: ${AMMS_ATTACHMENTS_STORE:filesystem}
     dir: ${AMMS_ATTACHMENTS_DIR:.data/attachments}
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket: ${MINIO_BUCKET:amms}
   seed:
     enabled: ${AMMS_SEED_ENABLED:true}
     password: ${SEED_PASSWORD:Passw0rd!}

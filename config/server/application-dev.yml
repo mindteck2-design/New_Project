@@ -7,3 +7,5 @@ spring:
 amms:
   forms:
     store: mongo
+  attachments:
+    store: minio
