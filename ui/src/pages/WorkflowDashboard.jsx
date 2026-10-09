@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { ArrowRight, Play, Sparkles } from 'lucide-react'
 import {
@@ -21,7 +20,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-export default function DashboardPage() {
+/** Prompt-required dashboard: current work, definitions, workflow charts, instances. */
+export default function WorkflowDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -89,26 +89,20 @@ export default function DashboardPage() {
                   No steps waiting on {(user?.roles || []).join(', ') || 'your roles'}.
                 </p>
               )}
-              {inbox.map((item, idx) => (
-                <motion.div
+              {inbox.map((item) => (
+                <Button
                   key={item.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.04 }}
+                  type="button"
+                  variant="outline"
+                  className="h-auto w-full justify-between gap-3 px-4 py-3 text-left font-normal"
+                  onClick={() => navigate(item.href)}
                 >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto w-full justify-between gap-3 px-4 py-3 text-left font-normal"
-                    onClick={() => navigate(item.href)}
-                  >
-                    <span>
-                      <span className="block font-medium text-foreground">{item.title}</span>
-                      <span className="block text-xs text-muted-foreground">{item.description}</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
-                  </Button>
-                </motion.div>
+                  <span>
+                    <span className="block font-medium text-foreground">{item.title}</span>
+                    <span className="block text-xs text-muted-foreground">{item.description}</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                </Button>
               ))}
             </CardContent>
           </Card>
@@ -119,37 +113,34 @@ export default function DashboardPage() {
               <CardDescription>Start a seeded process. Graph updates on the right.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
-              {(workflows.data || []).map((w, idx) => (
-                <motion.div
+              {(workflows.data || []).map((w) => (
+                <Card
                   key={w.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 + idx * 0.05 }}
-                  className={`rounded-xl border p-4 transition-all ${
-                    activeKey === w.key ? 'border-primary/50 bg-accent/40' : 'bg-card hover:border-border'
-                  }`}
+                  className={activeKey === w.key ? 'border-primary/50 bg-accent/40' : undefined}
                 >
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="h-auto w-full flex-col items-start gap-1 px-0 py-0 text-left hover:bg-transparent"
-                    onClick={() => setSelectedKey(w.key)}
-                  >
-                    <span className="font-semibold text-foreground">{w.name}</span>
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {w.key} · v{w.version}
-                    </span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="mt-3"
-                    disabled={start.isPending}
-                    onClick={() => start.mutate({ key: w.key })}
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                    Start
-                  </Button>
-                </motion.div>
+                  <CardContent className="p-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-auto w-full flex-col items-start gap-1 px-0 py-0 text-left hover:bg-transparent"
+                      onClick={() => setSelectedKey(w.key)}
+                    >
+                      <span className="font-semibold text-foreground">{w.name}</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {w.key} · v{w.version}
+                      </span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="mt-3"
+                      disabled={start.isPending}
+                      onClick={() => start.mutate({ key: w.key })}
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                      Start
+                    </Button>
+                  </CardContent>
+                </Card>
               ))}
             </CardContent>
           </Card>

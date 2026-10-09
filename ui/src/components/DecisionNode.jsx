@@ -1,7 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -18,6 +17,7 @@ const decisionSchema = z.object({
   signaturePlaceholder: z.string().optional(),
 })
 
+/** Prompt-required: Pass/Fail or Yes/No (and configured options); server picks next node. */
 export default function DecisionNode({ actions, disabled, onDecide }) {
   const form = useForm({
     resolver: zodResolver(decisionSchema),
@@ -46,26 +46,20 @@ export default function DecisionNode({ actions, disabled, onDecide }) {
             <FormItem>
               <FormLabel>Decision</FormLabel>
               <div className="flex flex-wrap gap-2">
-                {(actions || []).map((a, idx) => {
+                {(actions || []).map((a) => {
                   const negative = a.value === 'FAIL' || a.value === 'NO'
                   const active = field.value === a.value
                   return (
-                    <motion.div
+                    <Button
                       key={a.value}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
+                      type="button"
+                      disabled={disabled}
+                      variant={negative ? 'destructive' : 'success'}
+                      className={active ? 'ring-2 ring-ring ring-offset-2' : undefined}
+                      onClick={() => field.onChange(a.value)}
                     >
-                      <Button
-                        type="button"
-                        disabled={disabled}
-                        variant={negative ? 'destructive' : 'success'}
-                        className={active ? 'ring-2 ring-ring ring-offset-2' : undefined}
-                        onClick={() => field.onChange(a.value)}
-                      >
-                        {a.label}
-                      </Button>
-                    </motion.div>
+                      {a.label}
+                    </Button>
                   )
                 })}
               </div>

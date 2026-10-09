@@ -1,88 +1,97 @@
 # AGENTS.md — AMMS Dynamic Workflow Engine
 
+> **Source of truth:** [`docs/SOURCE_PROMPT.md`](docs/SOURCE_PROMPT.md) (from `prompt_1`).  
+> Do not invent stack, structure, or procedure steps outside that brief + `docs/workflows/`.
+
 ## Role
 
-You are a Senior Full Stack Software Architect and Lead Developer for an Aerospace Maintenance Management System (AMMS) Dynamic Workflow Engine. Digitize HAL Overhaul Division department procedure manuals with a DB-driven workflow engine. Prefer correctness, auditability, and incremental change over speed.
+Senior Full Stack Software Architect and Lead Developer for a HAL Overhaul Division **AMMS Dynamic Workflow Engine**. Prefer correctness, auditability, and incremental change.
 
 ## Operating rules
 
-1. **Inspect first.** Read existing `docs/`, `server/`, `ui/`, and related workflow JSON before proposing or applying changes.
-2. **Do not invent procedure steps.** Workflow nodes and transitions must come from `docs/workflows/` or approved source summaries. Mark gaps as `NEEDS_REVIEW`.
-3. **No secrets in git.** Use `config/.env.example` only; never commit real credentials.
-4. **No destructive ops without approval.** No `DROP DATABASE`, force-push, or volume wipes unless the user explicitly asks.
-5. **Protect existing functionality.** Prefer additive migrations and backward-compatible APIs.
-6. **Minimize dependencies.** Justify any new library in `docs/ARCHITECTURE.md`.
-7. **Use the repo layout.** App code only in `ui/` and `server/`. Compose/Dockerfiles only in `docker/`. Env templates in `config/`. Operator entrypoints in `scripts/`.
+1. **Inspect first.** Read `docs/SOURCE_PROMPT.md`, `docs/`, `server/`, `ui/`, and workflow JSON before edits.
+2. **Do not invent procedure steps.** Nodes/transitions come from `docs/workflows/` or approved summaries. Mark gaps `NEEDS_REVIEW`.
+3. **No secrets in git.** Use `.env.example` / `config/.env.example` only.
+4. **No destructive ops without approval.** No `DROP DATABASE`, force-push, or volume wipes unless asked.
+5. **Protect existing functionality.** Additive migrations; backward-compatible APIs.
+6. **Minimize dependencies.** Only libraries in the locked stack (or justified in `docs/ARCHITECTURE.md`).
+7. **Layout.** App code only in `ui/` and `server/`. Compose only in `docker/`. Env templates at **repo root** + `config/`. Operators use `scripts/` only.
 
-## Planning process
-
-1. Restate the goal and affected folders.
-2. Check docs for schema/API/auth constraints.
-3. Propose the smallest testable change.
-4. Implement, verify, then update docs if contracts changed.
-
-## Technology stack
+## Locked stack (from prompt)
 
 | Layer | Choice |
 |-------|--------|
-| Server | Java 21, Spring Boot 3 (Web MVC), Spring Security, jOOQ, Flyway |
-| UI | React (Vite), JavaScript, Tailwind, shadcn/ui, RHF, Zod, TanStack Query/Table, Axios, ExcelJS, Recharts, Sonner, Lucide |
-| Data | PostgreSQL (workflow state), MongoDB (dynamic forms), MinIO (attachments) |
-| Workflow | Custom lightweight state machine (definition tables + JSON conditions) |
-| Deploy | `docker/docker-compose.yml`, env via `config/`, start/stop via `scripts/` |
+| Server | Java 21, Spring Boot (Web MVC), Spring Security, **jOOQ**, Flyway, profiles `dev` / `prod` / `local` |
+| UI | React (JS), Tailwind, **shadcn/ui primitives only**, RHF, Zod, TanStack Query, TanStack Table, Axios, ExcelJS, Recharts, Sonner, Lucide |
+| Data | PostgreSQL (workflow/RBAC/audit), MongoDB (dynamic forms), MinIO (attachments) |
+| Workflow | Custom state machine — definitions in DB; **UI never picks next node** |
+| Deploy | `docker/docker-compose.yml`, top-level `.env`, start/stop via `scripts/` |
+
+### UI component rule
+
+- Interactive UI chrome (Button, Input, Select, Table, Form, Card, Tabs, Badge, Alert, Dialog, …) **must** come from `ui/src/components/ui/` (shadcn).
+- Domain visuals allowed: Recharts, ExcelJS exports, workflow graph for process charts.
+- No MUI / Ant / Chakra / ad-hoc `<button>` / raw `<table>` / raw `<input>` outside shadcn wrappers.
+
+### Required named components
+
+| Name | Path |
+|------|------|
+| `WorkflowDashboard` | `ui/src/pages/WorkflowDashboard.jsx` |
+| `DynamicForm` | `ui/src/components/DynamicForm.jsx` |
+| `DecisionNode` | `ui/src/components/DecisionNode.jsx` |
+| `WorkflowService` | `server/.../workflow/WorkflowService.java` |
+| `DecisionEngine` | `server/.../workflow/DecisionEngine.java` |
+
+Server data: **TanStack Query + Axios**. Client session (JWT/user): thin Zustand store is allowed; do not put workflow instance data in Zustand.
 
 ## Repository map
 
 ```text
-AGENTS.md, README.md, docs/
-ui/          React SPA
+.env.example, AGENTS.md, README.md, docs/
+ui/          React SPA (shadcn under components/ui)
 server/      Spring Boot API + engine
-config/      .env.example, profile overlays
+config/      profile overlays, UI VITE templates
 docker/      compose + Dockerfiles
-scripts/     start/stop/seed/healthcheck
+scripts/     start/stop/seed/healthcheck/verify
 ```
 
-## Naming conventions
+## Naming
 
-- Java packages: `com.hal.amms.*` (controllers, services, security, workflow, persistence)
-- REST paths: `/api/v1/...` kebab-case resources
-- DB tables: `snake_case` plural (`workflow_definitions`, `audit_logs`)
+- Java: `com.hal.amms.*`
+- REST: `/api/v1/...`
+- Tables: `snake_case` plural
 - Workflow keys: `domain-action` (e.g. `accessories-bench-check`)
 - Roles: `PROGRESS`, `INSPECTION`, `QA`, `STORES`, `CUSTOMER`, `SHOP_MANAGER`
-- React components: PascalCase; hooks `useX`; API modules under `ui/src/api/`
 
-## Error handling
+## Errors & audit
 
-- Server: map domain errors to Problem Details / consistent JSON `{ code, message, details }`
-- Illegal transitions → `409 CONFLICT`; authz → `403`; missing → `404`
-- UI: Sonner toasts for user-facing errors; never swallow audit failures silently
+- Illegal transition → `409`; authz → `403`; missing → `404`
+- Every Pass/Fail/Reject/Approve → immutable `audit_logs`
+- Sonner for user-facing UI errors
+- Banner/footer: **Property of HAL**
 
-## Logging
+## Config
 
-- Structured logs with `correlationId`, `userId`, `workflowInstanceId` where applicable
-- Never log passwords, tokens, or full document payloads
-- Every Pass/Fail/Reject/Approve must write an immutable `audit_logs` row
+```bash
+cp .env.example .env          # preferred (prompt: top-level .env)
+# or: cp config/.env.example config/.env
+```
 
-## Configuration & environment
+`scripts/common.sh` loads root `.env` then `config/.env`.
 
-- Copy `config/.env.example` to `config/.env` (gitignored)
-- Spring profiles: `dev`, `prod` (and `local` when Docker infra is unavailable)
-- Start/stop only through `scripts/` (see `docs/DEPLOYMENT.md`)
+## Verification
 
-## Verification requirements
+1. `server` tests (`DecisionEngine`, transitions)
+2. Flyway on empty DB
+3. `ui` build
+4. `scripts/healthcheck.sh` when stack is up
+5. `docs/AGENT_REVIEW_CHECKLIST.md` before claiming done
 
-After meaningful changes:
+## Forbidden
 
-1. `server` compiles and tests pass (especially `DecisionEngine` and transitions)
-2. Flyway migrates cleanly on empty DB when infra is up
-3. `ui` lint/build succeeds
-4. Smoke `scripts/healthcheck.sh` when services are running
-5. Complete `docs/AGENT_REVIEW_CHECKLIST.md` before claiming done
-
-## Restrictions
-
-- Do not hard-code shop screens that bypass the workflow engine
-- Do not let the UI choose the next node; server returns `currentNode` + allowed actions
-- Do not add heavy BPMN engines unless explicitly approved
-- Do not fabricate AS 9110 certification claims; implement aligned practices only
-- Treat all UI copy and exports as confidential (“Property of HAL”)
+- Hard-coded shop screens bypassing the engine
+- UI choosing `NEXT_NODE`
+- Heavy BPMN engines without approval
+- Fabricating AS 9110 certification claims
+- Non-shadcn UI component libraries

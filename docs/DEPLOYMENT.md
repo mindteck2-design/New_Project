@@ -6,11 +6,12 @@
 - Env templates: `config/.env.example` → copy to `config/.env`
 - Operators use `scripts/` only
 
-## Environment (enterprise)
+## Environment (enterprise — prompt: top-level `.env`)
 
 | File | Purpose |
 |------|---------|
-| `config/.env.example` → `config/.env` | Server/infra secrets & ports (gitignored) |
+| `.env.example` → `.env` | **Primary** server/infra env (gitignored) |
+| `config/.env` | Optional overlay (loaded after root `.env`) |
 | `config/ui/.env.example` | UI `VITE_*` contract documentation |
 | `config/ui/.env.development` | Local Vite: `VITE_API_URL=/api/v1` + proxy to Spring |
 | `config/ui/.env.production` | Production build defaults (override `VITE_API_URL` in CI) |
@@ -20,7 +21,7 @@ UI validates env at boot (`ui/src/config/env.js`). Dev traffic uses a **Vite sam
 ## Quick start (Docker available)
 
 ```bash
-cp config/.env.example config/.env
+cp .env.example .env
 ./scripts/start-services.sh
 ./scripts/start-ui.sh
 ./scripts/healthcheck.sh
@@ -36,7 +37,7 @@ Stop:
 
 Used in constrained environments:
 
-1. PostgreSQL running with DB/user from `config/.env`
+1. PostgreSQL running with DB/user from root `.env`
 2. MongoDB binary or skip via `SPRING_PROFILES_ACTIVE=local` (JSONB forms + disk attachments)
 3. `./scripts/start-services-local.sh`
 4. `./scripts/start-ui.sh`

@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom'
-import { motion } from 'motion/react'
 import { LogOut, Workflow } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
 import NotificationCenter from '@/components/NotificationCenter'
@@ -27,7 +26,7 @@ export default function Shell({ children, title, subtitle }) {
     .toUpperCase()
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-border/80 bg-card/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-6">
@@ -44,7 +43,9 @@ export default function Shell({ children, title, subtitle }) {
               <Link
                 to="/"
                 className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                  location.pathname === '/' ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  location.pathname === '/'
+                    ? 'bg-muted font-medium text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Dashboard
@@ -95,24 +96,12 @@ export default function Shell({ children, title, subtitle }) {
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         {(title || subtitle) && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="mb-6"
-          >
+          <div className="mb-6">
             {title && <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>}
             {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
-          </motion.div>
+          </div>
         )}
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        >
-          {children}
-        </motion.div>
+        <div key={location.pathname}>{children}</div>
       </main>
 
       <footer className="border-t border-border/80 bg-card/60">

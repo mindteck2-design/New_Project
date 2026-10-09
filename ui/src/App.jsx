@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/stores/authStore'
 import LoginPage from '@/pages/LoginPage'
-import DashboardPage from '@/pages/DashboardPage'
+import WorkflowDashboard from '@/pages/WorkflowDashboard'
 import InstancePage from '@/pages/InstancePage'
 
 function RequireAuth({ children }) {
@@ -20,7 +20,7 @@ export default function App() {
         path="/"
         element={
           <RequireAuth>
-            <DashboardPage />
+            <WorkflowDashboard />
           </RequireAuth>
         }
       />

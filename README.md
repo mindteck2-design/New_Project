@@ -2,52 +2,59 @@
 
 Digitizes HAL Overhaul Division process charts as a **DB-driven workflow engine** with RBAC, decision nodes, dynamic forms, and immutable audit logs.
 
-## Layout
+**Authoritative brief:** [`docs/SOURCE_PROMPT.md`](docs/SOURCE_PROMPT.md) · Agent rules: [`AGENTS.md`](AGENTS.md)
+
+## Layout (prompt-aligned)
 
 | Path | Purpose |
 |------|---------|
-| `ui/` | React (Vite) SPA |
-| `server/` | Spring Boot API + **jOOQ** + Flyway |
-| `config/` | `.env.example` and profile overlays |
-| `docker/` | Compose + Dockerfiles |
-| `scripts/` | start / stop / healthcheck |
-| `docs/` | Requirements, architecture, contracts, workflow JSON |
+| `.env.example` → `.env` | **Top-level** runtime env (prompt requirement) |
+| `ui/` | React (Vite) SPA — **shadcn/ui** primitives only |
+| `server/` | Spring Boot + **jOOQ** + Flyway + Security |
+| `config/` | Profile overlays + UI `VITE_*` templates |
+| `docker/` | Compose + Dockerfiles (Postgres, Mongo, MinIO, server) |
+| `scripts/` | start / stop / health / verify / seed |
+| `docs/` | Architecture, contracts, workflow JSON |
 
-## Stack
+## Locked stack
 
-- Java 21, Spring Boot, Spring Security (JWT), **jOOQ** (no JPA), Flyway, PostgreSQL
-- React, Tailwind, TanStack Query/Table, Recharts, ExcelJS, Axios, Zod / RHF, Sonner
-- MongoDB optional for forms (`AMMS_FORMS_STORE=mongo`); default local uses PostgreSQL JSONB
-- MinIO in compose; local disk attachments fallback
+- **Backend:** Java 21, Spring Boot (Web MVC), Spring Security, jOOQ, Flyway, profiles `dev` / `prod` / `local`
+- **Frontend:** React (JS), Tailwind, **shadcn**, React Hook Form, Zod, TanStack Query, TanStack Table, Axios, ExcelJS, Recharts, Sonner, Lucide
+- **Data:** PostgreSQL (workflow state), MongoDB (dynamic forms), MinIO (attachments)
+- **Workflow:** Custom state machine — UI never chooses the next node
 
-## Quick start (local, no Docker)
+## Required UI building blocks
+
+- `WorkflowDashboard` — `ui/src/pages/WorkflowDashboard.jsx`
+- `DynamicForm` — `ui/src/components/DynamicForm.jsx`
+- `DecisionNode` — `ui/src/components/DecisionNode.jsx`
+
+## Quick start
 
 ```bash
-cp config/.env.example config/.env
-# Ensure PostgreSQL is running with DB/user from config/.env
+cp .env.example .env
+# Ensure PostgreSQL matches POSTGRES_* in .env
 ./scripts/start-services-local.sh
 ./scripts/start-ui.sh
 ./scripts/healthcheck.sh
 ```
 
 - UI: http://127.0.0.1:15173  
-- API: http://127.0.0.1:18080/api/v1  
-- Seeded password: `Passw0rd!` (users: `admin`, `inspection.user`, `progress.user`, `shop.user`, …)
+- API: http://127.0.0.1:18080/api/v1 (dev UI uses same-origin `/api` Vite proxy)  
+- Seeded password: `Passw0rd!` (`admin`, `inspection.user`, `progress.user`, …)
 
 ## Docker
 
 ```bash
-cp config/.env.example config/.env
+cp .env.example .env
 ./scripts/start-services.sh
-./scripts/start-ui.sh   # or compose profile ui
+./scripts/start-ui.sh
 ```
 
-## Docs
-
-Start with [`AGENTS.md`](AGENTS.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md). Phase completion: [`docs/PHASES.md`](docs/PHASES.md).
+## Verify
 
 ```bash
-./scripts/verify.sh   # tests + UI build (+ healthcheck if server up)
+./scripts/verify.sh
 ```
 
 ## MVP workflows
@@ -55,9 +62,8 @@ Start with [`AGENTS.md`](AGENTS.md) and [`docs/REQUIREMENTS.md`](docs/REQUIREMEN
 - Accessories Bench Check / Repair
 - NDT Radiography
 
-## UI notes
+Deferred aircraft A-2/A-3/A-4, Stores, plating — see `docs/workflows/INVENTORY.md`.
 
-- **shadcn-style** teal theme (Plus Jakarta Sans), motion micro-interactions
-- **Role/user switcher** in the header to act as seeded demo accounts
-- **XYFlow** workflow charts on dashboard + instance (current node highlighted)
-- **Action notifications** (bell + inbox + toasts): click to navigate to the instance step you must complete
+## Confidentiality
+
+All screens and exports: **Property of HAL — Restricted**.
