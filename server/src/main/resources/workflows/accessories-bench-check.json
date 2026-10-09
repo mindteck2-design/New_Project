@@ -1,0 +1,129 @@
+{
+  "key": "accessories-bench-check",
+  "name": "Accessories Bench Check / Repair",
+  "version": 1,
+  "source": "summaries §11.1 Bench Check / Repair",
+  "nodes": [
+    {
+      "key": "start",
+      "type": "START",
+      "label": "Receive for bench check",
+      "roleCode": "PROGRESS"
+    },
+    {
+      "key": "spares",
+      "type": "TASK",
+      "label": "Spares demand / supply",
+      "roleCode": "PROGRESS",
+      "formKey": "spares-demand"
+    },
+    {
+      "key": "test",
+      "type": "TASK",
+      "label": "Test as per schedule",
+      "roleCode": "INSPECTION",
+      "formKey": "bench-test"
+    },
+    {
+      "key": "result",
+      "type": "DECISION",
+      "label": "Inspection result",
+      "roleCode": "INSPECTION",
+      "expression": "inspectionResult",
+      "options": ["PASS", "FAIL"]
+    },
+    {
+      "key": "repair",
+      "type": "TASK",
+      "label": "Repair / rework as required",
+      "roleCode": "SHOP_MANAGER",
+      "formKey": "repair-rework"
+    },
+    {
+      "key": "retest",
+      "type": "TASK",
+      "label": "Retest as per schedule",
+      "roleCode": "INSPECTION",
+      "formKey": "bench-test"
+    },
+    {
+      "key": "return_fail",
+      "type": "END",
+      "label": "Return to Progress with documents",
+      "roleCode": "PROGRESS"
+    },
+    {
+      "key": "inspect_pass",
+      "type": "TASK",
+      "label": "Serviceable — inspect",
+      "roleCode": "INSPECTION",
+      "formKey": "serviceable-inspect"
+    },
+    {
+      "key": "ber",
+      "type": "DECISION",
+      "label": "Beyond economical repair?",
+      "roleCode": "INSPECTION",
+      "expression": "beyondEconomicalRepair",
+      "options": ["YES", "NO"]
+    },
+    {
+      "key": "condemn",
+      "type": "END",
+      "label": "Cat E label / condemn",
+      "roleCode": "INSPECTION"
+    },
+    {
+      "key": "repairable_label",
+      "type": "TASK",
+      "label": "Attach repairable / Cat D label",
+      "roleCode": "INSPECTION",
+      "formKey": "cat-d-label"
+    },
+    {
+      "key": "repair_permitted",
+      "type": "DECISION",
+      "label": "Repair permitted as per schedule?",
+      "roleCode": "INSPECTION",
+      "expression": "repairPermitted",
+      "options": ["YES", "NO"]
+    },
+    {
+      "key": "rotable_input",
+      "type": "TASK",
+      "label": "Rotable input from Progress with documents",
+      "roleCode": "PROGRESS",
+      "formKey": "rotable-input"
+    },
+    {
+      "key": "sst",
+      "type": "TASK",
+      "label": "Standard serviceability test / bench check",
+      "roleCode": "INSPECTION",
+      "formKey": "sst"
+    },
+    {
+      "key": "complete_serviceable",
+      "type": "END",
+      "label": "Serviceable complete",
+      "roleCode": "INSPECTION"
+    }
+  ],
+  "transitions": [
+    { "from": "start", "to": "spares" },
+    { "from": "spares", "to": "test" },
+    { "from": "test", "to": "result" },
+    { "from": "result", "to": "repair", "when": "FAIL" },
+    { "from": "result", "to": "inspect_pass", "when": "PASS" },
+    { "from": "repair", "to": "retest" },
+    { "from": "retest", "to": "return_fail" },
+    { "from": "inspect_pass", "to": "ber" },
+    { "from": "ber", "to": "condemn", "when": "YES" },
+    { "from": "ber", "to": "repairable_label", "when": "NO" },
+    { "from": "repairable_label", "to": "repair_permitted" },
+    { "from": "repair_permitted", "to": "rotable_input", "when": "YES" },
+    { "from": "repair_permitted", "to": "complete_serviceable", "when": "NO" },
+    { "from": "rotable_input", "to": "sst" },
+    { "from": "sst", "to": "complete_serviceable" }
+  ]
+}

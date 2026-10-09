@@ -1,0 +1,9 @@
+# Overlay notes for Docker-backed dev profile
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+
+amms:
+  forms:
+    store: mongo

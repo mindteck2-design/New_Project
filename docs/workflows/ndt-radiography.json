@@ -1,0 +1,87 @@
+{
+  "key": "ndt-radiography",
+  "name": "NDT Radiography Testing",
+  "version": 1,
+  "source": "summaries §8.5.2 Radiography Testing",
+  "nodes": [
+    {
+      "key": "start",
+      "type": "START",
+      "label": "Receive part for RT",
+      "roleCode": "INSPECTION"
+    },
+    {
+      "key": "visual",
+      "type": "TASK",
+      "label": "Visual inspection — Part/Serial/PO",
+      "roleCode": "INSPECTION",
+      "formKey": "ndt-visual"
+    },
+    {
+      "key": "select_film",
+      "type": "TASK",
+      "label": "Select X-ray film and exposure factors",
+      "roleCode": "INSPECTION",
+      "formKey": "rt-exposure"
+    },
+    {
+      "key": "examine",
+      "type": "TASK",
+      "label": "Carry out X-ray examination",
+      "roleCode": "INSPECTION",
+      "formKey": "rt-examine"
+    },
+    {
+      "key": "process_film",
+      "type": "TASK",
+      "label": "Process film (dark room)",
+      "roleCode": "INSPECTION",
+      "formKey": "rt-process"
+    },
+    {
+      "key": "interpret",
+      "type": "TASK",
+      "label": "Interpretation & evaluation",
+      "roleCode": "INSPECTION",
+      "formKey": "rt-interpret"
+    },
+    {
+      "key": "meets_req",
+      "type": "DECISION",
+      "label": "Meets requirements?",
+      "roleCode": "INSPECTION",
+      "expression": "meetsRequirements",
+      "options": ["YES", "NO"]
+    },
+    {
+      "key": "accept",
+      "type": "TASK",
+      "label": "Accept — endorse master register / route card / lab report",
+      "roleCode": "INSPECTION",
+      "formKey": "ndt-endorse"
+    },
+    {
+      "key": "dispatch",
+      "type": "END",
+      "label": "Dispatch",
+      "roleCode": "PROGRESS"
+    },
+    {
+      "key": "reject",
+      "type": "END",
+      "label": "Reject the part",
+      "roleCode": "INSPECTION"
+    }
+  ],
+  "transitions": [
+    { "from": "start", "to": "visual" },
+    { "from": "visual", "to": "select_film" },
+    { "from": "select_film", "to": "examine" },
+    { "from": "examine", "to": "process_film" },
+    { "from": "process_film", "to": "interpret" },
+    { "from": "interpret", "to": "meets_req" },
+    { "from": "meets_req", "to": "accept", "when": "YES" },
+    { "from": "meets_req", "to": "reject", "when": "NO" },
+    { "from": "accept", "to": "dispatch" }
+  ]
+}

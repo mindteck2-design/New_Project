@@ -1,0 +1,43 @@
+# Env / secrets
+.env
+config/.env
+*.pem
+*.key
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Java / Maven
+server/target/
+server/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+!server/.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+
+# Node / UI
+ui/node_modules/
+ui/dist/
+ui/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# Runtime
+logs/
+*.log
+.tmp/
+.pids/
+scripts/.pids/
+.data/
+.tools/
+
+# Docker volumes (local bind mounts if any)
+docker/data/
+
+# Coverage / test
+coverage/
+*.lcov

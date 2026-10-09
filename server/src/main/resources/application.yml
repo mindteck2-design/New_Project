@@ -1,0 +1,47 @@
+server:
+  port: ${SERVER_PORT:18080}
+
+spring:
+  application:
+    name: amms-server
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:127.0.0.1}:${POSTGRES_PORT:5432}/${POSTGRES_DB:amms}
+    username: ${POSTGRES_USER:amms}
+    password: ${POSTGRES_PASSWORD:amms_dev}
+  flyway:
+    enabled: true
+  jooq:
+    sql-dialect: POSTGRES
+
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 25MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+amms:
+  jwt:
+    secret: ${JWT_SECRET:change-me-to-a-long-random-dev-secret-at-least-32-chars}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  forms:
+    store: ${AMMS_FORMS_STORE:postgres}
+  attachments:
+    dir: ${AMMS_ATTACHMENTS_DIR:.data/attachments}
+  seed:
+    password: ${SEED_PASSWORD:Passw0rd!}
+  workflows-dir: ${AMMS_WORKFLOWS_DIR:../docs/workflows}
+
+logging:
+  level:
+    com.hal.amms: INFO
+    org.springframework.security: WARN
