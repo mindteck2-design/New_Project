@@ -1,10 +1,13 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   Bell,
+  ChevronsLeft,
+  ChevronsRight,
   ClipboardList,
   LayoutDashboard,
-  Shield,
+  LogOut,
   Workflow,
 } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
@@ -12,129 +15,360 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ROLE_LABELS } from '@/lib/demoUsers'
 
-const NAV = [
+const STORAGE_KEY = 'amms.sidebar.collapsed'
+
+const NAV_GROUPS = [
   {
-    to: '/',
-    label: 'Workflow dashboard',
-    description: 'Inbox, charts, instances',
-    icon: LayoutDashboard,
-    match: (path) => path === '/',
+    id: 'overview',
+    label: 'Overview',
+    items: [
+      {
+        id: 'dashboard',
+        to: '/',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        match: (pathname, hash) => pathname === '/' && !hash,
+      },
+      {
+        id: 'analytics',
+        to: '/#analytics',
+        label: 'Analytics',
+        icon: BarChart3,
+        hash: 'analytics',
+        match: (pathname, hash) => pathname === '/' && hash === 'analytics',
+      },
+    ],
   },
   {
-    to: '/#analytics',
-    label: 'Role analytics',
-    description: 'KPIs curated for your role',
-    icon: BarChart3,
-    match: () => false,
-  },
-  {
-    to: '/#inbox',
-    label: 'Action inbox',
-    description: 'Steps waiting on you',
-    icon: Bell,
-    match: () => false,
-  },
-  {
-    to: '/#workflows',
-    label: 'Definitions',
-    description: 'Start seeded processes',
-    icon: ClipboardList,
-    match: () => false,
+    id: 'operations',
+    label: 'Operations',
+    items: [
+      {
+        id: 'inbox',
+        to: '/#inbox',
+        label: 'Action inbox',
+        icon: Bell,
+        hash: 'inbox',
+        badge: true,
+        match: (pathname, hash) => pathname === '/' && hash === 'inbox',
+      },
+      {
+        id: 'process',
+        to: '/#process',
+        label: 'Process map',
+        icon: ClipboardList,
+        hash: 'process',
+        match: (pathname, hash) => pathname === '/' && hash === 'process',
+      },
+      {
+        id: 'instances',
+        to: '/#instances',
+        label: 'Instances',
+        icon: Workflow,
+        hash: 'instances',
+        match: (pathname, hash) =>
+          pathname.startsWith('/instances') || (pathname === '/' && hash === 'instances'),
+      },
+    ],
   },
 ]
 
-export default function AppSidebar({ className, onNavigate, unreadCount = 0 }) {
-  const location = useLocation()
-  const { user } = useAuth()
-  const roles = user?.roles || []
+function scrollToHash(hash) {
+  if (!hash) return
+  window.setTimeout(() => {
+    document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 60)
+}
 
-  function handleNav(to) {
+function NavItem({ item, collapsed, active, unreadCount, onNavigate }) {
+  const Icon = item.icon
+  const showBadge = item.badge && unreadCount > 0
+
+  const content = (
+    <Button
+      asChild
+      variant={active ? 'secondary' : 'ghost'}
+      className={cn(
+        'h-9 w-full gap-2.5 px-2.5 font-normal',
+        collapsed ? 'justify-center px-0' : 'justify-start',
+        active && 'bg-accent text-accent-foreground',
+      )}
+    >
+      <Link
+        to={item.hash ? '/' : item.to}
+        onClick={(e) => onNavigate(item, e)}
+        aria-current={active ? 'page' : undefined}
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        {!collapsed && (
+          <>
+            <span className="flex-1 truncate text-left text-sm">{item.label}</span>
+            {showBadge && (
+              <Badge className="h-5 min-w-5 justify-center px-1 text-[10px]">{unreadCount}</Badge>
+            )}
+          </>
+        )}
+        {collapsed && showBadge && (
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
+        )}
+      </Link>
+    </Button>
+  )
+
+  if (!collapsed) return <div className="relative">{content}</div>
+
+  return (
+    <Tooltip delayDuration={0}>
+      <TooltipTrigger asChild>
+        <div className="relative">{content}</div>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="flex items-center gap-2">
+        {item.label}
+        {showBadge && <Badge className="h-5 px-1.5 text-[10px]">{unreadCount}</Badge>}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+/**
+ * Persistent app navigation rail — expanded or icon-collapsed.
+ * Desktop: fixed column. Mobile: rendered inside Sheet by Shell.
+ */
+export default function AppSidebar({
+  className,
+  onNavigate,
+  unreadCount = 0,
+  collapsed: collapsedProp,
+  onCollapsedChange,
+  showCollapseToggle = true,
+}) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const roles = user?.roles || []
+  const hash = (location.hash || '').replace(/^#/, '')
+
+  const [internalCollapsed, setInternalCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  const controlled = typeof collapsedProp === 'boolean'
+  const collapsed = controlled ? collapsedProp : internalCollapsed
+
+  function setCollapsed(next) {
+    if (!controlled) {
+      setInternalCollapsed(next)
+      try {
+        localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+    }
+    onCollapsedChange?.(next)
+  }
+
+  useEffect(() => {
+    if (location.pathname === '/' && hash) {
+      scrollToHash(hash)
+    }
+  }, [location.pathname, hash])
+
+  function handleNav(item, e) {
     onNavigate?.()
-    if (to.includes('#')) {
-      const hash = to.split('#')[1]
-      // Allow route change to land, then scroll
-      window.setTimeout(() => {
-        document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 50)
+    if (!item.hash) return
+    e.preventDefault()
+    if (location.pathname !== '/') {
+      navigate(`/#${item.hash}`)
+    } else {
+      window.history.replaceState(null, '', `/#${item.hash}`)
+      scrollToHash(item.hash)
     }
   }
 
+  const initials = (user?.displayName || 'U')
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
   return (
-    <aside
-      className={cn(
-        'flex h-full w-64 flex-col border-r border-border/80 bg-card/95 backdrop-blur-xl',
-        className,
-      )}
-    >
-      <div className="flex items-center gap-2.5 px-4 py-5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-          <Workflow className="h-4 w-4" />
-        </span>
-        <div>
-          <div className="text-sm font-semibold tracking-tight">AMMS</div>
-          <div className="text-[11px] text-muted-foreground">Workflow Engine</div>
-        </div>
-      </div>
-
-      <Separator />
-
-      <nav className="flex flex-1 flex-col gap-1 p-3">
-        <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Navigate
-        </p>
-        {NAV.map((item) => {
-          const Icon = item.icon
-          const active = item.match(location.pathname)
-          return (
-            <Button
-              key={item.to}
-              asChild
-              variant={active ? 'secondary' : 'ghost'}
-              className={cn(
-                'h-auto w-full justify-start gap-3 px-3 py-2.5 text-left font-normal',
-                active && 'bg-accent text-accent-foreground',
-              )}
-            >
-              <Link to={item.to.startsWith('/#') ? '/' : item.to} onClick={() => handleNav(item.to)}>
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="block text-sm font-medium">{item.label}</span>
-                    {item.to.includes('inbox') && unreadCount > 0 && (
-                      <Badge className="h-5 px-1.5 text-[10px]">{unreadCount}</Badge>
-                    )}
-                  </span>
-                  <span className="block text-[11px] text-muted-foreground">{item.description}</span>
-                </span>
-              </Link>
-            </Button>
-          )
-        })}
-      </nav>
-
-      <div className="mt-auto space-y-3 border-t p-4">
-        <div className="flex items-start gap-2 rounded-xl border bg-muted/30 p-3">
-          <Shield className="mt-0.5 h-4 w-4 text-primary" />
-          <div className="min-w-0">
-            <div className="text-xs font-medium">Active roles</div>
-            <div className="mt-1 flex flex-wrap gap-1">
-              {roles.length === 0 && (
-                <span className="text-[11px] text-muted-foreground">No roles</span>
-              )}
-              {roles.map((r) => (
-                <Badge key={r} variant="outline" className="text-[10px]">
-                  {ROLE_LABELS[r] || r}
-                </Badge>
-              ))}
+    <TooltipProvider delayDuration={200}>
+      <aside
+        className={cn(
+          'flex h-full flex-col border-r border-border bg-card transition-[width] duration-200 ease-out',
+          collapsed ? 'w-[4.25rem]' : 'w-64',
+          className,
+        )}
+        data-collapsed={collapsed || undefined}
+      >
+        {/* Brand */}
+        <div
+          className={cn(
+            'flex h-14 shrink-0 items-center border-b border-border',
+            collapsed ? 'justify-center px-2' : 'gap-2.5 px-4',
+          )}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Workflow className="h-4 w-4" />
+          </span>
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold leading-none tracking-tight">AMMS</div>
+              <div className="mt-1 truncate text-[10px] text-muted-foreground">
+                Workflow Engine
+              </div>
             </div>
-          </div>
+          )}
         </div>
-        <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground hal-watermark">
-          Property of HAL
-        </p>
-      </div>
-    </aside>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={group.id} className={cn(gi > 0 && 'mt-4')}>
+              {!collapsed ? (
+                <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group.label}
+                </p>
+              ) : (
+                gi > 0 && <Separator className="mx-auto mb-3 w-6" />
+              )}
+              <div className="flex flex-col gap-0.5">
+                {group.items.map((item) => {
+                  const active = item.match(location.pathname, hash)
+                  return (
+                    <NavItem
+                      key={item.id}
+                      item={item}
+                      collapsed={collapsed}
+                      active={active}
+                      unreadCount={unreadCount}
+                      onNavigate={handleNav}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer: roles + user + collapse */}
+        <div className="mt-auto shrink-0 border-t border-border">
+          {!collapsed && roles.length > 0 && (
+            <div className="px-3 pt-3">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Active roles
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {roles.slice(0, 4).map((r) => (
+                  <Badge key={r} variant="outline" className="text-[10px] font-normal">
+                    {ROLE_LABELS[r] || r}
+                  </Badge>
+                ))}
+                {roles.length > 4 && (
+                  <Badge variant="secondary" className="text-[10px] font-normal">
+                    +{roles.length - 4}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className={cn('flex items-center gap-2 p-2', collapsed && 'flex-col')}>
+            {!collapsed ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-medium">{user?.displayName}</div>
+                  <div className="truncate text-[10px] text-muted-foreground">{user?.username}</div>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      aria-label="Sign out"
+                      onClick={() => {
+                        logout()
+                        window.location.href = '/login'
+                      }}
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Sign out</TooltipContent>
+                </Tooltip>
+              </div>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    aria-label="Sign out"
+                    onClick={() => {
+                      logout()
+                      window.location.href = '/login'
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Sign out</TooltipContent>
+              </Tooltip>
+            )}
+
+            {showCollapseToggle && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={cn('h-8 w-8 shrink-0', collapsed && 'h-9 w-9')}
+                    aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    onClick={() => setCollapsed(!collapsed)}
+                  >
+                    {collapsed ? (
+                      <ChevronsRight className="h-4 w-4" />
+                    ) : (
+                      <ChevronsLeft className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {collapsed ? 'Expand' : 'Collapse'}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          {!collapsed && (
+            <p className="px-3 pb-2 text-center text-[9px] uppercase tracking-wider text-muted-foreground">
+              Property of HAL
+            </p>
+          )}
+        </div>
+      </aside>
+    </TooltipProvider>
   )
 }

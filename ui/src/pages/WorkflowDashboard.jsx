@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ArrowRight, Play, Sparkles } from 'lucide-react'
+import { ArrowRight, Play } from 'lucide-react'
 import {
   actionableNotifications,
   fetchInstances,
@@ -12,14 +12,14 @@ import {
 } from '@/api/client'
 import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
+import PageHeader from '@/components/PageHeader'
 import WorkflowChart from '@/components/WorkflowChart'
 import InstanceInsights from '@/components/InstanceInsights'
 import RoleAnalytics from '@/components/RoleAnalytics'
-import RoleUserSwitcher from '@/components/RoleUserSwitcher'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
 /** Prompt-required dashboard: current work, definitions, workflow charts, instances. */
 export default function WorkflowDashboard() {
@@ -32,6 +32,7 @@ export default function WorkflowDashboard() {
   const instances = useQuery({ queryKey: ['instances', user?.id], queryFn: fetchInstances })
 
   const activeKey = selectedKey || workflows.data?.[0]?.key
+  const activeWorkflow = (workflows.data || []).find((w) => w.key === activeKey)
   const definition = useQuery({
     queryKey: ['workflow-def', activeKey],
     queryFn: () => fetchWorkflowDefinition(activeKey),
@@ -59,38 +60,85 @@ export default function WorkflowDashboard() {
   })
 
   return (
-    <Shell
-      title="Workflow dashboard"
-      subtitle="Role-curated analytics, actionable notifications, and server-driven process charts."
-    >
-      <div className="mb-6 lg:hidden">
-        <Card>
-          <CardContent className="p-4">
-            <RoleUserSwitcher />
-          </CardContent>
-        </Card>
-      </div>
+    <Shell>
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 animate-soft-in">
+        <PageHeader
+          title="Workflow dashboard"
+          description="Role-curated analytics, actionable steps, and server-driven process charts."
+          breadcrumbs={[{ label: 'Dashboard' }]}
+          actions={
+            activeKey ? (
+              <Button
+                size="sm"
+                disabled={start.isPending}
+                onClick={() => start.mutate({ key: activeKey })}
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start {activeWorkflow?.name || activeKey}
+              </Button>
+            ) : null
+          }
+        />
 
-      <div id="analytics" className="mb-6 scroll-mt-24">
-        <RoleAnalytics />
-      </div>
+        <section id="analytics" className="scroll-mt-4" aria-labelledby="analytics-heading">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 id="analytics-heading" className="text-sm font-semibold tracking-tight">
+              Role analytics
+            </h2>
+          </div>
+          <RoleAnalytics />
+        </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
-          <Card id="inbox" className="scroll-mt-24">
-            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+        <Separator />
+
+        {/* Process map — primary visual stage, full width */}
+        <section id="process" className="scroll-mt-4" aria-labelledby="process-heading">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 id="process-heading" className="text-sm font-semibold tracking-tight">
+                Process map
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {activeWorkflow
+                  ? `${activeWorkflow.name} · ${activeKey} · v${activeWorkflow.version}`
+                  : 'Select a workflow definition'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(workflows.data || []).map((w) => (
+                <Button
+                  key={w.id}
+                  type="button"
+                  size="sm"
+                  variant={activeKey === w.key ? 'default' : 'outline'}
+                  className="h-8"
+                  onClick={() => setSelectedKey(w.key)}
+                >
+                  {w.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <WorkflowChart definition={definition.data} className="h-[min(58vh,560px)] min-h-[360px]" />
+        </section>
+
+        {/* Work queue + definitions */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section id="inbox" className="scroll-mt-4" aria-labelledby="inbox-heading">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
+                <h2 id="inbox-heading" className="text-sm font-semibold tracking-tight">
                   Action inbox
-                </CardTitle>
-                <CardDescription>Click a notification to go straight to the step you must complete.</CardDescription>
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Steps waiting on your roles — open to continue.
+                </p>
               </div>
-              <Badge variant={inbox.length ? 'default' : 'secondary'}>{inbox.length} waiting</Badge>
-            </CardHeader>
-            <CardContent className="space-y-2">
+              <Badge variant={inbox.length ? 'default' : 'secondary'}>{inbox.length}</Badge>
+            </div>
+            <div className="divide-y rounded-lg border bg-card">
               {inbox.length === 0 && (
-                <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                <p className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No steps waiting on {(user?.roles || []).join(', ') || 'your roles'}.
                 </p>
               )}
@@ -98,127 +146,99 @@ export default function WorkflowDashboard() {
                 <Button
                   key={item.id}
                   type="button"
-                  variant="outline"
-                  className="h-auto w-full justify-between gap-3 px-4 py-3 text-left font-normal"
+                  variant="ghost"
+                  className="h-auto w-full justify-between gap-3 rounded-none px-4 py-3 text-left font-normal hover:bg-muted/50"
                   onClick={() => navigate(item.href)}
                 >
-                  <span>
-                    <span className="block font-medium text-foreground">{item.title}</span>
-                    <span className="block text-xs text-muted-foreground">{item.description}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {item.title}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {item.description}
+                    </span>
                   </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-primary" />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Button>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          <Card id="workflows" className="scroll-mt-24">
-            <CardHeader>
-              <CardTitle>Workflow definitions</CardTitle>
-              <CardDescription>Start a seeded process. Graph updates on the right.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
+          <section id="workflows" className="scroll-mt-4" aria-labelledby="defs-heading">
+            <div className="mb-3">
+              <h2 id="defs-heading" className="text-sm font-semibold tracking-tight">
+                Workflow definitions
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Start a seeded process. Selection drives the process map.
+              </p>
+            </div>
+            <ul className="divide-y rounded-lg border bg-card">
               {(workflows.data || []).map((w) => (
-                <Card
+                <li
                   key={w.id}
-                  className={activeKey === w.key ? 'border-primary/50 bg-accent/40' : undefined}
+                  className={cn(
+                    'flex items-center justify-between gap-3 px-4 py-3',
+                    activeKey === w.key && 'bg-accent/50',
+                  )}
                 >
-                  <CardContent className="p-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-auto w-full flex-col items-start gap-1 px-0 py-0 text-left hover:bg-transparent"
-                      onClick={() => setSelectedKey(w.key)}
-                    >
-                      <span className="font-semibold text-foreground">{w.name}</span>
-                      <span className="text-xs font-normal text-muted-foreground">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto min-w-0 flex-1 justify-start px-0 py-0 text-left font-normal hover:bg-transparent"
+                    onClick={() => setSelectedKey(w.key)}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{w.name}</span>
+                      <span className="block text-xs text-muted-foreground">
                         {w.key} · v{w.version}
                       </span>
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="mt-3"
-                      disabled={start.isPending}
-                      onClick={() => start.mutate({ key: w.key })}
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                      Start
-                    </Button>
-                  </CardContent>
-                </Card>
+                    </span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={activeKey === w.key ? 'default' : 'outline'}
+                    className="h-8 shrink-0"
+                    disabled={start.isPending}
+                    onClick={() => start.mutate({ key: w.key })}
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                    Start
+                  </Button>
+                </li>
               ))}
-            </CardContent>
-          </Card>
+              {(workflows.data || []).length === 0 && (
+                <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  {workflows.isLoading ? 'Loading definitions…' : 'No workflow definitions available.'}
+                </li>
+              )}
+            </ul>
+          </section>
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Workflow chart</CardTitle>
-              <CardDescription>
-                {activeKey ? `XY graph for ${activeKey}` : 'Select a definition'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <WorkflowChart definition={definition.data} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Instance insights</CardTitle>
-              <CardDescription>TanStack Table, Recharts, and Excel export for operational visibility.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InstanceInsights instances={instances.data || []} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent instances</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="all">
-                <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="mine">My actions</TabsTrigger>
-                </TabsList>
-                <TabsContent value="all" className="space-y-2">
-                  {(instances.data || []).slice(0, 8).map((i) => (
-                    <Link
-                      key={i.instanceId}
-                      to={`/instances/${i.instanceId}`}
-                      className="flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-muted/60"
-                    >
-                      <div>
-                        <div className="font-medium text-foreground">{i.workflowName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {i.businessKey || i.instanceId.slice(0, 8)} · {i.currentNode?.label}
-                        </div>
-                      </div>
-                      <Badge variant={i.status === 'COMPLETED' ? 'success' : 'warning'}>{i.status}</Badge>
-                    </Link>
-                  ))}
-                </TabsContent>
-                <TabsContent value="mine" className="space-y-2">
-                  {inbox.map((item) => (
-                    <Button
-                      key={item.id}
-                      type="button"
-                      variant="outline"
-                      className="h-auto w-full justify-between px-3 py-2.5 font-normal"
-                      onClick={() => navigate(item.href)}
-                    >
-                      <span>{item.title}</span>
-                      <ArrowRight className="h-4 w-4 text-primary" />
-                    </Button>
-                  ))}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Instances — table owns interaction; no outer card wrapper */}
+        <section id="instances" className="scroll-mt-4 pb-4" aria-labelledby="instances-heading">
+          <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 id="instances-heading" className="text-sm font-semibold tracking-tight">
+                Instances
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Search, filter, chart, and export operational history.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(instances.data || []).slice(0, 3).map((i) => (
+                <Button key={i.instanceId} asChild size="sm" variant="outline" className="h-8 max-w-[200px]">
+                  <Link to={`/instances/${i.instanceId}`} className="truncate">
+                    {i.businessKey || i.instanceId.slice(0, 8)}
+                  </Link>
+                </Button>
+              ))}
+            </div>
+          </div>
+          <InstanceInsights instances={instances.data || []} />
+        </section>
       </div>
     </Shell>
   )

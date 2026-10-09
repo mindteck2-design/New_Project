@@ -25,23 +25,23 @@ function WorkflowNodeCard({ data }) {
   return (
     <div
       className={cn(
-        'min-w-[180px] max-w-[220px] rounded-xl border px-3 py-2.5 shadow-sm transition-all duration-300',
+        'min-w-[180px] max-w-[220px] rounded-lg border px-3 py-2.5 shadow-sm transition-all duration-300',
         TYPE_STYLES[data.nodeType] || TYPE_STYLES.TASK,
-        active && 'ring-2 ring-primary shadow-md scale-[1.02]',
+        active && 'scale-[1.02] shadow-md ring-2 ring-primary',
       )}
     >
-      <Handle type="target" position={Position.Top} className="!bg-primary !w-2 !h-2" />
-      <div className="flex items-center justify-between gap-2 mb-1">
+      <Handle type="target" position={Position.Top} className="!h-2 !w-2 !bg-primary" />
+      <div className="mb-1 flex items-center justify-between gap-2">
         <Badge variant={data.nodeType === 'DECISION' ? 'warning' : 'secondary'} className="text-[10px]">
           {data.nodeType}
         </Badge>
-        {active && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
+        {active && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
       </div>
       <div className="text-sm font-semibold leading-snug text-foreground">{data.label}</div>
       {data.roleCode && (
         <div className="mt-1 text-[11px] text-muted-foreground">{data.roleCode}</div>
       )}
-      <Handle type="source" position={Position.Bottom} className="!bg-primary !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!h-2 !w-2 !bg-primary" />
     </div>
   )
 }
@@ -49,14 +49,13 @@ function WorkflowNodeCard({ data }) {
 const nodeTypes = { workflow: WorkflowNodeCard }
 
 function layoutNodes(nodes) {
-  // Simple layered layout by index
   const cols = 3
   return nodes.map((n, i) => ({
     id: n.key,
     type: 'workflow',
     position: {
-      x: (i % cols) * 260 + 40,
-      y: Math.floor(i / cols) * 140 + 40,
+      x: (i % cols) * 280 + 48,
+      y: Math.floor(i / cols) * 160 + 48,
     },
     data: {
       label: n.label || n.key,
@@ -81,8 +80,14 @@ export default function WorkflowChart({ definition, currentNodeKey, className })
       target: t.to,
       label: t.when || undefined,
       animated: t.from === currentNodeKey,
-      style: { stroke: t.from === currentNodeKey ? '#0f766e' : '#a1a1aa', strokeWidth: t.from === currentNodeKey ? 2 : 1.25 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: t.from === currentNodeKey ? '#0f766e' : '#a1a1aa' },
+      style: {
+        stroke: t.from === currentNodeKey ? '#0f766e' : '#a1a1aa',
+        strokeWidth: t.from === currentNodeKey ? 2 : 1.25,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: t.from === currentNodeKey ? '#0f766e' : '#a1a1aa',
+      },
       labelStyle: { fontSize: 10, fill: '#71717a' },
     }))
     return { flowNodes, flowEdges }
@@ -98,14 +103,24 @@ export default function WorkflowChart({ definition, currentNodeKey, className })
 
   if (!definition?.nodes?.length) {
     return (
-      <div className={cn('flex h-[360px] items-center justify-center rounded-xl border bg-muted/40 text-sm text-muted-foreground', className)}>
+      <div
+        className={cn(
+          'flex h-[min(58vh,560px)] min-h-[360px] items-center justify-center rounded-lg border bg-muted/30 text-sm text-muted-foreground',
+          className,
+        )}
+      >
         No workflow graph available
       </div>
     )
   }
 
   return (
-    <div className={cn('h-[420px] overflow-hidden rounded-xl border bg-card', className)}>
+    <div
+      className={cn(
+        'h-[min(58vh,560px)] min-h-[360px] overflow-hidden rounded-lg border bg-card',
+        className,
+      )}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -114,12 +129,12 @@ export default function WorkflowChart({ definition, currentNodeKey, className })
         nodeTypes={nodeTypes}
         fitView
         proOptions={{ hideAttribution: true }}
-        minZoom={0.4}
-        maxZoom={1.4}
+        minZoom={0.35}
+        maxZoom={1.5}
       >
-        <Background gap={18} size={1} color="#e4e4e7" />
-        <MiniMap pannable zoomable className="!bg-muted/60 !border-border" />
-        <Controls showInteractive={false} className="!shadow-sm !border-border !rounded-lg" />
+        <Background gap={20} size={1} color="#e4e4e7" />
+        <MiniMap pannable zoomable className="!border-border !bg-muted/60" />
+        <Controls showInteractive={false} className="!rounded-lg !border-border !shadow-sm" />
       </ReactFlow>
     </div>
   )

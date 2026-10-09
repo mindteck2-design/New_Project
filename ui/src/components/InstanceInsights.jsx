@@ -26,7 +26,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Card, CardContent } from '@/components/ui/card'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -68,7 +67,7 @@ export default function InstanceInsights({ instances = [] }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [sorting, setSorting] = useState([{ id: 'startedAt', desc: true }])
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 })
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
 
   const statusCounts = useMemo(() => {
     const map = { RUNNING: 0, COMPLETED: 0 }
@@ -245,143 +244,143 @@ export default function InstanceInsights({ instances = [] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          Instance volume by status · {filteredRows.length} of {instances.length} shown
-        </p>
-        <Button type="button" size="sm" variant="outline" onClick={exportExcel} disabled={!filteredRows.length}>
-          <Download className="h-3.5 w-3.5" />
-          Export Excel
-        </Button>
-      </div>
+      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="h-40 rounded-lg border bg-card p-2 lg:h-auto lg:min-h-[160px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={statusCounts} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="status" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={28} />
+              <Tooltip />
+              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-      <div className="h-44 w-full rounded-xl border bg-muted/20 p-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={statusCounts} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="status" tick={{ fontSize: 11 }} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={28} />
-            <Tooltip />
-            <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              {filteredRows.length} of {instances.length} instances
+            </p>
+            <Button type="button" size="sm" variant="outline" onClick={exportExcel} disabled={!filteredRows.length}>
+              <Download className="h-3.5 w-3.5" />
+              Export Excel
+            </Button>
+          </div>
 
-      <Card>
-        <CardContent className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-            <Label htmlFor="instance-search">Global search</Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="instance-search"
-                value={globalFilter}
-                onChange={(e) => {
-                  setGlobalFilter(e.target.value)
+          <div className="grid gap-3 rounded-lg border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
+              <Label htmlFor="instance-search">Search</Label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="instance-search"
+                  value={globalFilter}
+                  onChange={(e) => {
+                    setGlobalFilter(e.target.value)
+                    setPagination((p) => ({ ...p, pageIndex: 0 }))
+                  }}
+                  placeholder="Workflow, key, step…"
+                  className="h-9 pl-8"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => {
+                  setStatusFilter(v)
                   setPagination((p) => ({ ...p, pageIndex: 0 }))
                 }}
-                placeholder="Workflow, key, step…"
-                className="h-9 pl-8"
-              />
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="RUNNING">RUNNING</SelectItem>
+                  <SelectItem value="COMPLETED">COMPLETED</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v)
-                setPagination((p) => ({ ...p, pageIndex: 0 }))
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All statuses</SelectItem>
-                <SelectItem value="RUNNING">RUNNING</SelectItem>
-                <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="date-from">Started from</Label>
-            <Input
-              id="date-from"
-              type="date"
-              className="h-9"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value)
-                setPagination((p) => ({ ...p, pageIndex: 0 }))
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="date-to">Started to</Label>
-            <div className="flex gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="date-from">Started from</Label>
               <Input
-                id="date-to"
+                id="date-from"
                 type="date"
                 className="h-9"
-                value={dateTo}
+                value={dateFrom}
                 onChange={(e) => {
-                  setDateTo(e.target.value)
+                  setDateFrom(e.target.value)
                   setPagination((p) => ({ ...p, pageIndex: 0 }))
                 }}
               />
-              {hasFilters && (
-                <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={clearFilters} title="Clear filters">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="date-to">Started to</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="date-to"
+                  type="date"
+                  className="h-9"
+                  value={dateTo}
+                  onChange={(e) => {
+                    setDateTo(e.target.value)
+                    setPagination((p) => ({ ...p, pageIndex: 0 }))
+                  }}
+                />
+                {hasFilters && (
+                  <Button type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={clearFilters} title="Clear filters">
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id}>
-                  {hg.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-              {instances.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
-                    No instances yet — start a workflow above.
+      <div className="overflow-hidden rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id}>
+                {hg.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
-                </TableRow>
-              )}
-              {instances.length > 0 && filteredRows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
-                    No instances match the current search and filters.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                ))}
+              </TableRow>
+            ))}
+            {instances.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">
+                  No instances yet — start a workflow above.
+                </TableCell>
+              </TableRow>
+            )}
+            {instances.length > 0 && filteredRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="py-10 text-center text-muted-foreground">
+                  No instances match the current search and filters.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -396,7 +395,7 @@ export default function InstanceInsights({ instances = [] }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[5, 10, 20, 50].map((size) => (
+              {[10, 20, 50].map((size) => (
                 <SelectItem key={size} value={String(size)}>
                   {size} / page
                 </SelectItem>
@@ -427,10 +426,6 @@ export default function InstanceInsights({ instances = [] }) {
           </Button>
         </div>
       </div>
-
-      <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground hal-watermark">
-        Property of HAL — Restricted
-      </p>
     </div>
   )
 }

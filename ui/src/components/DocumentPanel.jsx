@@ -3,11 +3,10 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Download, Paperclip, Upload } from 'lucide-react'
+import { Download, Upload } from 'lucide-react'
 import { documentDownloadUrl, fetchDocuments, uploadDocument } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
   Form,
@@ -55,15 +54,16 @@ export default function DocumentPanel({ instanceId }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Paperclip className="h-4 w-4" />
+    <section aria-labelledby="attachments-heading">
+      <div className="mb-3">
+        <h2 id="attachments-heading" className="text-sm font-semibold tracking-tight">
           Attachments
-        </CardTitle>
-        <CardDescription>Secure upload; download requires sign-in.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Secure upload; download requires sign-in.
+        </p>
+      </div>
+      <div className="space-y-4 rounded-lg border bg-card p-4">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onUpload)} className="space-y-3" noValidate>
             <FormField
@@ -126,7 +126,7 @@ export default function DocumentPanel({ instanceId }) {
             </Button>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }
