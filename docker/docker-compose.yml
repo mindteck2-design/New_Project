@@ -44,7 +44,7 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       POSTGRES_HOST: postgres
       MONGODB_URI: mongodb://mongo:27017/amms
-      AMMS_FORMS_STORE: postgres
+      AMMS_FORMS_STORE: mongo
       AMMS_WORKFLOWS_DIR: /app/workflows
     ports:
       - "${SERVER_PORT:-18080}:18080"

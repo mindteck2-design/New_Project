@@ -7,6 +7,7 @@ import com.hal.amms.dao.WorkflowDao;
 import com.hal.amms.model.Models.*;
 import com.hal.amms.security.UserPrincipal;
 import com.hal.amms.service.AttachmentStorageService;
+import com.hal.amms.service.FormSubmissionStore;
 import com.hal.amms.web.ApiException;
 import com.hal.amms.web.dto.ApiDtos.*;
 import org.springframework.core.io.Resource;
@@ -23,17 +24,20 @@ public class WorkflowService {
     private final DecisionEngine decisionEngine;
     private final ObjectMapper mapper;
     private final AttachmentStorageService attachments;
+    private final FormSubmissionStore formStore;
 
     public WorkflowService(
             WorkflowDao dao,
             DecisionEngine decisionEngine,
             ObjectMapper mapper,
-            AttachmentStorageService attachments
+            AttachmentStorageService attachments,
+            FormSubmissionStore formStore
     ) {
         this.dao = dao;
         this.decisionEngine = decisionEngine;
         this.mapper = mapper;
         this.attachments = attachments;
+        this.formStore = formStore;
     }
 
     public List<WorkflowSummary> listWorkflows() {
@@ -290,7 +294,7 @@ public class WorkflowService {
     }
 
     private void saveForm(WorkflowInstance instance, WorkflowNode node, Map<String, Object> payload, UserPrincipal user) {
-        dao.insertForm(
+        formStore.save(
                 UUID.randomUUID(),
                 instance.id(),
                 node.formKey() != null ? node.formKey() : "generic",

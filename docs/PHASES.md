@@ -18,11 +18,12 @@
 - `WorkflowApiIntegrationTest` — 403 wrong role, FAIL→repair, 400 missing decision
 - `scripts/verify.sh` — server tests, UI build, optional healthcheck
 - Modern UI: shadcn theme, XYFlow charts, role switcher, actionable notifications
+- `FormSubmissionStore`: PostgreSQL (`local`/`test`) or MongoDB (`dev`/`prod` via `amms.forms.store=mongo`)
+- Dashboard instance insights: TanStack Table, Recharts, ExcelJS export (HAL watermark on export)
 
 ## Deferred (post-MVP)
 
 - Full aircraft A-2/A-3/A-4 runtime workflows (inventory in `docs/workflows/INVENTORY.md`)
-- Mongo form store (`AMMS_FORMS_STORE=mongo` when Mongo available)
 - PKI digital signatures, SSO, IFS/AMMS integrations
 - Stores / plating / metrology chart imports
 

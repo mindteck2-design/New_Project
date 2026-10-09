@@ -1,0 +1,16 @@
+# Mirror of server/src/main/resources/application-prod.yml — prod overlay reference
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+
+amms:
+  forms:
+    store: ${AMMS_FORMS_STORE:mongo}
+  seed:
+    enabled: false
+
+logging:
+  level:
+    com.hal.amms: INFO
+    org.springframework: WARN

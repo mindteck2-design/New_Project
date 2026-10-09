@@ -16,7 +16,7 @@ Digitizes HAL Overhaul Division process charts as a **DB-driven workflow engine*
 ## Stack
 
 - Java 21, Spring Boot, Spring Security (JWT), **jOOQ** (no JPA), Flyway, PostgreSQL
-- React, Tailwind, TanStack Query, Axios, Zod / RHF, Sonner
+- React, Tailwind, TanStack Query/Table, Recharts, ExcelJS, Axios, Zod / RHF, Sonner
 - MongoDB optional for forms (`AMMS_FORMS_STORE=mongo`); default local uses PostgreSQL JSONB
 - MinIO in compose; local disk attachments fallback
 

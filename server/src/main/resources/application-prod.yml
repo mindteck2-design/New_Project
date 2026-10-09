@@ -1,0 +1,15 @@
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+
+amms:
+  forms:
+    store: ${AMMS_FORMS_STORE:mongo}
+  seed:
+    enabled: false
+
+logging:
+  level:
+    com.hal.amms: INFO
+    org.springframework: WARN

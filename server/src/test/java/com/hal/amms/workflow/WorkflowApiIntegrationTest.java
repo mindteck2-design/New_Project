@@ -67,6 +67,40 @@ class WorkflowApiIntegrationTest {
     }
 
     @Test
+    void completedInstanceRejectsTransitionWith409() throws Exception {
+        String token = login("admin");
+        String instanceId = startWorkflow(token, "accessories-bench-check");
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"sparesRequired":"No"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"scheduleRef":"SCH-1"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"PASS"}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"serviceable":"Yes"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"NO"}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"labelApplied":"Cat-D"}}
+                """);
+        JsonNode done = transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"NO"}
+                """);
+        assertEquals("COMPLETED", done.path("status").asText());
+
+        mockMvc.perform(post("/api/v1/instances/" + instanceId + "/transitions")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"action\":\"COMPLETE\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     void missingDecisionValueReturns400() throws Exception {
         String token = login("admin");
         String instanceId = startWorkflow(token, "accessories-bench-check");

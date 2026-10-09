@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import Shell from '@/components/Shell'
 import WorkflowChart from '@/components/WorkflowChart'
+import InstanceInsights from '@/components/InstanceInsights'
 import RoleUserSwitcher from '@/components/RoleUserSwitcher'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -155,6 +156,16 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <WorkflowChart definition={definition.data} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Instance insights</CardTitle>
+              <CardDescription>TanStack Table, Recharts, and Excel export for operational visibility.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InstanceInsights instances={instances.data || []} />
             </CardContent>
           </Card>
 
