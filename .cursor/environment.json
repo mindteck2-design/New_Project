@@ -1,0 +1,4 @@
+{
+  "install": "cd /workspace/server && mvn -q -DskipTests dependency:resolve && cd /workspace/ui && npm install",
+  "start": "./scripts/start-services-local.sh && ./scripts/start-ui.sh"
+}
