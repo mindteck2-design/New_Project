@@ -1,11 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { currentUser } from './api/client'
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import InstancePage from './pages/InstancePage'
+import { useAuth } from '@/context/AuthContext'
+import LoginPage from '@/pages/LoginPage'
+import DashboardPage from '@/pages/DashboardPage'
+import InstancePage from '@/pages/InstancePage'
 
 function RequireAuth({ children }) {
-  if (!currentUser() && !localStorage.getItem('amms_token')) {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated && !localStorage.getItem('amms_token')) {
     return <Navigate to="/login" replace />
   }
   return children

@@ -1,48 +1,126 @@
-import { Link } from 'react-router-dom'
-import { currentUser, logout } from '../api/client'
+import { Link, useLocation } from 'react-router-dom'
+import { motion } from 'motion/react'
+import { LogOut, Workflow } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import NotificationCenter from '@/components/NotificationCenter'
+import RoleUserSwitcher from '@/components/RoleUserSwitcher'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-export default function Shell({ children, title }) {
-  const user = currentUser()
+export default function Shell({ children, title, subtitle }) {
+  const { user, logout } = useAuth()
+  const location = useLocation()
+  const initials = (user?.displayName || 'U')
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-[var(--line)] bg-[var(--panel)] backdrop-blur px-5 py-3 flex items-center justify-between gap-4">
-        <div>
-          <Link to="/" className="no-underline text-[var(--ink)]">
-            <div className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-[var(--steel)]">
-              AMMS
-            </div>
-            <div className="text-sm text-[var(--steel)]/80">Dynamic Workflow Engine</div>
-          </Link>
-        </div>
-        <div className="text-right text-sm">
-          {user && (
-            <>
-              <div className="font-medium">{user.displayName}</div>
-              <div className="text-[var(--steel)]/70">{(user.roles || []).join(' · ')}</div>
-              <button
-                type="button"
-                className="mt-1 text-[var(--accent)] underline"
-                onClick={() => {
-                  logout()
-                  window.location.href = '/login'
-                }}
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-card/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex items-center gap-6">
+            <Link to="/" className="group flex items-center gap-2.5 no-underline">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform duration-200 group-hover:scale-105">
+                <Workflow className="h-4 w-4" />
+              </span>
+              <div>
+                <div className="text-sm font-semibold tracking-tight text-foreground">AMMS</div>
+                <div className="text-[11px] text-muted-foreground">Workflow Engine</div>
+              </div>
+            </Link>
+            <nav className="hidden items-center gap-1 md:flex">
+              <Link
+                to="/"
+                className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                  location.pathname === '/' ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                Sign out
-              </button>
-            </>
-          )}
+                Dashboard
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden lg:block">
+              <RoleUserSwitcher compact />
+            </div>
+            <NotificationCenter />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 gap-2 rounded-full px-1.5">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden max-w-[120px] truncate text-sm font-medium sm:inline">
+                    {user?.displayName}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>
+                  <div className="font-medium">{user?.displayName}</div>
+                  <div className="text-xs font-normal text-muted-foreground">{user?.username}</div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-2 lg:hidden">
+                  <RoleUserSwitcher />
+                </div>
+                <DropdownMenuSeparator className="lg:hidden" />
+                <DropdownMenuItem
+                  onSelect={() => {
+                    logout()
+                    window.location.href = '/login'
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
-      <main className="flex-1 px-5 py-6 max-w-6xl w-full mx-auto">
-        {title && (
-          <h1 className="font-[family-name:var(--font-display)] text-3xl mb-4 text-[var(--steel)]">
-            {title}
-          </h1>
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+        {(title || subtitle) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="mb-6"
+          >
+            {title && <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>}
+            {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+          </motion.div>
         )}
-        {children}
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        >
+          {children}
+        </motion.div>
       </main>
-      <footer className="hal-banner text-center py-3 border-t border-[var(--line)] bg-[var(--panel)]">
-        Property of HAL — Restricted · AS 9110 C–aligned audit trail
+
+      <footer className="border-t border-border/80 bg-card/60">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+          <p className="hal-watermark">Property of HAL — Restricted</p>
+          <p className="text-[11px] text-muted-foreground">AS 9110 C–aligned audit trail</p>
+        </div>
+        <Separator />
       </footer>
     </div>
   )

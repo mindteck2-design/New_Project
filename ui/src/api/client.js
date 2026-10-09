@@ -18,12 +18,14 @@ export async function login(username, password) {
   const { data } = await api.post('/auth/login', { username, password })
   localStorage.setItem('amms_token', data.token)
   localStorage.setItem('amms_user', JSON.stringify(data.user))
+  window.dispatchEvent(new Event('amms-auth-changed'))
   return data
 }
 
 export function logout() {
   localStorage.removeItem('amms_token')
   localStorage.removeItem('amms_user')
+  window.dispatchEvent(new Event('amms-auth-changed'))
 }
 
 export function currentUser() {
@@ -33,6 +35,11 @@ export function currentUser() {
 
 export async function fetchWorkflows() {
   const { data } = await api.get('/workflows')
+  return data
+}
+
+export async function fetchWorkflowDefinition(key) {
+  const { data } = await api.get(`/workflows/${key}`)
   return data
 }
 
@@ -59,4 +66,26 @@ export async function transition(id, body) {
 export async function fetchAudit(id) {
   const { data } = await api.get(`/instances/${id}/audit`)
   return data
+}
+
+/** Instances waiting on one of the current user's roles. */
+export function actionableNotifications(instances, user) {
+  if (!user?.roles?.length || !instances?.length) return []
+  const roles = new Set(user.roles.map((r) => r.toUpperCase()))
+  return instances
+    .filter((i) => i.status === 'RUNNING')
+    .filter((i) => {
+      const need = i.currentNode?.roleCode
+      if (!need) return true
+      return roles.has(need.toUpperCase())
+    })
+    .map((i) => ({
+      id: i.instanceId,
+      instanceId: i.instanceId,
+      title: i.currentNode?.label || 'Action required',
+      description: `${i.workflowName}${i.businessKey ? ` · ${i.businessKey}` : ''}`,
+      roleCode: i.currentNode?.roleCode,
+      href: `/instances/${i.instanceId}`,
+      type: i.currentNode?.type,
+    }))
 }

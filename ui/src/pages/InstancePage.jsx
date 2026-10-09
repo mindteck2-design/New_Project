@@ -1,21 +1,40 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { fetchAudit, fetchInstance, transition } from '../api/client'
-import Shell from '../components/Shell'
-import DecisionNode from '../components/DecisionNode'
-import DynamicForm from '../components/DynamicForm'
+import { ArrowLeft, ShieldAlert } from 'lucide-react'
+import { fetchAudit, fetchInstance, fetchWorkflowDefinition, transition } from '@/api/client'
+import Shell from '@/components/Shell'
+import DecisionNode from '@/components/DecisionNode'
+import DynamicForm from '@/components/DynamicForm'
+import WorkflowChart from '@/components/WorkflowChart'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function InstancePage() {
   const { id } = useParams()
   const qc = useQueryClient()
   const instance = useQuery({ queryKey: ['instance', id], queryFn: () => fetchInstance(id) })
   const audit = useQuery({ queryKey: ['audit', id], queryFn: () => fetchAudit(id) })
+  const definition = useQuery({
+    queryKey: ['workflow-def', instance.data?.workflowKey],
+    queryFn: () => fetchWorkflowDefinition(instance.data.workflowKey),
+    enabled: !!instance.data?.workflowKey,
+  })
 
   const mutate = useMutation({
     mutationFn: (body) => transition(id, body),
-    onSuccess: () => {
-      toast.success('Step recorded')
+    onSuccess: (data) => {
+      toast.success(data.status === 'COMPLETED' ? 'Workflow completed' : 'Step recorded', {
+        description: data.currentNode?.label,
+        action:
+          data.status === 'RUNNING'
+            ? {
+                label: 'Stay',
+                onClick: () => {},
+              }
+            : undefined,
+      })
       qc.invalidateQueries({ queryKey: ['instance', id] })
       qc.invalidateQueries({ queryKey: ['audit', id] })
       qc.invalidateQueries({ queryKey: ['instances'] })
@@ -27,89 +46,119 @@ export default function InstancePage() {
   const node = data?.currentNode
 
   return (
-    <Shell title={data?.workflowName || 'Instance'}>
-      <div className="mb-4">
-        <Link to="/" className="text-sm text-[var(--accent)]">← Dashboard</Link>
-      </div>
+    <Shell
+      title={data?.workflowName || 'Instance'}
+      subtitle={data ? `${data.businessKey || data.instanceId} · ${data.status}` : 'Loading…'}
+    >
+      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+        <Link to="/">
+          <ArrowLeft className="h-4 w-4" />
+          Dashboard
+        </Link>
+      </Button>
 
-      {instance.isLoading && <p>Loading instance…</p>}
-      {instance.isError && <p className="text-[var(--danger)]">Could not load instance.</p>}
+      {instance.isLoading && <p className="text-sm text-muted-foreground">Loading instance…</p>}
+      {instance.isError && <p className="text-sm text-destructive">Could not load instance.</p>}
 
       {data && (
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <section className="border border-[var(--line)] bg-[var(--panel)] p-5">
-            <div className="flex justify-between gap-3 mb-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-[var(--steel)]/60">Current step</div>
-                <h2 className="text-xl font-semibold text-[var(--steel)]">{node?.label}</h2>
-                <div className="text-sm text-[var(--steel)]/70">
-                  {node?.type} · role {node?.roleCode || 'any'} · {data.status}
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+                <div>
+                  <CardDescription>Current step</CardDescription>
+                  <CardTitle className="mt-1 text-xl">{node?.label}</CardTitle>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge variant="secondary">{node?.type}</Badge>
+                    {node?.roleCode && <Badge>{node.roleCode}</Badge>}
+                    <Badge variant={data.status === 'COMPLETED' ? 'success' : 'warning'}>{data.status}</Badge>
+                  </div>
                 </div>
-              </div>
-              <div className="text-xs text-right text-[var(--steel)]/60">
-                <div>{data.businessKey}</div>
-                <div className="font-mono">{data.instanceId}</div>
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent>
+                {data.status === 'COMPLETED' && (
+                  <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    Workflow completed. Review the audit trail for the full chain of custody.
+                  </p>
+                )}
 
-            {data.status === 'COMPLETED' && (
-              <p className="text-[var(--ok)] font-medium">Workflow completed.</p>
-            )}
+                {data.status === 'RUNNING' && node?.type === 'DECISION' && (
+                  <DecisionNode
+                    actions={data.allowedActions}
+                    disabled={mutate.isPending || (data.allowedActions || []).length === 0}
+                    onDecide={(value) =>
+                      mutate.mutate({
+                        action: 'DECISION',
+                        decisionValue: value,
+                        signaturePlaceholder: 'ack',
+                      })
+                    }
+                  />
+                )}
 
-            {data.status === 'RUNNING' && node?.type === 'DECISION' && (
-              <DecisionNode
-                actions={data.allowedActions}
-                disabled={mutate.isPending || (data.allowedActions || []).length === 0}
-                onDecide={(value) =>
-                  mutate.mutate({
-                    action: 'DECISION',
-                    decisionValue: value,
-                    signaturePlaceholder: 'ack',
-                  })
-                }
-              />
-            )}
+                {data.status === 'RUNNING' && node?.type === 'TASK' && (
+                  <DynamicForm
+                    formKey={node.formKey}
+                    disabled={mutate.isPending || (data.allowedActions || []).length === 0}
+                    onSubmit={({ formPayload, signaturePlaceholder }) =>
+                      mutate.mutate({
+                        action: 'COMPLETE',
+                        formPayload,
+                        notes: formPayload.notes || formPayload.observations,
+                        signaturePlaceholder,
+                      })
+                    }
+                  />
+                )}
 
-            {data.status === 'RUNNING' && node?.type === 'TASK' && (
-              <DynamicForm
-                formKey={node.formKey}
-                disabled={mutate.isPending || (data.allowedActions || []).length === 0}
-                onSubmit={({ formPayload, signaturePlaceholder }) =>
-                  mutate.mutate({
-                    action: 'COMPLETE',
-                    formPayload,
-                    notes: formPayload.notes || formPayload.observations,
-                    signaturePlaceholder,
-                  })
-                }
-              />
-            )}
-
-            {data.status === 'RUNNING' && (data.allowedActions || []).length === 0 && (
-              <p className="text-[var(--accent-2)] text-sm">
-                Your role cannot act on this step. Sign in as {node?.roleCode} or admin.
-              </p>
-            )}
-          </section>
-
-          <section className="border border-[var(--line)] bg-white/70 p-5">
-            <h3 className="font-semibold mb-3 text-[var(--steel)]">Audit trail</h3>
-            {audit.isLoading && <p className="text-sm">Loading…</p>}
-            <ol className="space-y-2 text-sm">
-              {(audit.data || []).map((a) => (
-                <li key={a.id} className="border-l-2 border-[var(--accent)] pl-3">
-                  <div className="font-medium">{a.action}</div>
-                  <div className="text-xs text-[var(--steel)]/70">
-                    {a.fromNode} → {a.toNode}
+                {data.status === 'RUNNING' && (data.allowedActions || []).length === 0 && (
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Your current role cannot act here. Use the role/user switcher and select{' '}
+                      <strong>{node?.roleCode}</strong> (or admin), then return — or open the matching
+                      notification after switching.
+                    </span>
                   </div>
-                  <div className="text-xs text-[var(--steel)]/60">
-                    {a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}
-                    {a.signaturePlaceholder ? ` · sig: ${a.signaturePlaceholder}` : ''}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Live workflow chart</CardTitle>
+                <CardDescription>Current node highlighted on the XY graph.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WorkflowChart definition={definition.data} currentNodeKey={node?.key} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Audit trail</CardTitle>
+              <CardDescription>Immutable Pass / Fail / Complete history.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {audit.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+              <ol className="space-y-3">
+                {(audit.data || []).map((a) => (
+                  <li key={a.id} className="relative border-l-2 border-primary/40 pl-4">
+                    <div className="absolute -left-[5px] top-1.5 h-2 w-2 rounded-full bg-primary" />
+                    <div className="text-sm font-medium">{a.action}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {a.fromNode} → {a.toNode}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}
+                      {a.signaturePlaceholder ? ` · sig: ${a.signaturePlaceholder}` : ''}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
         </div>
       )}
     </Shell>
