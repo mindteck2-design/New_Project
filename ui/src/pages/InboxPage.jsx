@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
 import { actionableNotifications, fetchInstances } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 export default function InboxPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const instances = useQuery({ queryKey: ['instances', user?.id], queryFn: fetchInstances })
+  const instances = useQuery({ queryKey: queryKeys.instances.all(user?.id), queryFn: fetchInstances })
 
   const inbox = useMemo(
     () => actionableNotifications(instances.data || [], user),

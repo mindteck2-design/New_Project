@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Play } from 'lucide-react'
 import { fetchWorkflowDefinition, fetchWorkflows, startInstance } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -15,7 +16,7 @@ export default function ProcessMapPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const workflows = useQuery({ queryKey: ['workflows'], queryFn: fetchWorkflows })
+  const workflows = useQuery({ queryKey: queryKeys.workflows.all, queryFn: fetchWorkflows })
   const activeKey = routeKey || workflows.data?.[0]?.key
   const activeWorkflow = (workflows.data || []).find((w) => w.key === activeKey)
 
@@ -26,7 +27,7 @@ export default function ProcessMapPage() {
   }, [routeKey, workflows.data, navigate])
 
   const definition = useQuery({
-    queryKey: ['workflow-def', activeKey],
+    queryKey: queryKeys.workflows.detail(activeKey),
     queryFn: () => fetchWorkflowDefinition(activeKey),
     enabled: !!activeKey,
   })

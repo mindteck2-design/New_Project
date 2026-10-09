@@ -11,6 +11,24 @@ You are a **Principal / Senior Full Stack Engineer** shipping a HAL Overhaul Div
 - Optimize for **production readiness**: clarity, hierarchy, auditability, RBAC, testability, operable scripts.
 - Prefer **correctness and enterprise patterns** over novelty, gimmicks, or “cute” UI.
 
+## Installed agent skills (required for further development)
+
+Project skills live in [`.cursor/skills/`](.cursor/skills/) — see [SOURCES.md](.cursor/skills/SOURCES.md).
+
+**Before implementing UI, API, SQL, or workflow changes, load the matching skill:**
+
+| Skill | Use when |
+|-------|----------|
+| `amms-enterprise-stack` | Any AMMS feature work (master router) |
+| `anti-ui-slop` | Designing / redesigning UI (no toy UI) |
+| `react-best-practices` | React components / pages |
+| `composition-patterns` | Component composition |
+| `web-design-guidelines` | UI/UX review |
+| `tanstack-query` | Queries, mutations, cache keys |
+| `spring-boot-enterprise` | Server Security / DB / tests |
+| `java-springboot` | General Spring Boot practices |
+| `postgresql-optimization` / `postgresql-code-review` | SQL, indexes, JSONB, Flyway |
+
 ## Enterprise bar (forbidden “kid app” behavior)
 
 **Never ship:**

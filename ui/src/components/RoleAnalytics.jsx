@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchRoleAnalytics } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
 import { Badge } from '@/components/ui/badge'
 import { ROLE_LABELS } from '@/lib/demoUsers'
@@ -8,7 +9,7 @@ import { ROLE_LABELS } from '@/lib/demoUsers'
 export default function RoleAnalytics() {
   const { user } = useAuth()
   const analytics = useQuery({
-    queryKey: ['analytics-me', user?.id],
+    queryKey: queryKeys.analytics.me(user?.id),
     queryFn: fetchRoleAnalytics,
     enabled: !!user,
     refetchInterval: 15000,

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Bell, ClipboardList, GitBranch, Play, BarChart3 } from 'lucide-react'
 import { actionableNotifications, fetchInstances, fetchWorkflows } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
@@ -24,8 +25,8 @@ export default function WorkflowDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  const workflows = useQuery({ queryKey: ['workflows'], queryFn: fetchWorkflows })
-  const instances = useQuery({ queryKey: ['instances', user?.id], queryFn: fetchInstances })
+  const workflows = useQuery({ queryKey: queryKeys.workflows.all, queryFn: fetchWorkflows })
+  const instances = useQuery({ queryKey: queryKeys.instances.all(user?.id), queryFn: fetchInstances })
 
   const inbox = useMemo(
     () => actionableNotifications(instances.data || [], user),

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { GitBranch, Play } from 'lucide-react'
 import { fetchWorkflows, startInstance } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -13,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 export default function WorkflowsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const workflows = useQuery({ queryKey: ['workflows'], queryFn: fetchWorkflows })
+  const workflows = useQuery({ queryKey: queryKeys.workflows.all, queryFn: fetchWorkflows })
 
   const start = useMutation({
     mutationFn: ({ key }) => startInstance(key, `BK-${Date.now()}`),

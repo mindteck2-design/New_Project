@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Download, Upload } from 'lucide-react'
 import { documentDownloadUrl, fetchDocuments, uploadDocument } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +28,7 @@ const uploadSchema = z.object({
 export default function DocumentPanel({ instanceId }) {
   const qc = useQueryClient()
   const docs = useQuery({
-    queryKey: ['documents', instanceId],
+    queryKey: queryKeys.instances.documents(instanceId),
     queryFn: () => fetchDocuments(instanceId),
     enabled: !!instanceId,
   })
@@ -42,8 +43,8 @@ export default function DocumentPanel({ instanceId }) {
     onSuccess: () => {
       toast.success('Attachment uploaded')
       form.reset()
-      qc.invalidateQueries({ queryKey: ['documents', instanceId] })
-      qc.invalidateQueries({ queryKey: ['audit', instanceId] })
+      qc.invalidateQueries({ queryKey: queryKeys.instances.documents(instanceId) })
+      qc.invalidateQueries({ queryKey: queryKeys.instances.audit(instanceId) })
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Upload failed'),
   })

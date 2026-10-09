@@ -8,6 +8,7 @@ import {
   fetchInstances,
   fetchNotifications,
 } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import AppSidebar from '@/components/AppSidebar'
 import NotificationCenter from '@/components/NotificationCenter'
 import RoleUserSwitcher from '@/components/RoleUserSwitcher'
@@ -56,13 +57,13 @@ export default function Shell({ children }) {
   }, [collapsed])
 
   const instances = useQuery({
-    queryKey: ['instances', user?.id],
+    queryKey: queryKeys.instances.all(user?.id),
     queryFn: fetchInstances,
     enabled: !!user,
     refetchInterval: 8000,
   })
   const notifications = useQuery({
-    queryKey: ['notifications', user?.id],
+    queryKey: queryKeys.notifications.all(user?.id),
     queryFn: fetchNotifications,
     enabled: !!user,
     refetchInterval: 8000,

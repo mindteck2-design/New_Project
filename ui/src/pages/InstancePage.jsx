@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ShieldAlert } from 'lucide-react'
 import { fetchAudit, fetchInstance, fetchWorkflowDefinition, transition } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -17,10 +18,10 @@ import { Separator } from '@/components/ui/separator'
 export default function InstancePage() {
   const { id } = useParams()
   const qc = useQueryClient()
-  const instance = useQuery({ queryKey: ['instance', id], queryFn: () => fetchInstance(id) })
-  const audit = useQuery({ queryKey: ['audit', id], queryFn: () => fetchAudit(id) })
+  const instance = useQuery({ queryKey: queryKeys.instances.detail(id), queryFn: () => fetchInstance(id) })
+  const audit = useQuery({ queryKey: queryKeys.instances.audit(id), queryFn: () => fetchAudit(id) })
   const definition = useQuery({
-    queryKey: ['workflow-def', instance.data?.workflowKey],
+    queryKey: queryKeys.workflows.detail(instance.data?.workflowKey),
     queryFn: () => fetchWorkflowDefinition(instance.data.workflowKey),
     enabled: !!instance.data?.workflowKey,
   })
@@ -38,8 +39,8 @@ export default function InstancePage() {
               }
             : undefined,
       })
-      qc.invalidateQueries({ queryKey: ['instance', id] })
-      qc.invalidateQueries({ queryKey: ['audit', id] })
+      qc.invalidateQueries({ queryKey: queryKeys.instances.detail(id) })
+      qc.invalidateQueries({ queryKey: queryKeys.instances.audit(id) })
       qc.invalidateQueries({ queryKey: ['instances'] })
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Transition failed'),

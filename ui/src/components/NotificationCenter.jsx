@@ -9,6 +9,7 @@ import {
   fetchNotifications,
   markNotificationRead,
 } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,14 +35,14 @@ export default function NotificationCenter() {
   const primedRef = useRef(false)
 
   const instances = useQuery({
-    queryKey: ['instances', user?.id],
+    queryKey: queryKeys.instances.all(user?.id),
     queryFn: fetchInstances,
     enabled: !!user,
     refetchInterval: 8000,
   })
 
   const notifications = useQuery({
-    queryKey: ['notifications', user?.id],
+    queryKey: queryKeys.notifications.all(user?.id),
     queryFn: fetchNotifications,
     enabled: !!user,
     refetchInterval: 8000,

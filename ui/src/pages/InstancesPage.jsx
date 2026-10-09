@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchInstances } from '@/api/client'
+import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button'
 
 export default function InstancesPage() {
   const { user } = useAuth()
-  const instances = useQuery({ queryKey: ['instances', user?.id], queryFn: fetchInstances })
+  const instances = useQuery({ queryKey: queryKeys.instances.all(user?.id), queryFn: fetchInstances })
   const rows = instances.data || []
 
   return (
