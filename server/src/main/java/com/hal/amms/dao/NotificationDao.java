@@ -38,13 +38,23 @@ public class NotificationDao {
                         .from(NOTIFICATION_READS)
                         .where(NR_NOTIFICATION_ID.eq(WFN_ID).and(NR_USER_ID.eq(userId)))
         );
-        return dsl.select(WORKFLOW_NOTIFICATIONS.fields())
-                .select(readExists.as("is_read"))
+        // Explicit field list — chaining .select(table.fields()).select(extra) replaces the select list in jOOQ.
+        return dsl.select(
+                        WFN_ID,
+                        WFN_INSTANCE_ID,
+                        WFN_TARGET_ROLE,
+                        WFN_TITLE,
+                        WFN_BODY,
+                        WFN_ACTION_PATH,
+                        WFN_CREATED_AT,
+                        readExists.as("is_read")
+                )
                 .from(WORKFLOW_NOTIFICATIONS)
                 .where(WFN_TARGET_ROLE.in(roles))
                 .orderBy(WFN_CREATED_AT.desc())
                 .limit(limit)
-                .fetch();
+                .fetch()
+                .map(r -> (Record) r);
     }
 
     public void markRead(UUID notificationId, UUID userId) {

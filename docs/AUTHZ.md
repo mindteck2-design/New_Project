@@ -20,8 +20,9 @@
 ## Enforcement
 
 1. Spring Security authenticates JWT
-2. `WorkflowService` checks `currentNode.roleCode` ⊆ user roles before allowing transitions/form submit
-3. List endpoints filter to instances where user can act **or** has already participated (MVP: admins see all; role users see actionable + owned)
+2. **Start instance** requires the workflow `START` node `roleCode` (e.g. Accessories → `PROGRESS`, NDT RT → `INSPECTION`)
+3. `WorkflowService` checks `currentNode.roleCode` ⊆ user roles before allowing transitions/form submit
+4. List/get endpoints allow view when user: started the instance, previously participated, holds the current-step role, **or** (for `COMPLETED` instances) holds `QA` / `CUSTOMER` (acceptance visibility)
 
 ## Step visibility matrix (seed)
 

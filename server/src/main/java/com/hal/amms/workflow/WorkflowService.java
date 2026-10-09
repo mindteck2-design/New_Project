@@ -70,6 +70,9 @@ public class WorkflowService {
                 .findFirst()
                 .orElseThrow(() -> ApiException.conflict("Workflow has no START node"));
 
+        // Enterprise RBAC: starter must hold the START node role (e.g. PROGRESS / INSPECTION).
+        assertRole(user, start);
+
         String firstTaskKey = resolveNext(def.id(), start.nodeKey(), null)
                 .orElseThrow(() -> ApiException.conflict("START has no outgoing transition"));
 
@@ -294,6 +297,10 @@ public class WorkflowService {
         if (dao.userParticipated(instance.id(), user.getId())) {
             return true;
         }
+        // AUTHZ: completed instances remain visible to QA / Customer for acceptance review.
+        if ("COMPLETED".equalsIgnoreCase(instance.status()) && hasAnyRole(user, "QA", "CUSTOMER")) {
+            return true;
+        }
         WorkflowNode node = dao.findNode(def.id(), instance.currentNodeKey()).orElse(null);
         if (node == null) {
             return false;
@@ -301,7 +308,21 @@ public class WorkflowService {
         if (node.roleCode() == null || node.roleCode().isBlank()) {
             return true;
         }
-        return user.getRoles().stream().anyMatch(r -> r.equalsIgnoreCase(node.roleCode()));
+        return hasAnyRole(user, node.roleCode());
+    }
+
+    private static boolean hasAnyRole(UserPrincipal user, String... roles) {
+        if (roles == null || roles.length == 0) {
+            return false;
+        }
+        return user.getRoles().stream().anyMatch(r -> {
+            for (String needed : roles) {
+                if (r != null && r.equalsIgnoreCase(needed)) {
+                    return true;
+                }
+            }
+            return false;
+        });
     }
 
     private void assertRole(UserPrincipal user, WorkflowNode node) {
