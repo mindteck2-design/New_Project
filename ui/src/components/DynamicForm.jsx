@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,19 +34,53 @@ const FIELD_HINTS = {
   'ndt-endorse': [{ name: 'endorsement', label: 'Document endorsement' }],
 }
 
+function buildSchema(fields) {
+  const shape = {}
+  for (const f of fields) {
+    shape[f.name] = z.string().trim().min(1, `${f.label} is required`)
+  }
+  shape.signaturePlaceholder = z.string().optional()
+  return z.object(shape)
+}
+
 export default function DynamicForm({ formKey, disabled, onSubmit }) {
-  const fields = FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }]
-  const [values, setValues] = useState({})
-  const [signature, setSignature] = useState('')
+  const fields = useMemo(
+    () => FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }],
+    [formKey],
+  )
+  const schema = useMemo(() => buildSchema(fields), [fields])
+
+  const defaultValues = useMemo(() => {
+    const values = { signaturePlaceholder: '' }
+    for (const f of fields) values[f.name] = ''
+    return values
+  }, [fields])
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues,
+    mode: 'onSubmit',
+  })
+
+  useEffect(() => {
+    reset(defaultValues)
+  }, [defaultValues, reset])
+
+  function submit(values) {
+    const { signaturePlaceholder, ...formPayload } = values
+    onSubmit({
+      formPayload,
+      signaturePlaceholder: signaturePlaceholder?.trim() || undefined,
+    })
+  }
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSubmit({ formPayload: values, signaturePlaceholder: signature || undefined })
-      }}
-    >
+    <form className="space-y-4" onSubmit={handleSubmit(submit)} noValidate>
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         Form · {formKey || 'generic'}
       </p>
@@ -53,23 +90,25 @@ export default function DynamicForm({ formKey, disabled, onSubmit }) {
           <Input
             id={f.name}
             placeholder={f.placeholder || ''}
-            value={values[f.name] || ''}
             disabled={disabled}
-            onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
+            aria-invalid={!!errors[f.name]}
+            {...register(f.name)}
           />
+          {errors[f.name] && (
+            <p className="text-xs text-destructive">{errors[f.name].message}</p>
+          )}
         </div>
       ))}
       <div className="space-y-2">
-        <Label htmlFor="signature">Digital signature placeholder</Label>
+        <Label htmlFor="signaturePlaceholder">Digital signature placeholder</Label>
         <Input
-          id="signature"
-          value={signature}
+          id="signaturePlaceholder"
           disabled={disabled}
-          onChange={(e) => setSignature(e.target.value)}
           placeholder="Typed acknowledgement"
+          {...register('signaturePlaceholder')}
         />
       </div>
-      <Button type="submit" disabled={disabled}>
+      <Button type="submit" disabled={disabled || isSubmitting}>
         Complete step
       </Button>
     </form>

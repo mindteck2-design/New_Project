@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { LogOut, Workflow } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/stores/authStore'
 import NotificationCenter from '@/components/NotificationCenter'
 import RoleUserSwitcher from '@/components/RoleUserSwitcher'
 import { Button } from '@/components/ui/button'

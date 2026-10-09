@@ -1,36 +1,19 @@
-import axios from 'axios'
+import { api } from '@/api/http'
+import { env } from '@/config/env'
+import { useAuthStore } from '@/stores/authStore'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:18080/api/v1'
-
-export const api = axios.create({
-  baseURL: API_URL,
-})
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('amms_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+export { api }
 
 export async function login(username, password) {
-  const { data } = await api.post('/auth/login', { username, password })
-  localStorage.setItem('amms_token', data.token)
-  localStorage.setItem('amms_user', JSON.stringify(data.user))
-  window.dispatchEvent(new Event('amms-auth-changed'))
-  return data
+  return useAuthStore.getState().login(username, password)
 }
 
 export function logout() {
-  localStorage.removeItem('amms_token')
-  localStorage.removeItem('amms_user')
-  window.dispatchEvent(new Event('amms-auth-changed'))
+  useAuthStore.getState().logout()
 }
 
 export function currentUser() {
-  const raw = localStorage.getItem('amms_user')
-  return raw ? JSON.parse(raw) : null
+  return useAuthStore.getState().user
 }
 
 export async function fetchWorkflows() {
@@ -83,8 +66,7 @@ export async function uploadDocument(id, file) {
 }
 
 export function documentDownloadUrl(instanceId, documentId) {
-  const base = import.meta.env.VITE_API_URL || 'http://127.0.0.1:18080/api/v1'
-  return `${base}/instances/${instanceId}/documents/${documentId}/content`
+  return `${env.apiUrl}/instances/${instanceId}/documents/${documentId}/content`
 }
 
 /** Instances waiting on one of the current user's roles. */

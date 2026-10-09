@@ -6,6 +6,17 @@
 - Env templates: `config/.env.example` → copy to `config/.env`
 - Operators use `scripts/` only
 
+## Environment (enterprise)
+
+| File | Purpose |
+|------|---------|
+| `config/.env.example` → `config/.env` | Server/infra secrets & ports (gitignored) |
+| `config/ui/.env.example` | UI `VITE_*` contract documentation |
+| `config/ui/.env.development` | Local Vite: `VITE_API_URL=/api/v1` + proxy to Spring |
+| `config/ui/.env.production` | Production build defaults (override `VITE_API_URL` in CI) |
+
+UI validates env at boot (`ui/src/config/env.js`). Dev traffic uses a **Vite same-origin `/api` proxy** so the browser does not hit CORS. Spring still allows explicit origins via `AMMS_CORS_ALLOWED_ORIGINS` for non-proxied clients.
+
 ## Quick start (Docker available)
 
 ```bash

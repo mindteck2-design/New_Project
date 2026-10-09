@@ -87,11 +87,11 @@ export default function InstancePage() {
                   <DecisionNode
                     actions={data.allowedActions}
                     disabled={mutate.isPending || (data.allowedActions || []).length === 0}
-                    onDecide={(value) =>
+                    onDecide={(value, signaturePlaceholder) =>
                       mutate.mutate({
                         action: 'DECISION',
                         decisionValue: value,
-                        signaturePlaceholder: 'ack',
+                        signaturePlaceholder: signaturePlaceholder || 'ack',
                       })
                     }
                   />

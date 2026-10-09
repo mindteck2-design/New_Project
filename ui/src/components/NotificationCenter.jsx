@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Bell, ChevronRight, ClipboardCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { actionableNotifications, fetchInstances } from '@/api/client'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {

@@ -324,7 +324,9 @@ public class WorkflowService {
                 instance.status(),
                 new NodeView(node.nodeKey(), node.nodeType(), node.label(), node.roleCode(), node.formKey(), options),
                 buildActions(node, options, user),
-                readMap(instance.contextJson())
+                readMap(instance.contextJson()),
+                instance.startedAt(),
+                instance.updatedAt()
         );
     }
 

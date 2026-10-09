@@ -1,6 +1,11 @@
-# Env / secrets
+# Env / secrets (templates *.example and config/ui/.env.development may be committed)
 .env
+.env.local
+.env.*.local
 config/.env
+ui/.env
+ui/.env.local
+ui/.env.*.local
 *.pem
 *.key
 

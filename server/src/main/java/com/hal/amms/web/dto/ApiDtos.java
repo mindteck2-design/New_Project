@@ -35,7 +35,9 @@ public final class ApiDtos {
             String status,
             NodeView currentNode,
             List<AllowedAction> allowedActions,
-            Map<String, Object> context
+            Map<String, Object> context,
+            Instant startedAt,
+            Instant updatedAt
     ) {}
 
     public record StartInstanceRequest(String businessKey, Map<String, Object> context) {}

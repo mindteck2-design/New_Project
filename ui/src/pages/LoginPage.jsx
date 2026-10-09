@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import { Workflow } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/stores/authStore'
 import { DEMO_USERS } from '@/lib/demoUsers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,24 +19,36 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+const loginSchema = z.object({
+  username: z.string().trim().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('Passw0rd!')
-  const [loading, setLoading] = useState(false)
 
-  async function onSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: 'admin',
+      password: 'Passw0rd!',
+    },
+  })
+
+  async function onSubmit(values) {
     try {
-      await login(username, password)
+      await login(values.username, values.password)
       toast.success('Welcome back')
       navigate('/')
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Login failed')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -51,9 +65,7 @@ export default function LoginPage() {
           <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Workflow className="h-5 w-5" />
           </div>
-          <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-            AMMS
-          </h1>
+          <h1 className="text-4xl font-semibold tracking-tight text-foreground">AMMS</h1>
           <p className="mt-3 max-w-md text-base text-muted-foreground">
             Overhaul Division workflow control — role-gated steps, decision graphs, and a living audit trail.
           </p>
@@ -71,38 +83,61 @@ export default function LoginPage() {
               <CardDescription>Select a demo role/user or enter credentials.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={onSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
                 <div className="space-y-2">
                   <Label>Quick select user</Label>
-                  <Select value={username} onValueChange={setUsername}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose user" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEMO_USERS.map((u) => (
-                        <SelectItem key={u.username} value={u.username}>
-                          {u.displayName} · {u.roles.join(', ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="username"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(v) => {
+                          field.onChange(v)
+                          setValue('password', 'Passw0rd!')
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose user" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEMO_USERS.map((u) => (
+                            <SelectItem key={u.username} value={u.username}>
+                              {u.displayName} · {u.roles.join(', ')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+                  <Input
+                    id="username"
+                    autoComplete="username"
+                    aria-invalid={!!errors.username}
+                    {...register('username')}
+                  />
+                  {errors.username && (
+                    <p className="text-xs text-destructive">{errors.username.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
+                    aria-invalid={!!errors.password}
+                    {...register('password')}
                   />
+                  {errors.password && (
+                    <p className="text-xs text-destructive">{errors.password.message}</p>
+                  )}
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Signing in…' : 'Continue'}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Signing in…' : 'Continue'}
                 </Button>
               </form>
               <p className="hal-watermark mt-6 text-center">Property of HAL — Restricted</p>

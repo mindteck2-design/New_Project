@@ -11,7 +11,7 @@ import {
   fetchWorkflows,
   startInstance,
 } from '@/api/client'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import WorkflowChart from '@/components/WorkflowChart'
 import InstanceInsights from '@/components/InstanceInsights'

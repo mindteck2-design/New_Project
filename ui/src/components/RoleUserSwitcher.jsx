@@ -1,6 +1,6 @@
 import { Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '@/stores/authStore'
 import { DEMO_USERS, ROLE_LABELS } from '@/lib/demoUsers'
 import { Button } from '@/components/ui/button'
 import {
