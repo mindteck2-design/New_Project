@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { GitBranch, Play } from 'lucide-react'
+import { GitBranch, Play, Plus } from 'lucide-react'
 import { fetchWorkflows, startInstance } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import Shell from '@/components/Shell'
@@ -36,13 +36,26 @@ export default function WorkflowsPage() {
       <PageFrame>
         <PageHeader
           title="Workflow definitions"
-          description="Seeded process charts. Start an instance or open the process map for a definition."
+          description="Admin creates master forms, then builds workflows by assigning role + form to each step. Operators only run instances."
           backTo="/"
           backLabel="Dashboard"
           breadcrumbs={[
             { label: 'Dashboard', to: '/' },
             { label: 'Workflows' },
           ]}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link to="/forms">Master forms</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/workflows/new">
+                  <Plus className="h-3.5 w-3.5" />
+                  Create workflow
+                </Link>
+              </Button>
+            </div>
+          }
         />
 
         <div className="overflow-hidden rounded-lg border bg-card">
@@ -70,6 +83,11 @@ export default function WorkflowsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap justify-end gap-2">
+                      <Button asChild size="sm" variant="outline" className="h-8">
+                        <Link to={`/workflows/${w.key}`}>
+                          Forms & steps
+                        </Link>
+                      </Button>
                       <Button asChild size="sm" variant="outline" className="h-8">
                         <Link to={`/process/${w.key}`}>
                           <GitBranch className="h-3.5 w-3.5" />

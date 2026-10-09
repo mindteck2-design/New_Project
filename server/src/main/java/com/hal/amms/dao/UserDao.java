@@ -77,6 +77,10 @@ public class UserDao {
         }
     }
 
+    public List<String> listRoleCodes() {
+        return dsl.select(ROLES_CODE).from(ROLES).orderBy(ROLES_CODE.asc()).fetch(ROLES_CODE);
+    }
+
     private List<String> roleCodes(UUID userId) {
         return dsl.select(ROLES_CODE)
                 .from(USER_ROLES)

@@ -16,8 +16,11 @@ Errors: `{ "code": string, "message": string, "details": object|null }`
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/workflows` | List active definitions `{ id, key, name, version }` |
-| GET | `/workflows/{key}` | Definition detail (nodes/transitions summary) |
+| POST | `/workflows` | Create definition `{ key, name, nodes[{key,type,label,roleCode,formKey?}], transitions[] }` |
+| GET | `/workflows/{key}` | Definition detail (live nodes incl. `formKey`, transitions) |
+| PUT | `/workflows/{key}/nodes/{nodeKey}/form` | Attach Mongo form to TASK node `{ formKey }` |
 | POST | `/workflows/{key}/instances` | Start instance `{ businessKey?, context? }` → instance |
+| GET | `/roles` | Role codes for workflow builder |
 | GET | `/instances` | List instances (filter by status/role-relevant) |
 | GET | `/instances/{id}` | Instance + `currentNode` + `allowedActions` |
 | POST | `/instances/{id}/transitions` | `{ action, decisionValue?, formPayload?, notes?, signaturePlaceholder? }` |

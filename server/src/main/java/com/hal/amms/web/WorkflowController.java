@@ -33,9 +33,27 @@ public class WorkflowController {
         return workflowService.listWorkflows();
     }
 
+    @PostMapping("/workflows")
+    public WorkflowSummary createWorkflow(@RequestBody CreateWorkflowRequest request) {
+        return workflowService.createWorkflow(request);
+    }
+
     @GetMapping("/workflows/{key}")
     public Map<String, Object> workflow(@PathVariable String key) {
         return workflowService.getDefinition(key);
+    }
+
+    /**
+     * Attach an existing Mongo form schema to a TASK node (part of the workflow chart).
+     */
+    @PutMapping("/workflows/{key}/nodes/{nodeKey}/form")
+    public Map<String, Object> assignNodeForm(
+            @PathVariable String key,
+            @PathVariable String nodeKey,
+            @RequestBody Map<String, String> body
+    ) {
+        String formKey = body == null ? null : body.get("formKey");
+        return workflowService.assignNodeForm(key, nodeKey, formKey);
     }
 
     @PostMapping("/workflows/{key}/instances")

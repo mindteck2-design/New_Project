@@ -23,4 +23,7 @@ export const queryKeys = {
     all: ['form-schemas'],
     detail: (formKey) => ['form-schema', formKey],
   },
+  roles: {
+    all: ['roles'],
+  },
 }

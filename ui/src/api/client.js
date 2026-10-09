@@ -21,9 +21,37 @@ export async function fetchWorkflows() {
   return data
 }
 
+export async function fetchRoles() {
+  const { data } = await api.get('/roles')
+  return data
+}
+
+export async function createWorkflow(body) {
+  const { data } = await api.post('/workflows', body)
+  return data
+}
+
 export async function fetchWorkflowDefinition(key) {
   const { data } = await api.get(`/workflows/${key}`)
   return data
+}
+
+/** Attach an existing Mongo form schema to a workflow TASK node. */
+export async function assignWorkflowNodeForm(workflowKey, nodeKey, formKey) {
+  const { data } = await api.put(
+    `/workflows/${encodeURIComponent(workflowKey)}/nodes/${encodeURIComponent(nodeKey)}/form`,
+    { formKey },
+  )
+  return data
+}
+
+/**
+ * Create a Mongo form schema and bind it to a workflow node in one operator flow.
+ */
+export async function createFormForWorkflowNode(workflowKey, nodeKey, formBody) {
+  const created = await createFormSchema(formBody)
+  await assignWorkflowNodeForm(workflowKey, nodeKey, created.formKey)
+  return created
 }
 
 export async function startInstance(key, businessKey) {

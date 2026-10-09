@@ -120,6 +120,33 @@ public class WorkflowDao {
                 ));
     }
 
+    public void updateNodeFormKey(UUID definitionId, String nodeKey, String formKey) {
+        int updated = dsl.update(WORKFLOW_NODES)
+                .set(WN_FORM_KEY, formKey)
+                .where(WN_DEFINITION_ID.eq(definitionId).and(WN_NODE_KEY.eq(nodeKey)))
+                .execute();
+        if (updated == 0) {
+            throw new IllegalArgumentException("Node not found: " + nodeKey);
+        }
+    }
+
+    public String definitionJsonById(UUID definitionId) {
+        return dsl.select(WD_DEFINITION_JSON)
+                .from(WORKFLOW_DEFINITIONS)
+                .where(WD_ID.eq(definitionId))
+                .fetchOne(r -> {
+                    JSONB j = r.get(WD_DEFINITION_JSON);
+                    return j == null ? null : j.data();
+                });
+    }
+
+    public void updateDefinitionJson(UUID definitionId, String definitionJson) {
+        dsl.update(WORKFLOW_DEFINITIONS)
+                .set(WD_DEFINITION_JSON, JSONB.valueOf(definitionJson))
+                .where(WD_ID.eq(definitionId))
+                .execute();
+    }
+
     public List<WorkflowTransition> transitionsFrom(UUID definitionId, String fromNodeKey) {
         return dsl.select(WT_ID, WT_DEFINITION_ID, WT_FROM, WT_TO, WT_CONDITION, WT_PRIORITY)
                 .from(WORKFLOW_TRANSITIONS)

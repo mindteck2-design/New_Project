@@ -32,7 +32,7 @@ function emptyField() {
   return { name: '', label: '', type: 'text', placeholder: '', required: true }
 }
 
-function FormEditor({ mode, initial, onCancel }) {
+function FormEditor({ mode, initial, onCancel, workflowKey }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [formKey, setFormKey] = useState(initial?.formKey || '')
@@ -69,7 +69,12 @@ function FormEditor({ mode, initial, onCancel }) {
       toast.success(mode === 'create' ? 'Form schema created in MongoDB' : 'Form schema updated')
       qc.invalidateQueries({ queryKey: queryKeys.forms.all })
       qc.invalidateQueries({ queryKey: queryKeys.forms.detail(data.formKey) })
-      navigate(`/forms/${data.formKey}`)
+      if (workflowKey) {
+        qc.invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowKey) })
+        navigate(`/workflows/${workflowKey}`)
+      } else {
+        navigate(`/forms/${data.formKey}`)
+      }
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not save form schema'),
   })
@@ -234,21 +239,26 @@ function FormsList() {
   return (
     <>
       <PageHeader
-        title="Dynamic forms"
-        description="Create and edit MongoDB form schemas used by workflow steps. Operators fill these at runtime."
+        title="Master forms"
+        description="Admin catalog of MongoDB form schemas. When building a workflow, pick these forms for each TASK step."
         backTo="/"
         backLabel="Dashboard"
         breadcrumbs={[
           { label: 'Dashboard', to: '/' },
-          { label: 'Dynamic forms' },
+          { label: 'Master forms' },
         ]}
         actions={
-          <Button asChild size="sm">
-            <Link to="/forms/new">
-              <Plus className="h-3.5 w-3.5" />
-              Create form
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link to="/workflows/new">Create workflow</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/forms/new">
+                <Plus className="h-3.5 w-3.5" />
+                Create master form
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -340,9 +350,10 @@ function FormCreatePage() {
   )
 }
 
-function FormDetailPage() {
+function FormDetailPage({ workflowKey }) {
   const { formKey } = useParams()
   const navigate = useNavigate()
+  const backTo = workflowKey ? `/workflows/${workflowKey}` : '/forms'
   const schema = useQuery({
     queryKey: queryKeys.forms.detail(formKey),
     queryFn: () => fetchFormSchema(formKey),
@@ -357,9 +368,9 @@ function FormDetailPage() {
       <div className="space-y-3">
         <p className="text-sm text-destructive">Form schema not found: {formKey}</p>
         <Button asChild variant="outline" size="sm">
-          <Link to="/forms">
+          <Link to={backTo}>
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to forms
+            Back
           </Link>
         </Button>
       </div>
@@ -370,23 +381,41 @@ function FormDetailPage() {
     <>
       <PageHeader
         title={schema.data.name || formKey}
-        description={`Mongo schema · ${formKey} · ${(schema.data.fields || []).length} fields`}
-        backTo="/forms"
-        backLabel="Forms"
-        breadcrumbs={[
-          { label: 'Dashboard', to: '/' },
-          { label: 'Dynamic forms', to: '/forms' },
-          { label: formKey },
-        ]}
+        description={
+          workflowKey
+            ? `Workflow form · ${workflowKey} · ${formKey}`
+            : `Mongo schema · ${formKey} · ${(schema.data.fields || []).length} fields`
+        }
+        backTo={backTo}
+        backLabel={workflowKey ? 'Workflow steps' : 'Forms'}
+        breadcrumbs={
+          workflowKey
+            ? [
+                { label: 'Dashboard', to: '/' },
+                { label: 'Workflows', to: '/workflows' },
+                { label: workflowKey, to: `/workflows/${workflowKey}` },
+                { label: formKey },
+              ]
+            : [
+                { label: 'Dashboard', to: '/' },
+                { label: 'Dynamic forms', to: '/forms' },
+                { label: formKey },
+              ]
+        }
         actions={<Badge variant="outline">mongo</Badge>}
       />
-      <FormEditor mode="edit" initial={schema.data} onCancel={() => navigate('/forms')} />
+      <FormEditor
+        mode="edit"
+        initial={schema.data}
+        workflowKey={workflowKey}
+        onCancel={() => navigate(backTo)}
+      />
     </>
   )
 }
 
 export default function FormsPage() {
-  const { formKey } = useParams()
+  const { formKey, key: workflowKey } = useParams()
   const isNew = formKey === 'new'
   const isDetail = formKey && formKey !== 'new'
 
@@ -395,7 +424,7 @@ export default function FormsPage() {
       <PageFrame>
         {!formKey && <FormsList />}
         {isNew && <FormCreatePage />}
-        {isDetail && <FormDetailPage />}
+        {isDetail && <FormDetailPage workflowKey={workflowKey} />}
       </PageFrame>
     </Shell>
   )

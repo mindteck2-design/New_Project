@@ -52,6 +52,32 @@ public final class ApiDtos {
 
     public record FormSubmitRequest(String formKey, Map<String, Object> payload) {}
 
+    public record AssignNodeFormRequest(String formKey) {}
+
+    public record WorkflowNodeDraft(
+            String key,
+            String type,
+            String label,
+            String roleCode,
+            String formKey,
+            List<String> options,
+            String expression
+    ) {}
+
+    public record WorkflowTransitionDraft(
+            String from,
+            String to,
+            String when
+    ) {}
+
+    public record CreateWorkflowRequest(
+            String key,
+            String name,
+            Integer version,
+            List<WorkflowNodeDraft> nodes,
+            List<WorkflowTransitionDraft> transitions
+    ) {}
+
     public record AuditView(
             UUID id,
             String action,

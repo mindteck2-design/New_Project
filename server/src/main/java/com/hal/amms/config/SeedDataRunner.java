@@ -115,9 +115,13 @@ public class SeedDataRunner implements ApplicationRunner {
         String name = root.path("name").asText();
         int version = root.path("version").asInt(1);
 
-        UUID defId = workflowDao.definitionExists(key)
-                ? workflowDao.definitionIdByKey(key)
-                : UUID.randomUUID();
+        // Do not wipe runtime formKey assignments on every boot — seed only once per key.
+        if (workflowDao.definitionExists(key)) {
+            log.info("Workflow {} already present — skipping re-seed (keeps node form bindings)", key);
+            return;
+        }
+
+        UUID defId = UUID.randomUUID();
 
         workflowDao.upsertDefinition(defId, key, name, version, json);
         defId = workflowDao.definitionIdByKey(key);

@@ -54,9 +54,216 @@ public class WorkflowService {
         WorkflowDefinition def = dao.findDefinitionByKey(key)
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + key));
         try {
-            return mapper.readValue(def.definitionJson(), new TypeReference<>() {});
+            Map<String, Object> raw = mapper.readValue(def.definitionJson(), new TypeReference<>() {});
+            // Prefer live node rows (formKey may have been assigned after seed).
+            List<Map<String, Object>> liveNodes = dao.nodesFor(def.id()).stream()
+                    .map(n -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("key", n.nodeKey());
+                        m.put("type", n.nodeType());
+                        m.put("label", n.label());
+                        m.put("roleCode", n.roleCode());
+                        m.put("formKey", n.formKey());
+                        if (n.configJson() != null && !n.configJson().isBlank()) {
+                            try {
+                                Map<String, Object> cfg = mapper.readValue(n.configJson(), new TypeReference<>() {});
+                                if (cfg.containsKey("options")) {
+                                    m.put("options", cfg.get("options"));
+                                }
+                                if (cfg.containsKey("expression")) {
+                                    m.put("expression", cfg.get("expression"));
+                                }
+                            } catch (Exception ignored) {
+                                // keep node without config extras
+                            }
+                        }
+                        return m;
+                    })
+                    .toList();
+            raw.put("nodes", liveNodes);
+            raw.put("id", def.id().toString());
+            raw.put("version", def.version());
+            return raw;
+        } catch (ApiException e) {
+            throw e;
         } catch (Exception e) {
             throw ApiException.badRequest("Invalid definition JSON");
+        }
+    }
+
+    /**
+     * Admin creates a workflow definition from master forms + role assignments (no code deploy).
+     */
+    @Transactional
+    public WorkflowSummary createWorkflow(CreateWorkflowRequest request) {
+        if (request == null || request.key() == null || request.key().isBlank()) {
+            throw ApiException.badRequest("workflow key is required");
+        }
+        if (request.name() == null || request.name().isBlank()) {
+            throw ApiException.badRequest("workflow name is required");
+        }
+        if (request.nodes() == null || request.nodes().isEmpty()) {
+            throw ApiException.badRequest("at least one node is required");
+        }
+        if (request.transitions() == null || request.transitions().isEmpty()) {
+            throw ApiException.badRequest("at least one transition is required");
+        }
+        String key = request.key().trim().toLowerCase();
+        if (!key.matches("^[a-z][a-z0-9-]{1,62}$")) {
+            throw ApiException.badRequest("key must be lowercase kebab-case (2–63 chars)");
+        }
+        if (dao.definitionExists(key)) {
+            throw ApiException.conflict("Workflow already exists: " + key);
+        }
+        boolean hasStart = request.nodes().stream().anyMatch(n -> "START".equalsIgnoreCase(n.type()));
+        boolean hasEnd = request.nodes().stream().anyMatch(n -> "END".equalsIgnoreCase(n.type()));
+        if (!hasStart || !hasEnd) {
+            throw ApiException.badRequest("workflow must include START and END nodes");
+        }
+        for (WorkflowNodeDraft n : request.nodes()) {
+            if (n.key() == null || n.key().isBlank() || n.type() == null || n.label() == null) {
+                throw ApiException.badRequest("each node needs key, type, and label");
+            }
+            if ("TASK".equalsIgnoreCase(n.type()) && (n.formKey() == null || n.formKey().isBlank())) {
+                throw ApiException.badRequest("TASK node " + n.key() + " must select a master form");
+            }
+            if (n.roleCode() == null || n.roleCode().isBlank()) {
+                throw ApiException.badRequest("node " + n.key() + " must have a roleCode");
+            }
+        }
+
+        int version = request.version() == null ? 1 : request.version();
+        try {
+            Map<String, Object> definition = new LinkedHashMap<>();
+            definition.put("key", key);
+            definition.put("name", request.name().trim());
+            definition.put("version", version);
+            definition.put("source", "admin-ui");
+            List<Map<String, Object>> nodeJson = new ArrayList<>();
+            for (WorkflowNodeDraft n : request.nodes()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("key", n.key().trim());
+                m.put("type", n.type().trim().toUpperCase());
+                m.put("label", n.label().trim());
+                m.put("roleCode", n.roleCode().trim().toUpperCase());
+                if (n.formKey() != null && !n.formKey().isBlank()) {
+                    m.put("formKey", n.formKey().trim().toLowerCase());
+                }
+                if (n.options() != null && !n.options().isEmpty()) {
+                    m.put("options", n.options());
+                }
+                if (n.expression() != null && !n.expression().isBlank()) {
+                    m.put("expression", n.expression().trim());
+                }
+                nodeJson.add(m);
+            }
+            definition.put("nodes", nodeJson);
+            List<Map<String, Object>> transitionJson = new ArrayList<>();
+            for (WorkflowTransitionDraft t : request.transitions()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("from", t.from());
+                m.put("to", t.to());
+                if (t.when() != null && !t.when().isBlank()) {
+                    m.put("when", t.when());
+                }
+                transitionJson.add(m);
+            }
+            definition.put("transitions", transitionJson);
+
+            String json = mapper.writeValueAsString(definition);
+            UUID defId = UUID.randomUUID();
+            dao.upsertDefinition(defId, key, request.name().trim(), version, json);
+            defId = dao.definitionIdByKey(key);
+
+            for (WorkflowNodeDraft n : request.nodes()) {
+                String config = null;
+                if ((n.options() != null && !n.options().isEmpty()) || (n.expression() != null && !n.expression().isBlank())) {
+                    Map<String, Object> cfg = new LinkedHashMap<>();
+                    if (n.options() != null && !n.options().isEmpty()) {
+                        cfg.put("options", n.options());
+                    }
+                    if (n.expression() != null && !n.expression().isBlank()) {
+                        cfg.put("expression", n.expression().trim());
+                    }
+                    config = mapper.writeValueAsString(cfg);
+                }
+                dao.insertNode(new WorkflowNode(
+                        UUID.randomUUID(),
+                        defId,
+                        n.key().trim(),
+                        n.type().trim().toUpperCase(),
+                        n.roleCode().trim().toUpperCase(),
+                        n.formKey() == null || n.formKey().isBlank() ? null : n.formKey().trim().toLowerCase(),
+                        n.label().trim(),
+                        config
+                ));
+            }
+            int priority = 0;
+            for (WorkflowTransitionDraft t : request.transitions()) {
+                dao.insertTransition(new WorkflowTransition(
+                        UUID.randomUUID(),
+                        defId,
+                        t.from(),
+                        t.to(),
+                        t.when() == null || t.when().isBlank() ? null : t.when(),
+                        priority++
+                ));
+            }
+            return new WorkflowSummary(defId, key, request.name().trim(), version);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw ApiException.badRequest("Could not create workflow: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Attach a Mongo dynamic form schema to a workflow TASK node.
+     * Updates {@code workflow_nodes.form_key} and mirrors into definition JSON.
+     */
+    @Transactional
+    public Map<String, Object> assignNodeForm(String workflowKey, String nodeKey, String formKey) {
+        if (formKey == null || formKey.isBlank()) {
+            throw ApiException.badRequest("formKey is required");
+        }
+        String normalizedForm = formKey.trim().toLowerCase();
+        WorkflowDefinition def = dao.findDefinitionByKey(workflowKey)
+                .orElseThrow(() -> ApiException.notFound("Workflow not found: " + workflowKey));
+        WorkflowNode node = dao.findNode(def.id(), nodeKey)
+                .orElseThrow(() -> ApiException.notFound("Node not found: " + nodeKey));
+        if (!"TASK".equalsIgnoreCase(node.nodeType())) {
+            throw ApiException.badRequest("Only TASK nodes can carry a dynamic form (got " + node.nodeType() + ")");
+        }
+        try {
+            dao.updateNodeFormKey(def.id(), nodeKey, normalizedForm);
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.notFound(ex.getMessage());
+        }
+        patchDefinitionFormKey(def.id(), nodeKey, normalizedForm);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("workflowKey", workflowKey);
+        out.put("nodeKey", nodeKey);
+        out.put("formKey", normalizedForm);
+        out.put("label", node.label());
+        return out;
+    }
+
+    private void patchDefinitionFormKey(UUID definitionId, String nodeKey, String formKey) {
+        try {
+            String json = dao.definitionJsonById(definitionId);
+            JsonNode root = mapper.readTree(json == null ? "{}" : json);
+            if (!(root instanceof com.fasterxml.jackson.databind.node.ObjectNode obj) || !obj.has("nodes")) {
+                return;
+            }
+            for (JsonNode n : obj.path("nodes")) {
+                if (n instanceof com.fasterxml.jackson.databind.node.ObjectNode on
+                        && nodeKey.equals(on.path("key").asText())) {
+                    on.put("formKey", formKey);
+                }
+            }
+            dao.updateDefinitionJson(definitionId, mapper.writeValueAsString(obj));
+        } catch (Exception e) {
+            throw ApiException.badRequest("Failed to update workflow definition JSON: " + e.getMessage());
         }
     }
 

@@ -9,6 +9,8 @@ import ProcessMapPage from '@/pages/ProcessMapPage'
 import InstancesPage from '@/pages/InstancesPage'
 import InstancePage from '@/pages/InstancePage'
 import FormsPage from '@/pages/FormsPage'
+import WorkflowDetailPage from '@/pages/WorkflowDetailPage'
+import WorkflowBuilderPage from '@/pages/WorkflowBuilderPage'
 
 function RequireAuth({ children }) {
   const { isAuthenticated } = useAuth()
@@ -52,6 +54,30 @@ export default function App() {
         element={
           <RequireAuth>
             <WorkflowsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/workflows/new"
+        element={
+          <RequireAuth>
+            <WorkflowBuilderPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/workflows/:key"
+        element={
+          <RequireAuth>
+            <WorkflowDetailPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/workflows/:key/forms/:formKey"
+        element={
+          <RequireAuth>
+            <FormsPage />
           </RequireAuth>
         }
       />
