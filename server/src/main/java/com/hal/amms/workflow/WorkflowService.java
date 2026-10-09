@@ -8,6 +8,7 @@ import com.hal.amms.model.Models.*;
 import com.hal.amms.security.UserPrincipal;
 import com.hal.amms.service.AttachmentStorageService;
 import com.hal.amms.service.FormSubmissionStore;
+import com.hal.amms.service.NotificationService;
 import com.hal.amms.web.ApiException;
 import com.hal.amms.web.dto.ApiDtos.*;
 import org.springframework.core.io.Resource;
@@ -25,19 +26,22 @@ public class WorkflowService {
     private final ObjectMapper mapper;
     private final AttachmentStorageService attachments;
     private final FormSubmissionStore formStore;
+    private final NotificationService notifications;
 
     public WorkflowService(
             WorkflowDao dao,
             DecisionEngine decisionEngine,
             ObjectMapper mapper,
             AttachmentStorageService attachments,
-            FormSubmissionStore formStore
+            FormSubmissionStore formStore,
+            NotificationService notifications
     ) {
         this.dao = dao;
         this.decisionEngine = decisionEngine;
         this.mapper = mapper;
         this.attachments = attachments;
         this.formStore = formStore;
+        this.notifications = notifications;
     }
 
     public List<WorkflowSummary> listWorkflows() {
@@ -82,6 +86,15 @@ public class WorkflowService {
         );
         dao.insertInstance(instance);
         writeAudit(instance.id(), user.getId(), "START", start.nodeKey(), firstTaskKey, null, null);
+        WorkflowNode first = dao.findNode(def.id(), firstTaskKey).orElse(null);
+        if (first != null) {
+            notifications.notifyRole(
+                    instance.id(),
+                    first.roleCode(),
+                    first.label(),
+                    def.name() + " — action required"
+            );
+        }
         return toView(instance, def, user);
     }
 
@@ -171,6 +184,14 @@ public class WorkflowService {
                 writeJson(context), instance.startedBy(), instance.startedAt(), Instant.now()
         );
         dao.updateInstance(updated);
+        if (!"END".equalsIgnoreCase(next.nodeType())) {
+            notifications.notifyRole(
+                    updated.id(),
+                    next.roleCode(),
+                    next.label(),
+                    def.name() + " — next step waiting"
+            );
+        }
         return toView(updated, def, user);
     }
 

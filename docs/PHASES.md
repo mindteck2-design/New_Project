@@ -21,11 +21,21 @@
 - `FormSubmissionStore`: PostgreSQL (`local`/`test`) or MongoDB (`dev`/`prod` via `amms.forms.store=mongo`)
 - Dashboard instance insights: TanStack Table, Recharts, ExcelJS export (HAL watermark on export)
 
-## Deferred (post-MVP)
+## Production readiness
+
+**Not production-ready yet.** Gap plan + P7/P8 starters: [`docs/PRODUCTION_GAPS.md`](PRODUCTION_GAPS.md)
+
+- Flyway **V2**: durable `workflow_notifications` + longevity indexes
+- `GET /api/v1/notifications`, `POST /api/v1/notifications/{id}/read`
+- `GET /api/v1/analytics/me` + role analytics panel on `WorkflowDashboard`
+- Click notification → `/instances/{id}` action page (mark-read when persisted)
+
+## Deferred (post-MVP / P9–P12)
 
 - Full aircraft A-2/A-3/A-4 runtime workflows (inventory in `docs/workflows/INVENTORY.md`)
 - PKI digital signatures, SSO, IFS/AMMS integrations
 - Stores / plating / metrology chart imports
+- Partitioned audit archive, server PDF reports, Vault secrets
 
 ## Verify locally
 

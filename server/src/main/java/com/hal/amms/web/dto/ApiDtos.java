@@ -70,5 +70,20 @@ public final class ApiDtos {
             Instant uploadedAt
     ) {}
 
+    public record NotificationView(
+            UUID id,
+            UUID instanceId,
+            String targetRole,
+            String title,
+            String body,
+            String actionPath,
+            boolean read,
+            Instant createdAt
+    ) {}
+
+    public record RoleMetric(String key, String label, long value, String hint) {}
+
+    public record RoleAnalyticsView(String primaryRole, List<String> roles, List<RoleMetric> metrics) {}
+
     public record ErrorResponse(String code, String message, Object details) {}
 }

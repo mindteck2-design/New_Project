@@ -106,4 +106,18 @@ public final class Tables {
     public static final Field<String> IR_NOTES = DSL.field(DSL.name("inspection_records", "notes"), String.class);
     public static final Field<UUID> IR_RECORDED_BY = DSL.field(DSL.name("inspection_records", "recorded_by"), UUID.class);
     public static final Field<OffsetDateTime> IR_RECORDED_AT = DSL.field(DSL.name("inspection_records", "recorded_at"), OffsetDateTime.class);
+
+    public static final Table<Record> WORKFLOW_NOTIFICATIONS = DSL.table(DSL.name("workflow_notifications"));
+    public static final Field<UUID> WN_ID = DSL.field(DSL.name("workflow_notifications", "id"), UUID.class);
+    public static final Field<UUID> WN_INSTANCE_ID = DSL.field(DSL.name("workflow_notifications", "instance_id"), UUID.class);
+    public static final Field<String> WN_TARGET_ROLE = DSL.field(DSL.name("workflow_notifications", "target_role"), String.class);
+    public static final Field<String> WN_TITLE = DSL.field(DSL.name("workflow_notifications", "title"), String.class);
+    public static final Field<String> WN_BODY = DSL.field(DSL.name("workflow_notifications", "body"), String.class);
+    public static final Field<String> WN_ACTION_PATH = DSL.field(DSL.name("workflow_notifications", "action_path"), String.class);
+    public static final Field<OffsetDateTime> WN_CREATED_AT = DSL.field(DSL.name("workflow_notifications", "created_at"), OffsetDateTime.class);
+
+    public static final Table<Record> NOTIFICATION_READS = DSL.table(DSL.name("notification_reads"));
+    public static final Field<UUID> NR_NOTIFICATION_ID = DSL.field(DSL.name("notification_reads", "notification_id"), UUID.class);
+    public static final Field<UUID> NR_USER_ID = DSL.field(DSL.name("notification_reads", "user_id"), UUID.class);
+    public static final Field<OffsetDateTime> NR_READ_AT = DSL.field(DSL.name("notification_reads", "read_at"), OffsetDateTime.class);
 }

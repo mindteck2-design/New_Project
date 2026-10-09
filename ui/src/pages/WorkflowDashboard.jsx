@@ -14,6 +14,7 @@ import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import WorkflowChart from '@/components/WorkflowChart'
 import InstanceInsights from '@/components/InstanceInsights'
+import RoleAnalytics from '@/components/RoleAnalytics'
 import RoleUserSwitcher from '@/components/RoleUserSwitcher'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -59,8 +60,8 @@ export default function WorkflowDashboard() {
 
   return (
     <Shell
-      title="Operations dashboard"
-      subtitle="Switch role, jump into waiting actions, and inspect workflow graphs."
+      title="Workflow dashboard"
+      subtitle="Role-curated analytics, actionable notifications, and server-driven process charts."
     >
       <div className="mb-6 lg:hidden">
         <Card>
@@ -70,9 +71,13 @@ export default function WorkflowDashboard() {
         </Card>
       </div>
 
+      <div id="analytics" className="mb-6 scroll-mt-24">
+        <RoleAnalytics />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-6">
-          <Card>
+          <Card id="inbox" className="scroll-mt-24">
             <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -107,7 +112,7 @@ export default function WorkflowDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="workflows" className="scroll-mt-24">
             <CardHeader>
               <CardTitle>Workflow definitions</CardTitle>
               <CardDescription>Start a seeded process. Graph updates on the right.</CardDescription>

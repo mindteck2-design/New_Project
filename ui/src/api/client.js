@@ -69,6 +69,21 @@ export function documentDownloadUrl(instanceId, documentId) {
   return `${env.apiUrl}/instances/${instanceId}/documents/${documentId}/content`
 }
 
+export async function fetchNotifications() {
+  const { data } = await api.get('/notifications')
+  return data
+}
+
+export async function markNotificationRead(id) {
+  const { data } = await api.post(`/notifications/${id}/read`)
+  return data
+}
+
+export async function fetchRoleAnalytics() {
+  const { data } = await api.get('/analytics/me')
+  return data
+}
+
 /** Instances waiting on one of the current user's roles. */
 export function actionableNotifications(instances, user) {
   if (!user?.roles?.length || !instances?.length) return []
