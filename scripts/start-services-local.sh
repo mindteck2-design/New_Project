@@ -34,7 +34,11 @@ fi
 echo "Forms store: ${AMMS_FORMS_STORE} (Mongo URI: ${MONGODB_URI})"
 
 cd "$ROOT/server"
-nohup mvn -q spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.port=${SERVER_PORT}" \
+MVN_CMD=(mvn)
+if ! command -v mvn >/dev/null 2>&1; then
+  MVN_CMD=(./mvnw)
+fi
+nohup "${MVN_CMD[@]}" -q spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.port=${SERVER_PORT}" \
   >"$ROOT/.data/server.log" 2>&1 &
 echo $! >"$PID_DIR/server.pid"
 echo "Local server starting (pid $(cat "$PID_DIR/server.pid")) on :${SERVER_PORT} — log: .data/server.log"
