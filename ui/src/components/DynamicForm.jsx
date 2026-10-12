@@ -8,7 +8,13 @@ import { Paperclip } from 'lucide-react'
 import { fetchFormSchema, uploadDocument } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { normalizeFormDateValues, toCalendarDate } from '@/lib/dateTime'
-import { isContentBlock, isInputBlock, isTableField, normalizeTableColumns } from '@/lib/formFieldTypes'
+import {
+  emptyTableRow,
+  isContentBlock,
+  isInputBlock,
+  isTableField,
+  normalizeTableColumns,
+} from '@/lib/formFieldTypes'
 import { FormContentBlock } from '@/components/FormContentBlocks'
 import TableFieldInput from '@/components/TableFieldInput'
 import { Button } from '@/components/ui/button'
@@ -79,7 +85,8 @@ function fieldZod(f) {
       return required ? s.min(1, `Select at least one ${label}`) : s.optional()
     }
     case 'table': {
-      const rowSchema = z.record(z.string(), z.string())
+      // Cell values: strings for most types; boolean for checkbox columns.
+      const rowSchema = z.record(z.string(), z.union([z.string(), z.boolean(), z.number()]))
       let s = z.array(rowSchema)
       if (required) {
         s = s
@@ -87,7 +94,10 @@ function fieldZod(f) {
           .refine(
             (rows) =>
               rows.some((row) =>
-                Object.values(row || {}).some((v) => String(v || '').trim()),
+                Object.values(row || {}).some((v) => {
+                  if (typeof v === 'boolean') return v
+                  return String(v ?? '').trim().length > 0
+                }),
               ),
             `${label} needs at least one filled cell`,
           )
@@ -145,10 +155,7 @@ function defaultForField(f) {
   if (f.type === 'checkbox') return false
   if (f.type === 'multiselect') return []
   if (isTableField(f.type)) {
-    const cols = normalizeTableColumns(f.columns)
-    const row = {}
-    for (const c of cols) row[c.key] = ''
-    return [row]
+    return [emptyTableRow(normalizeTableColumns(f.columns))]
   }
   if (f.type === 'number') return ''
   return ''

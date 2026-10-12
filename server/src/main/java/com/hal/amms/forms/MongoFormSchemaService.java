@@ -43,6 +43,13 @@ public class MongoFormSchemaService {
             "heading1", "heading2", "heading3", "paragraph", "callout", "divider", "bullets"
     );
 
+    /** Input types allowed for individual table columns (cells). */
+    private static final java.util.Set<String> TABLE_COLUMN_TYPES = java.util.Set.of(
+            "text", "textarea", "number", "measurement", "email", "phone", "url",
+            "date", "time", "datetime",
+            "select", "radio", "checkbox"
+    );
+
     private final MongoTemplate mongoTemplate;
 
     public MongoFormSchemaService(MongoTemplate mongoTemplate) {
@@ -327,6 +334,18 @@ public class MongoFormSchemaService {
                 if (columns.isEmpty()) {
                     throw new IllegalArgumentException("table field " + n + " needs at least one column");
                 }
+                for (Map<String, Object> col : columns) {
+                    String colType = String.valueOf(col.getOrDefault("type", "text"));
+                    if ("select".equals(colType) || "radio".equals(colType)) {
+                        List<String> colOpts = asStringList(col.get("options"));
+                        if (colOpts.isEmpty()) {
+                            throw new IllegalArgumentException(
+                                    "table field " + n + " column " + col.get("key")
+                                            + " (" + colType + ") needs at least one option"
+                            );
+                        }
+                    }
+                }
             }
         }
     }
@@ -434,6 +453,19 @@ public class MongoFormSchemaService {
                 if (id != null && !String.valueOf(id).isBlank()) {
                     col.put("id", String.valueOf(id).trim());
                 }
+                String colType = normalizeTableColumnType(map.get("type"));
+                col.put("type", colType);
+                Object placeholder = map.get("placeholder");
+                if (placeholder != null && !String.valueOf(placeholder).isBlank()) {
+                    col.put("placeholder", String.valueOf(placeholder).trim());
+                }
+                if ("select".equals(colType) || "radio".equals(colType)) {
+                    List<String> options = asStringList(map.get("options"));
+                    if (options.isEmpty()) {
+                        options = List.of("Option A", "Option B");
+                    }
+                    col.put("options", options);
+                }
             } else {
                 String label = String.valueOf(item).trim();
                 if (label.isBlank()) {
@@ -446,10 +478,19 @@ public class MongoFormSchemaService {
                 }
                 col.put("key", key);
                 col.put("label", label);
+                col.put("type", "text");
             }
             out.add(col);
         }
         return out;
+    }
+
+    private static String normalizeTableColumnType(Object raw) {
+        if (raw == null || String.valueOf(raw).isBlank()) {
+            return "text";
+        }
+        String t = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        return TABLE_COLUMN_TYPES.contains(t) ? t : "text";
     }
 
     @SuppressWarnings("unchecked")

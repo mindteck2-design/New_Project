@@ -70,21 +70,50 @@ export function isTableField(type) {
   return String(type || '').toLowerCase() === 'table'
 }
 
-export function emptyTableColumn(label = 'Column') {
+/** Input types allowed inside a table column cell. */
+export const TABLE_COLUMN_INPUT_TYPES = [
+  { value: 'text', label: 'Short text' },
+  { value: 'textarea', label: 'Long text' },
+  { value: 'number', label: 'Number' },
+  { value: 'measurement', label: 'Measurement' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'url', label: 'URL' },
+  { value: 'date', label: 'Date' },
+  { value: 'time', label: 'Time' },
+  { value: 'datetime', label: 'Date & time' },
+  { value: 'select', label: 'Dropdown' },
+  { value: 'radio', label: 'Radio' },
+  { value: 'checkbox', label: 'Checkbox' },
+]
+
+const TABLE_COLUMN_TYPE_SET = new Set(TABLE_COLUMN_INPUT_TYPES.map((t) => t.value))
+
+export function normalizeTableColumnType(type) {
+  const t = String(type || 'text').trim().toLowerCase()
+  return TABLE_COLUMN_TYPE_SET.has(t) ? t : 'text'
+}
+
+export function emptyTableColumn(label = 'Column', type = 'text') {
   const id = newBlockId()
+  const colType = normalizeTableColumnType(type)
   return {
     id,
     key: slugifyFieldName(label, `col_${id.slice(0, 6)}`),
     label,
+    type: colType,
+    optionsText: fieldNeedsOptions(colType) ? 'PASS\nFAIL\nN/A' : '',
+    placeholder: '',
     keyLocked: false,
   }
 }
 
 export function defaultTableColumns() {
   return [
-    emptyTableColumn('Part No'),
-    emptyTableColumn('Serial No'),
-    emptyTableColumn('Result'),
+    emptyTableColumn('Part No', 'text'),
+    emptyTableColumn('Serial No', 'text'),
+    emptyTableColumn('Inspect date', 'date'),
+    emptyTableColumn('Result', 'select'),
   ]
 }
 
@@ -102,6 +131,9 @@ export function normalizeTableColumns(raw) {
           id: newBlockId(),
           key: slugifyFieldName(label, `col_${i + 1}`),
           label,
+          type: 'text',
+          optionsText: '',
+          placeholder: '',
           keyLocked: true,
         }
       }
@@ -110,14 +142,34 @@ export function normalizeTableColumns(raw) {
       if (!key) key = slugifyFieldName(label, `col_${i + 1}`)
       key = key.replace(/[^a-zA-Z0-9_]/g, '')
       if (!key || !/^[a-zA-Z]/.test(key)) key = `col_${i + 1}`
+      const type = normalizeTableColumnType(c.type)
+      const options = Array.isArray(c.options)
+        ? c.options.map((o) => String(o).trim()).filter(Boolean)
+        : String(c.optionsText || '')
+            .split(/[\n,]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
       return {
         id: c.id || newBlockId(),
         key,
         label: label || key,
+        type,
+        optionsText: options.join('\n'),
+        options,
+        placeholder: c.placeholder || '',
         keyLocked: true,
       }
     })
     .filter(Boolean)
+}
+
+export function emptyTableRow(columns) {
+  const row = {}
+  for (const col of columns || []) {
+    if (!col?.key) continue
+    row[col.key] = col.type === 'checkbox' ? false : ''
+  }
+  return row
 }
 
 export function slugifyFieldName(label, fallback = 'field') {
@@ -225,11 +277,25 @@ export function fieldToApiPayload(f) {
     payload.placeholder = f.placeholder.trim()
   }
   if (isTableField(type)) {
-    payload.columns = normalizeTableColumns(f.columns).map((c) => ({
-      key: c.key,
-      label: c.label,
-      id: c.id,
-    }))
+    payload.columns = normalizeTableColumns(f.columns).map((c) => {
+      const col = {
+        key: c.key,
+        label: c.label,
+        id: c.id,
+        type: normalizeTableColumnType(c.type),
+      }
+      if (c.placeholder?.trim()) col.placeholder = c.placeholder.trim()
+      if (fieldNeedsOptions(col.type)) {
+        const opts = Array.isArray(c.options) && c.options.length
+          ? c.options
+          : String(c.optionsText || '')
+              .split(/[\n,]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+        col.options = opts.length ? opts : ['Option A', 'Option B']
+      }
+      return col
+    })
   }
   return payload
 }

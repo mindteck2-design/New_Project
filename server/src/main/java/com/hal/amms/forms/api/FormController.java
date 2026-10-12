@@ -32,7 +32,15 @@ public class FormController {
         this.schemas = schemas;
     }
 
-    public record FormColumnDto(String key, String label, String id) {}
+    /** Table column definition — each column has its own cell input type. */
+    public record FormColumnDto(
+            String key,
+            String label,
+            String id,
+            String type,
+            List<String> options,
+            String placeholder
+    ) {}
 
     public record FormFieldDto(
             String name,
@@ -193,6 +201,15 @@ public class FormController {
                                             col.put("label", c.label());
                                             if (c.id() != null) {
                                                 col.put("id", c.id());
+                                            }
+                                            if (c.type() != null && !c.type().isBlank()) {
+                                                col.put("type", c.type().trim().toLowerCase());
+                                            }
+                                            if (c.options() != null && !c.options().isEmpty()) {
+                                                col.put("options", c.options());
+                                            }
+                                            if (c.placeholder() != null && !c.placeholder().isBlank()) {
+                                                col.put("placeholder", c.placeholder().trim());
                                             }
                                             return col;
                                         })
