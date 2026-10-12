@@ -40,7 +40,7 @@ Source of truth for labels/groups: `ui/src/lib/navConfig.js`.
 3. **Work order** — aircraft + PO/SO + ROUTINE|REPAIR (optional default workflow).
 4. **Add part** — attach a master workflow to that aircraft part (not the whole work order).
 5. **Open part** → starts a **maintenance run** (`/instances/:id`) for the part’s chart.
-5. Role completes form / decision → server advances → audit trail.
+6. Role completes form / decision → server advances → audit trail.
 
 Ad-hoc **Test run** on Workflow Master remains for validating a chart; shop work should start from Work orders.
 
