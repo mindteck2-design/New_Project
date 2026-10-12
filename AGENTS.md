@@ -111,15 +111,26 @@ Server data: **TanStack Query + Axios**. Client session (JWT/user): thin Zustand
 ```text
 .env.example, AGENTS.md, README.md, docs/
 ui/          React SPA (shadcn under components/ui)
-server/      Spring Boot API + engine
+server/      Spring Boot API + engine (package-by-feature under com.hal.amms.*)
 config/      profile overlays, UI VITE templates
 docker/      compose + Dockerfiles
 scripts/     start/stop/seed/healthcheck/verify
 ```
 
+### Server packages (package-by-feature)
+
+| Package | Responsibility |
+|---------|----------------|
+| `platform` | Security, JWT, seed/config, `ApiException` |
+| `identity` | Users/roles auth API + `UserRepository` |
+| `workflow` | `WorkflowService`, `DecisionEngine`, repository, domain, workflow API |
+| `workpackage` | Aircraft/accessory work packages |
+| `notification` / `analytics` / `forms` / `attachments` | Matching capabilities |
+| `jooq` (generated) | Tables/records from Flyway via `generate-sources` |
+
 ## Naming
 
-- Java: `com.hal.amms.*`
+- Java: `com.hal.amms.*` (feature packages; prefer `*Repository` over `*Dao`)
 - REST: `/api/v1/...`
 - Tables: `snake_case` plural
 - Workflow keys: `domain-action` (e.g. `accessories-bench-check`)

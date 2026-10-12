@@ -29,7 +29,27 @@ config/ supplies env to both
 
 **Decision:** PostgreSQL access via **jOOQ** DSL + Flyway schema; no Hibernate/JPA entities.  
 **Why:** Typed SQL, explicit queries, fits audit/workflow transition logic; matches project stack.  
-**Codegen:** Optional generated classes under `com.hal.amms.jooq`; MVP may use string/table field DSL bound to Flyway tables.
+**Codegen (required):** `jooq-codegen-maven` + `DDLDatabase` generates `com.hal.amms.jooq.*` from `server/src/main/resources/db/migration/*.sql` during `generate-sources`. Flyway SQL is the schema source of truth — do not hand-maintain table/column meta. Use `import static com.hal.amms.jooq.Tables.*` and typed fields (`USERS.ID`, `WORKFLOW_INSTANCES.STATUS`).  
+**When DDLDatabase is not enough:** Postgres-only DDL (partial indexes, exotic types) that the H2-backed parser rejects — switch the Maven profile to JDBC codegen against a migrated Postgres (Testcontainers / `testcontainers-jooq-codegen-maven-plugin`).
+
+## ADR-002c: Package-by-feature (2026)
+
+**Decision:** Server code is organized by **feature module**, not by technical layer (`dao` / `service` / `web`).  
+**Layout:**
+
+```text
+com.hal.amms
+├── platform/          # cross-cutting: config, security, ApiException
+├── identity/          # users, roles, auth API
+├── workflow/          # engine (WorkflowService, DecisionEngine), repository, domain, API
+├── workpackage/       # aircraft/accessory packages
+├── notification/
+├── analytics/
+├── forms/             # Mongo dynamic forms
+└── attachments/       # MinIO / filesystem
+```
+
+**Why:** Matches modern Spring Boot modular-monolith practice; keeps each capability cohesive (API + service + repository + DTOs together). Required engine types stay under `workflow/`.
 
 ## ADR-003: Monorepo folders
 

@@ -1,6 +1,6 @@
 package com.hal.amms.workflow;
 
-import com.hal.amms.model.Models.WorkflowTransition;
+import com.hal.amms.workflow.domain.WorkflowTransition;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;

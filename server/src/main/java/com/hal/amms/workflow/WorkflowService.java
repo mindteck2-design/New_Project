@@ -3,15 +3,14 @@ package com.hal.amms.workflow;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hal.amms.dao.WorkflowDao;
-import com.hal.amms.model.Models.*;
-import com.hal.amms.security.UserPrincipal;
-import com.hal.amms.service.AttachmentStorageService;
-import com.hal.amms.service.FormSubmissionStore;
-import com.hal.amms.service.NotificationService;
-import com.hal.amms.service.WorkPackageService;
-import com.hal.amms.web.ApiException;
-import com.hal.amms.web.dto.ApiDtos.*;
+import com.hal.amms.workflow.domain.*;
+import com.hal.amms.platform.security.UserPrincipal;
+import com.hal.amms.attachments.AttachmentStorageService;
+import com.hal.amms.forms.FormSubmissionStore;
+import com.hal.amms.notification.NotificationService;
+import com.hal.amms.workpackage.WorkPackageService;
+import com.hal.amms.platform.web.ApiException;
+import com.hal.amms.workflow.api.WorkflowDtos.*;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,7 @@ import java.util.*;
 @Service
 public class WorkflowService {
 
-    private final WorkflowDao dao;
+    private final WorkflowRepository repository;
     private final DecisionEngine decisionEngine;
     private final ObjectMapper mapper;
     private final AttachmentStorageService attachments;
@@ -32,7 +31,7 @@ public class WorkflowService {
     private final ObjectProvider<WorkPackageService> workPackages;
 
     public WorkflowService(
-            WorkflowDao dao,
+            WorkflowRepository repository,
             DecisionEngine decisionEngine,
             ObjectMapper mapper,
             AttachmentStorageService attachments,
@@ -40,7 +39,7 @@ public class WorkflowService {
             NotificationService notifications,
             ObjectProvider<WorkPackageService> workPackages
     ) {
-        this.dao = dao;
+        this.repository = repository;
         this.decisionEngine = decisionEngine;
         this.mapper = mapper;
         this.attachments = attachments;
@@ -50,18 +49,18 @@ public class WorkflowService {
     }
 
     public List<WorkflowSummary> listWorkflows() {
-        return dao.listActiveDefinitions().stream()
+        return repository.listActiveDefinitions().stream()
                 .map(d -> new WorkflowSummary(d.id(), d.key(), d.name(), d.version()))
                 .toList();
     }
 
     public Map<String, Object> getDefinition(String key) {
-        WorkflowDefinition def = dao.findDefinitionByKey(key)
+        WorkflowDefinition def = repository.findDefinitionByKey(key)
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + key));
         try {
             Map<String, Object> raw = mapper.readValue(def.definitionJson(), new TypeReference<>() {});
             // Prefer live node rows (formKey may have been assigned after seed).
-            List<Map<String, Object>> liveNodes = dao.nodesFor(def.id()).stream()
+            List<Map<String, Object>> liveNodes = repository.nodesFor(def.id()).stream()
                     .map(n -> {
                         Map<String, Object> m = new LinkedHashMap<>();
                         m.put("key", n.nodeKey());
@@ -117,7 +116,7 @@ public class WorkflowService {
         if (!key.matches("^[a-z][a-z0-9-]{1,62}$")) {
             throw ApiException.badRequest("key must be lowercase kebab-case (2–63 chars)");
         }
-        if (dao.definitionExists(key)) {
+        if (repository.definitionExists(key)) {
             throw ApiException.conflict("Workflow already exists: " + key);
         }
         boolean hasStart = request.nodes().stream().anyMatch(n -> "START".equalsIgnoreCase(n.type()));
@@ -177,8 +176,8 @@ public class WorkflowService {
 
             String json = mapper.writeValueAsString(definition);
             UUID defId = UUID.randomUUID();
-            dao.upsertDefinition(defId, key, request.name().trim(), version, json);
-            defId = dao.definitionIdByKey(key);
+            repository.upsertDefinition(defId, key, request.name().trim(), version, json);
+            defId = repository.definitionIdByKey(key);
 
             for (WorkflowNodeDraft n : request.nodes()) {
                 String config = null;
@@ -192,7 +191,7 @@ public class WorkflowService {
                     }
                     config = mapper.writeValueAsString(cfg);
                 }
-                dao.insertNode(new WorkflowNode(
+                repository.insertNode(new WorkflowNode(
                         UUID.randomUUID(),
                         defId,
                         n.key().trim(),
@@ -205,7 +204,7 @@ public class WorkflowService {
             }
             int priority = 0;
             for (WorkflowTransitionDraft t : request.transitions()) {
-                dao.insertTransition(new WorkflowTransition(
+                repository.insertTransition(new WorkflowTransition(
                         UUID.randomUUID(),
                         defId,
                         t.from(),
@@ -232,15 +231,15 @@ public class WorkflowService {
             throw ApiException.badRequest("formKey is required");
         }
         String normalizedForm = formKey.trim().toLowerCase();
-        WorkflowDefinition def = dao.findDefinitionByKey(workflowKey)
+        WorkflowDefinition def = repository.findDefinitionByKey(workflowKey)
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + workflowKey));
-        WorkflowNode node = dao.findNode(def.id(), nodeKey)
+        WorkflowNode node = repository.findNode(def.id(), nodeKey)
                 .orElseThrow(() -> ApiException.notFound("Node not found: " + nodeKey));
         if (!"TASK".equalsIgnoreCase(node.nodeType())) {
             throw ApiException.badRequest("Only TASK nodes can carry a dynamic form (got " + node.nodeType() + ")");
         }
         try {
-            dao.updateNodeFormKey(def.id(), nodeKey, normalizedForm);
+            repository.updateNodeFormKey(def.id(), nodeKey, normalizedForm);
         } catch (IllegalArgumentException ex) {
             throw ApiException.notFound(ex.getMessage());
         }
@@ -255,7 +254,7 @@ public class WorkflowService {
 
     private void patchDefinitionFormKey(UUID definitionId, String nodeKey, String formKey) {
         try {
-            String json = dao.definitionJsonById(definitionId);
+            String json = repository.definitionJsonById(definitionId);
             JsonNode root = mapper.readTree(json == null ? "{}" : json);
             if (!(root instanceof com.fasterxml.jackson.databind.node.ObjectNode obj) || !obj.has("nodes")) {
                 return;
@@ -266,7 +265,7 @@ public class WorkflowService {
                     on.put("formKey", formKey);
                 }
             }
-            dao.updateDefinitionJson(definitionId, mapper.writeValueAsString(obj));
+            repository.updateDefinitionJson(definitionId, mapper.writeValueAsString(obj));
         } catch (Exception e) {
             throw ApiException.badRequest("Failed to update workflow definition JSON: " + e.getMessage());
         }
@@ -274,10 +273,10 @@ public class WorkflowService {
 
     @Transactional
     public InstanceView start(String key, StartInstanceRequest request, UserPrincipal user) {
-        WorkflowDefinition def = dao.findDefinitionByKey(key)
+        WorkflowDefinition def = repository.findDefinitionByKey(key)
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + key));
 
-        WorkflowNode start = dao.nodesFor(def.id()).stream()
+        WorkflowNode start = repository.nodesFor(def.id()).stream()
                 .filter(n -> "START".equalsIgnoreCase(n.nodeType()))
                 .findFirst()
                 .orElseThrow(() -> ApiException.conflict("Workflow has no START node"));
@@ -299,9 +298,9 @@ public class WorkflowService {
                 Instant.now(),
                 Instant.now()
         );
-        dao.insertInstance(instance);
+        repository.insertInstance(instance);
         writeAudit(instance.id(), user.getId(), "START", start.nodeKey(), firstTaskKey, null, null);
-        WorkflowNode first = dao.findNode(def.id(), firstTaskKey).orElse(null);
+        WorkflowNode first = repository.findNode(def.id(), firstTaskKey).orElse(null);
         if (first != null) {
             notifications.notifyRole(
                     instance.id(),
@@ -314,22 +313,22 @@ public class WorkflowService {
     }
 
     public List<InstanceView> listInstances(UserPrincipal user) {
-        return dao.listInstances().stream()
+        return repository.listInstances().stream()
                 .filter(i -> {
-                    WorkflowDefinition def = dao.findDefinitionById(i.definitionId()).orElseThrow();
+                    WorkflowDefinition def = repository.findDefinitionById(i.definitionId()).orElseThrow();
                     return canViewInstance(i, def, user);
                 })
                 .map(i -> {
-                    WorkflowDefinition def = dao.findDefinitionById(i.definitionId()).orElseThrow();
+                    WorkflowDefinition def = repository.findDefinitionById(i.definitionId()).orElseThrow();
                     return toView(i, def, user);
                 })
                 .toList();
     }
 
     public InstanceView getInstance(UUID id, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(id)
+        WorkflowInstance instance = repository.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
-        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
         if (!canViewInstance(instance, def, user)) {
             throw ApiException.forbidden("Not authorized to view this instance");
         }
@@ -338,14 +337,14 @@ public class WorkflowService {
 
     @Transactional
     public InstanceView transition(UUID id, TransitionRequest request, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(id)
+        WorkflowInstance instance = repository.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
         if (!"RUNNING".equals(instance.status())) {
             throw ApiException.conflict("Instance is not running");
         }
 
-        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
-        WorkflowNode current = dao.findNode(def.id(), instance.currentNodeKey())
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
+        WorkflowNode current = repository.findNode(def.id(), instance.currentNodeKey())
                 .orElseThrow(() -> ApiException.conflict("Current node missing"));
 
         assertRole(user, current);
@@ -372,7 +371,7 @@ public class WorkflowService {
             context.put(expressionKey(current), decision);
             to = resolveNext(def.id(), from, decision)
                     .orElseThrow(() -> ApiException.conflict("No transition for decision: " + decision));
-            dao.insertInspection(UUID.randomUUID(), instance.id(), current.nodeKey(), decision, request.notes(), user.getId());
+            repository.insertInspection(UUID.randomUUID(), instance.id(), current.nodeKey(), decision, request.notes(), user.getId());
             writeAudit(instance.id(), user.getId(), "DECISION_" + decision, from, to,
                     Map.of("decision", decision), request.signaturePlaceholder());
         } else if ("COMPLETE".equals(action) || "SUBMIT".equals(action) || action.isBlank()) {
@@ -388,7 +387,7 @@ public class WorkflowService {
         }
 
         String status = instance.status();
-        WorkflowNode next = dao.findNode(def.id(), to).orElseThrow();
+        WorkflowNode next = repository.findNode(def.id(), to).orElseThrow();
         if ("END".equalsIgnoreCase(next.nodeType())) {
             status = "COMPLETED";
             writeAudit(instance.id(), user.getId(), "COMPLETE_WORKFLOW", from, to, null, request.signaturePlaceholder());
@@ -398,7 +397,7 @@ public class WorkflowService {
                 instance.id(), instance.definitionId(), instance.businessKey(), status, to,
                 writeJson(context), instance.startedBy(), instance.startedAt(), Instant.now()
         );
-        dao.updateInstance(updated);
+        repository.updateInstance(updated);
         if (!"END".equalsIgnoreCase(next.nodeType())) {
             notifications.notifyRole(
                     updated.id(),
@@ -419,9 +418,9 @@ public class WorkflowService {
 
     @Transactional
     public void submitForm(UUID id, FormSubmitRequest request, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(id)
+        WorkflowInstance instance = repository.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
-        WorkflowNode current = dao.findNode(instance.definitionId(), instance.currentNodeKey())
+        WorkflowNode current = repository.findNode(instance.definitionId(), instance.currentNodeKey())
                 .orElseThrow(() -> ApiException.conflict("Current node missing"));
         assertRole(user, current);
         saveForm(instance, current, request.payload(), user);
@@ -430,35 +429,35 @@ public class WorkflowService {
     }
 
     public List<AuditView> audit(UUID id) {
-        if (!dao.instanceExists(id)) {
+        if (!repository.instanceExists(id)) {
             throw ApiException.notFound("Instance not found");
         }
-        return dao.auditsFor(id).stream()
+        return repository.auditsFor(id).stream()
                 .map(a -> new AuditView(a.id(), a.action(), a.fromNode(), a.toNode(),
                         a.userId(), a.signaturePlaceholder(), a.createdAt()))
                 .toList();
     }
 
     public List<DocumentView> listDocuments(UUID id, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(id)
+        WorkflowInstance instance = repository.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
-        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
         if (!canViewInstance(instance, def, user)) {
             throw ApiException.forbidden("Not authorized to view instance documents");
         }
-        return dao.documentsFor(id).stream()
+        return repository.documentsFor(id).stream()
                 .map(d -> new DocumentView(d.id(), d.fileName(), d.contentType(), d.nodeKey(), d.uploadedAt()))
                 .toList();
     }
 
     public Resource loadDocument(UUID instanceId, UUID documentId, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(instanceId)
+        WorkflowInstance instance = repository.findInstance(instanceId)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
-        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
         if (!canViewInstance(instance, def, user)) {
             throw ApiException.forbidden("Not authorized to download attachment");
         }
-        DocumentEntry doc = dao.findDocument(documentId)
+        DocumentEntry doc = repository.findDocument(documentId)
                 .orElseThrow(() -> ApiException.notFound("Document not found"));
         if (!doc.instanceId().equals(instanceId)) {
             throw ApiException.notFound("Document not found");
@@ -471,20 +470,20 @@ public class WorkflowService {
     }
 
     public String documentContentType(UUID instanceId, UUID documentId, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(instanceId).orElseThrow();
-        WorkflowDefinition def = dao.findDefinitionById(instance.definitionId()).orElseThrow();
+        WorkflowInstance instance = repository.findInstance(instanceId).orElseThrow();
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
         if (!canViewInstance(instance, def, user)) {
             throw ApiException.forbidden("Not authorized");
         }
-        return dao.findDocument(documentId)
+        return repository.findDocument(documentId)
                 .filter(d -> d.instanceId().equals(instanceId))
                 .map(DocumentEntry::contentType)
                 .orElse("application/octet-stream");
     }
 
     public String documentFileName(UUID instanceId, UUID documentId, UserPrincipal user) {
-        dao.findInstance(instanceId).orElseThrow(() -> ApiException.notFound("Instance not found"));
-        return dao.findDocument(documentId)
+        repository.findInstance(instanceId).orElseThrow(() -> ApiException.notFound("Instance not found"));
+        return repository.findDocument(documentId)
                 .filter(d -> d.instanceId().equals(instanceId))
                 .map(DocumentEntry::fileName)
                 .orElse("download.bin");
@@ -492,20 +491,20 @@ public class WorkflowService {
 
     @Transactional
     public DocumentView storeDocument(UUID id, String fileName, String contentType, String storageKey, UserPrincipal user) {
-        WorkflowInstance instance = dao.findInstance(id)
+        WorkflowInstance instance = repository.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
         DocumentEntry doc = new DocumentEntry(
                 UUID.randomUUID(), instance.id(), instance.currentNodeKey(), fileName, contentType,
                 storageKey, user.getId(), Instant.now()
         );
-        dao.insertDocument(doc);
+        repository.insertDocument(doc);
         writeAudit(instance.id(), user.getId(), "UPLOAD_DOCUMENT", instance.currentNodeKey(),
                 instance.currentNodeKey(), Map.of("fileName", fileName), null);
         return new DocumentView(doc.id(), doc.fileName(), doc.contentType(), doc.nodeKey(), doc.uploadedAt());
     }
 
     private Optional<String> resolveNext(UUID definitionId, String from, String decisionValue) {
-        return decisionEngine.resolve(dao.transitionsFrom(definitionId, from), decisionValue)
+        return decisionEngine.resolve(repository.transitionsFrom(definitionId, from), decisionValue)
                 .map(WorkflowTransition::toNodeKey);
     }
 
@@ -513,14 +512,14 @@ public class WorkflowService {
         if (instance.startedBy() != null && instance.startedBy().equals(user.getId())) {
             return true;
         }
-        if (dao.userParticipated(instance.id(), user.getId())) {
+        if (repository.userParticipated(instance.id(), user.getId())) {
             return true;
         }
         // AUTHZ: completed instances remain visible to QA / Customer for acceptance review.
         if ("COMPLETED".equalsIgnoreCase(instance.status()) && hasAnyRole(user, "QA", "CUSTOMER")) {
             return true;
         }
-        WorkflowNode node = dao.findNode(def.id(), instance.currentNodeKey()).orElse(null);
+        WorkflowNode node = repository.findNode(def.id(), instance.currentNodeKey()).orElse(null);
         if (node == null) {
             return false;
         }
@@ -567,14 +566,14 @@ public class WorkflowService {
 
     private void writeAudit(UUID instanceId, UUID userId, String action, String from, String to,
                             Object payload, String signature) {
-        dao.insertAudit(new AuditEntry(
+        repository.insertAudit(new AuditEntry(
                 UUID.randomUUID(), instanceId, userId, action, from, to,
                 payload == null ? null : writeJson(payload), signature, Instant.now()
         ));
     }
 
     private InstanceView toView(WorkflowInstance instance, WorkflowDefinition def, UserPrincipal user) {
-        WorkflowNode node = dao.findNode(def.id(), instance.currentNodeKey())
+        WorkflowNode node = repository.findNode(def.id(), instance.currentNodeKey())
                 .orElseThrow(() -> ApiException.conflict("Current node missing"));
         List<String> options = readOptions(node);
         return new InstanceView(

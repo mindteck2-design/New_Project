@@ -15,6 +15,9 @@
 	<description>AMMS Dynamic Workflow Engine</description>
 	<properties>
 		<java.version>21</java.version>
+		<!-- jOOQ Open Source Edition aligned with Spring Boot BOM; override only if intentional -->
+		<jooq.codegen.package>com.hal.amms.jooq</jooq.codegen.package>
+		<jooq.codegen.directory>${project.build.directory}/generated-sources/jooq</jooq.codegen.directory>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -125,6 +128,107 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!--
+			  Modern approach: generate jOOQ meta from Flyway SQL (no live DB required).
+			  Flyway migrations remain the schema source of truth; Tables.java is not hand-maintained.
+
+			  Alternative (Postgres-exact types/indexes): Testcontainers + Flyway + JDBC codegen
+			  via org.testcontainers:testcontainers-jooq-codegen-maven-plugin — use when DDLDatabase
+			  cannot parse a migration (partial indexes, exotic Postgres DDL). Requires Docker.
+			-->
+			<plugin>
+				<groupId>org.jooq</groupId>
+				<artifactId>jooq-codegen-maven</artifactId>
+				<executions>
+					<execution>
+						<id>generate-jooq-from-flyway</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+					</execution>
+				</executions>
+				<dependencies>
+					<dependency>
+						<groupId>org.jooq</groupId>
+						<artifactId>jooq-meta-extensions</artifactId>
+						<version>${jooq.version}</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<generator>
+						<database>
+							<name>org.jooq.meta.extensions.ddl.DDLDatabase</name>
+							<includes>.*</includes>
+							<excludes>flyway_schema_history|FLYWAY_SCHEMA_HISTORY</excludes>
+							<inputSchema>PUBLIC</inputSchema>
+							<outputSchemaToDefault>true</outputSchemaToDefault>
+							<forcedTypes>
+								<forcedType>
+									<name>UUID</name>
+									<includeTypes>(?i)UUID</includeTypes>
+								</forcedType>
+								<forcedType>
+									<name>JSONB</name>
+									<includeTypes>(?i)JSONB?</includeTypes>
+								</forcedType>
+							</forcedTypes>
+							<properties>
+								<property>
+									<key>scripts</key>
+									<value>src/main/resources/db/migration/*.sql</value>
+								</property>
+								<property>
+									<key>sort</key>
+									<value>flyway</value>
+								</property>
+								<property>
+									<key>unqualifiedSchema</key>
+									<value>none</value>
+								</property>
+								<property>
+									<key>defaultNameCase</key>
+									<value>lower</value>
+								</property>
+								<property>
+									<key>parseDialect</key>
+									<value>POSTGRES</value>
+								</property>
+							</properties>
+						</database>
+						<generate>
+							<javaTimeTypes>true</javaTimeTypes>
+							<records>true</records>
+							<pojos>false</pojos>
+							<daos>false</daos>
+							<fluentSetters>false</fluentSetters>
+							<springAnnotations>false</springAnnotations>
+						</generate>
+						<target>
+							<packageName>${jooq.codegen.package}</packageName>
+							<directory>${jooq.codegen.directory}</directory>
+						</target>
+					</generator>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>add-jooq-sources</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${jooq.codegen.directory}</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
