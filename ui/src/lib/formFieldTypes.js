@@ -13,6 +13,16 @@ export const CONTENT_BLOCK_TYPES = [
   { value: 'bullets', label: 'Bullet list', group: 'Basic', hint: 'One item per line' },
 ]
 
+/** Structured data blocks (shown as their own Insert menu section). */
+export const DATA_BLOCK_TYPES = [
+  {
+    value: 'table',
+    label: 'Table',
+    group: 'Data',
+    hint: 'Spreadsheet-style grid — add/remove columns and rows',
+  },
+]
+
 export const INPUT_BLOCK_TYPES = [
   { value: 'text', label: 'Short text', group: 'Input', hint: 'Single-line answer' },
   { value: 'textarea', label: 'Long text', group: 'Input', hint: 'Multi-line answer' },
@@ -32,8 +42,12 @@ export const INPUT_BLOCK_TYPES = [
   { value: 'signature', label: 'Signature', group: 'Input', hint: 'Typed endorsement' },
 ]
 
-/** @deprecated use CONTENT + INPUT — kept for FormsPage type dropdowns */
-export const FORM_FIELD_TYPES = [...CONTENT_BLOCK_TYPES, ...INPUT_BLOCK_TYPES]
+/** @deprecated use CONTENT + DATA + INPUT — kept for FormsPage type dropdowns */
+export const FORM_FIELD_TYPES = [
+  ...CONTENT_BLOCK_TYPES,
+  ...DATA_BLOCK_TYPES,
+  ...INPUT_BLOCK_TYPES,
+]
 
 export const ALL_BLOCK_TYPES = FORM_FIELD_TYPES
 
@@ -50,6 +64,112 @@ export function isInputBlock(type) {
 export function fieldNeedsOptions(type) {
   const t = String(type || '')
   return t === 'select' || t === 'radio' || t === 'multiselect'
+}
+
+export function isTableField(type) {
+  return String(type || '').toLowerCase() === 'table'
+}
+
+/** Input types allowed inside a table column cell. */
+export const TABLE_COLUMN_INPUT_TYPES = [
+  { value: 'text', label: 'Short text' },
+  { value: 'textarea', label: 'Long text' },
+  { value: 'number', label: 'Number' },
+  { value: 'measurement', label: 'Measurement' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'url', label: 'URL' },
+  { value: 'date', label: 'Date' },
+  { value: 'time', label: 'Time' },
+  { value: 'datetime', label: 'Date & time' },
+  { value: 'select', label: 'Dropdown' },
+  { value: 'radio', label: 'Radio' },
+  { value: 'checkbox', label: 'Checkbox' },
+]
+
+const TABLE_COLUMN_TYPE_SET = new Set(TABLE_COLUMN_INPUT_TYPES.map((t) => t.value))
+
+export function normalizeTableColumnType(type) {
+  const t = String(type || 'text').trim().toLowerCase()
+  return TABLE_COLUMN_TYPE_SET.has(t) ? t : 'text'
+}
+
+export function emptyTableColumn(label = 'Column', type = 'text') {
+  const id = newBlockId()
+  const colType = normalizeTableColumnType(type)
+  return {
+    id,
+    key: slugifyFieldName(label, `col_${id.slice(0, 6)}`),
+    label,
+    type: colType,
+    optionsText: fieldNeedsOptions(colType) ? 'PASS\nFAIL\nN/A' : '',
+    placeholder: '',
+    keyLocked: false,
+  }
+}
+
+export function defaultTableColumns() {
+  return [
+    emptyTableColumn('Part No', 'text'),
+    emptyTableColumn('Serial No', 'text'),
+    emptyTableColumn('Inspect date', 'date'),
+    emptyTableColumn('Result', 'select'),
+  ]
+}
+
+export function normalizeTableColumns(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return defaultTableColumns()
+  }
+  return raw
+    .map((c, i) => {
+      if (c == null) return null
+      if (typeof c === 'string') {
+        const label = c.trim()
+        if (!label) return null
+        return {
+          id: newBlockId(),
+          key: slugifyFieldName(label, `col_${i + 1}`),
+          label,
+          type: 'text',
+          optionsText: '',
+          placeholder: '',
+          keyLocked: true,
+        }
+      }
+      const label = String(c.label || c.key || `Column ${i + 1}`).trim()
+      let key = String(c.key || '').trim()
+      if (!key) key = slugifyFieldName(label, `col_${i + 1}`)
+      key = key.replace(/[^a-zA-Z0-9_]/g, '')
+      if (!key || !/^[a-zA-Z]/.test(key)) key = `col_${i + 1}`
+      const type = normalizeTableColumnType(c.type)
+      const options = Array.isArray(c.options)
+        ? c.options.map((o) => String(o).trim()).filter(Boolean)
+        : String(c.optionsText || '')
+            .split(/[\n,]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+      return {
+        id: c.id || newBlockId(),
+        key,
+        label: label || key,
+        type,
+        optionsText: options.join('\n'),
+        options,
+        placeholder: c.placeholder || '',
+        keyLocked: true,
+      }
+    })
+    .filter(Boolean)
+}
+
+export function emptyTableRow(columns) {
+  const row = {}
+  for (const col of columns || []) {
+    if (!col?.key) continue
+    row[col.key] = col.type === 'checkbox' ? false : ''
+  }
+  return row
 }
 
 export function slugifyFieldName(label, fallback = 'field') {
@@ -75,7 +195,7 @@ export function emptyFormField(type = 'text') {
   return {
     id,
     name: content ? `block_${id}` : '',
-    label: content && type === 'divider' ? '—' : '',
+    label: content && type === 'divider' ? '—' : type === 'table' ? 'Data table' : '',
     type,
     placeholder: '',
     required: !content,
@@ -84,6 +204,7 @@ export function emptyFormField(type = 'text') {
     multiple: false,
     helpText: '',
     content: '',
+    columns: isTableField(type) ? defaultTableColumns() : [],
   }
 }
 
@@ -104,6 +225,7 @@ export function normalizeFieldFromApi(f) {
     multiple: !!f.multiple,
     helpText: f.helpText || '',
     content: f.content || f.label || '',
+    columns: isTableField(type) ? normalizeTableColumns(f.columns) : [],
   }
 }
 
@@ -153,6 +275,27 @@ export function fieldToApiPayload(f) {
   }
   if (type === 'measurement' && f.placeholder) {
     payload.placeholder = f.placeholder.trim()
+  }
+  if (isTableField(type)) {
+    payload.columns = normalizeTableColumns(f.columns).map((c) => {
+      const col = {
+        key: c.key,
+        label: c.label,
+        id: c.id,
+        type: normalizeTableColumnType(c.type),
+      }
+      if (c.placeholder?.trim()) col.placeholder = c.placeholder.trim()
+      if (fieldNeedsOptions(col.type)) {
+        const opts = Array.isArray(c.options) && c.options.length
+          ? c.options
+          : String(c.optionsText || '')
+              .split(/[\n,]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+        col.options = opts.length ? opts : ['Option A', 'Option B']
+      }
+      return col
+    })
   }
   return payload
 }

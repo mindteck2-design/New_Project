@@ -1,11 +1,17 @@
-import { Plus, Trash2, Paperclip } from 'lucide-react'
+import { Plus, Trash2, Paperclip, Table2 } from 'lucide-react'
 import {
-  FORM_FIELD_TYPES,
+  CONTENT_BLOCK_TYPES,
+  DATA_BLOCK_TYPES,
+  INPUT_BLOCK_TYPES,
+  defaultTableColumns,
   emptyFormField,
   fieldNeedsOptions,
   isContentBlock,
+  isTableField,
 } from '@/lib/formFieldTypes'
 import { FormContentBlock } from '@/components/FormContentBlocks'
+import TableColumnsEditor from '@/components/TableColumnsEditor'
+import TableFieldInput from '@/components/TableFieldInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,15 +43,26 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
             per line. Use the Notion tab for Markdown document blocks.
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => onChange([...fields, emptyFormField('text')])}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add field
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onChange([...fields, emptyFormField('table')])}
+          >
+            <Table2 className="h-3.5 w-3.5" />
+            Add table
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onChange([...fields, emptyFormField('text')])}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add field
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -111,6 +128,14 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                             fieldNeedsOptions(v) && !field.optionsText
                               ? 'Option A\nOption B'
                               : field.optionsText,
+                          columns:
+                            isTableField(v) && !(field.columns || []).length
+                              ? defaultTableColumns()
+                              : field.columns,
+                          label:
+                            isTableField(v) && !field.label
+                              ? 'Data table'
+                              : field.label,
                         })
                       }
                     >
@@ -118,7 +143,26 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {FORM_FIELD_TYPES.map((t) => (
+                        <SelectItem disabled value="__basic">
+                          — Basic —
+                        </SelectItem>
+                        {CONTENT_BLOCK_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem disabled value="__data">
+                          — Data —
+                        </SelectItem>
+                        {DATA_BLOCK_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem disabled value="__input">
+                          — Input —
+                        </SelectItem>
+                        {INPUT_BLOCK_TYPES.map((t) => (
                           <SelectItem key={t.value} value={t.value}>
                             {t.label}
                           </SelectItem>
@@ -152,7 +196,8 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {!fieldNeedsOptions(field.type) &&
                     field.type !== 'attachment' &&
-                    field.type !== 'checkbox' && (
+                    field.type !== 'checkbox' &&
+                    !isTableField(field.type) && (
                       <div className="space-y-1.5">
                         <Label>Placeholder</Label>
                         <Input
@@ -192,6 +237,13 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                       onChange={(e) => updateField(index, { optionsText: e.target.value })}
                     />
                   </div>
+                )}
+
+                {isTableField(field.type) && (
+                  <TableColumnsEditor
+                    columns={field.columns}
+                    onChange={(columns) => updateField(index, { columns })}
+                  />
                 )}
 
                 {field.type === 'attachment' && (
@@ -293,7 +345,10 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                       {f.accept ? ` · ${f.accept}` : ''}
                     </div>
                   )}
-                  {!['textarea', 'select', 'radio', 'checkbox', 'multiselect', 'attachment'].includes(
+                  {isTableField(f.type) && (
+                    <TableFieldInput columns={f.columns} preview disabled />
+                  )}
+                  {!['textarea', 'select', 'radio', 'checkbox', 'multiselect', 'attachment', 'table'].includes(
                     f.type,
                   ) && (
                     <Input

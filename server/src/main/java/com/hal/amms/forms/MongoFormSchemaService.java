@@ -36,11 +36,18 @@ public class MongoFormSchemaService {
             // Input blocks
             "text", "textarea", "number", "measurement", "email", "phone", "url",
             "date", "time", "datetime",
-            "select", "radio", "checkbox", "multiselect", "attachment", "signature"
+            "select", "radio", "checkbox", "multiselect", "table", "attachment", "signature"
     );
 
     private static final java.util.Set<String> CONTENT_TYPES = java.util.Set.of(
             "heading1", "heading2", "heading3", "paragraph", "callout", "divider", "bullets"
+    );
+
+    /** Input types allowed for individual table columns (cells). */
+    private static final java.util.Set<String> TABLE_COLUMN_TYPES = java.util.Set.of(
+            "text", "textarea", "number", "measurement", "email", "phone", "url",
+            "date", "time", "datetime",
+            "select", "radio", "checkbox"
     );
 
     private final MongoTemplate mongoTemplate;
@@ -322,6 +329,24 @@ public class MongoFormSchemaService {
                     throw new IllegalArgumentException(type + " field " + n + " needs at least one option");
                 }
             }
+            if ("table".equals(type)) {
+                List<Map<String, Object>> columns = normalizeColumns(field.get("columns"));
+                if (columns.isEmpty()) {
+                    throw new IllegalArgumentException("table field " + n + " needs at least one column");
+                }
+                for (Map<String, Object> col : columns) {
+                    String colType = String.valueOf(col.getOrDefault("type", "text"));
+                    if ("select".equals(colType) || "radio".equals(colType)) {
+                        List<String> colOpts = asStringList(col.get("options"));
+                        if (colOpts.isEmpty()) {
+                            throw new IllegalArgumentException(
+                                    "table field " + n + " column " + col.get("key")
+                                            + " (" + colType + ") needs at least one option"
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -376,6 +401,9 @@ public class MongoFormSchemaService {
                 if (helpText != null && !String.valueOf(helpText).isBlank()) {
                     f.put("helpText", String.valueOf(helpText).trim());
                 }
+                if ("table".equals(normalizedType)) {
+                    f.put("columns", normalizeColumns(raw.get("columns")));
+                }
             }
             Object id = raw.get("id");
             if (id != null && !String.valueOf(id).isBlank()) {
@@ -384,6 +412,85 @@ public class MongoFormSchemaService {
             out.add(f);
         }
         return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> normalizeColumns(Object raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        List<?> list;
+        if (raw instanceof List<?> l) {
+            list = l;
+        } else {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        int i = 0;
+        for (Object item : list) {
+            i++;
+            if (item == null) {
+                continue;
+            }
+            Map<String, Object> col = new LinkedHashMap<>();
+            if (item instanceof Map<?, ?> map) {
+                Object keyObj = map.get("key");
+                Object labelObj = map.get("label");
+                String label = labelObj == null ? "" : String.valueOf(labelObj).trim();
+                String key = keyObj == null ? "" : String.valueOf(keyObj).trim().replaceAll("[^a-zA-Z0-9_]", "");
+                if (label.isBlank() && key.isBlank()) {
+                    continue;
+                }
+                if (key.isBlank() || !key.matches("^[a-zA-Z].*")) {
+                    key = "col_" + i;
+                }
+                if (label.isBlank()) {
+                    label = key;
+                }
+                col.put("key", key);
+                col.put("label", label);
+                Object id = map.get("id");
+                if (id != null && !String.valueOf(id).isBlank()) {
+                    col.put("id", String.valueOf(id).trim());
+                }
+                String colType = normalizeTableColumnType(map.get("type"));
+                col.put("type", colType);
+                Object placeholder = map.get("placeholder");
+                if (placeholder != null && !String.valueOf(placeholder).isBlank()) {
+                    col.put("placeholder", String.valueOf(placeholder).trim());
+                }
+                if ("select".equals(colType) || "radio".equals(colType)) {
+                    List<String> options = asStringList(map.get("options"));
+                    if (options.isEmpty()) {
+                        options = List.of("Option A", "Option B");
+                    }
+                    col.put("options", options);
+                }
+            } else {
+                String label = String.valueOf(item).trim();
+                if (label.isBlank()) {
+                    continue;
+                }
+                String key = label.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_")
+                        .replaceAll("^_+|_+$", "");
+                if (key.isBlank() || !key.matches("^[a-z].*")) {
+                    key = "col_" + i;
+                }
+                col.put("key", key);
+                col.put("label", label);
+                col.put("type", "text");
+            }
+            out.add(col);
+        }
+        return out;
+    }
+
+    private static String normalizeTableColumnType(Object raw) {
+        if (raw == null || String.valueOf(raw).isBlank()) {
+            return "text";
+        }
+        String t = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        return TABLE_COLUMN_TYPES.contains(t) ? t : "text";
     }
 
     @SuppressWarnings("unchecked")
