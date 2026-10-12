@@ -26,8 +26,16 @@ public class MongoFormSchemaService {
     public static final String COLLECTION = "form_schemas";
     private static final Pattern FORM_KEY = Pattern.compile("^[a-z][a-z0-9-]{1,62}$");
     private static final java.util.Set<String> ALLOWED_TYPES = java.util.Set.of(
-            "text", "textarea", "number", "email", "date", "time", "datetime",
-            "select", "radio", "checkbox", "multiselect", "attachment"
+            // Content / Markdown layout blocks (no operator payload)
+            "heading1", "heading2", "heading3", "paragraph", "callout", "divider", "bullets",
+            // Input blocks
+            "text", "textarea", "number", "measurement", "email", "phone", "url",
+            "date", "time", "datetime",
+            "select", "radio", "checkbox", "multiselect", "attachment", "signature"
+    );
+
+    private static final java.util.Set<String> CONTENT_TYPES = java.util.Set.of(
+            "heading1", "heading2", "heading3", "paragraph", "callout", "divider", "bullets"
     );
 
     private final MongoTemplate mongoTemplate;
@@ -122,20 +130,30 @@ public class MongoFormSchemaService {
         for (Map<String, Object> field : fields) {
             Object n = field == null ? null : field.get("name");
             Object label = field == null ? null : field.get("label");
-            if (n == null || String.valueOf(n).isBlank()) {
-                throw new IllegalArgumentException("each field requires a name");
-            }
-            if (label == null || String.valueOf(label).isBlank()) {
-                throw new IllegalArgumentException("each field requires a label");
-            }
-            if (!String.valueOf(n).matches("^[a-zA-Z][a-zA-Z0-9_]{0,63}$")) {
-                throw new IllegalArgumentException("field name must be a simple identifier: " + n);
-            }
-            String type = field.get("type") == null || String.valueOf(field.get("type")).isBlank()
+            String type = field == null || field.get("type") == null || String.valueOf(field.get("type")).isBlank()
                     ? "text"
                     : String.valueOf(field.get("type")).trim().toLowerCase();
             if (!ALLOWED_TYPES.contains(type)) {
                 throw new IllegalArgumentException("unsupported field type: " + type);
+            }
+            boolean content = CONTENT_TYPES.contains(type);
+            if (n == null || String.valueOf(n).isBlank()) {
+                throw new IllegalArgumentException("each field requires a name");
+            }
+            if (!String.valueOf(n).matches("^[a-zA-Z][a-zA-Z0-9_]{0,63}$")) {
+                throw new IllegalArgumentException("field name must be a simple identifier: " + n);
+            }
+            if (!content && (label == null || String.valueOf(label).isBlank())) {
+                throw new IllegalArgumentException("each input field requires a label");
+            }
+            if (content && !"divider".equals(type)) {
+                Object body = field.get("content");
+                String text = body != null && !String.valueOf(body).isBlank()
+                        ? String.valueOf(body)
+                        : label == null ? "" : String.valueOf(label);
+                if (text.isBlank()) {
+                    throw new IllegalArgumentException(type + " block requires Markdown content");
+                }
             }
             if ("select".equals(type) || "radio".equals(type) || "multiselect".equals(type)) {
                 List<String> options = asStringList(field.get("options"));
@@ -151,36 +169,56 @@ public class MongoFormSchemaService {
         for (Map<String, Object> raw : fields) {
             Map<String, Object> f = new LinkedHashMap<>();
             f.put("name", String.valueOf(raw.get("name")).trim());
-            f.put("label", String.valueOf(raw.get("label")).trim());
             Object type = raw.get("type");
             String normalizedType = type == null || String.valueOf(type).isBlank()
                     ? "text"
                     : String.valueOf(type).trim().toLowerCase();
             f.put("type", normalizedType);
-            Object placeholder = raw.get("placeholder");
-            if (placeholder != null && !String.valueOf(placeholder).isBlank()) {
-                f.put("placeholder", String.valueOf(placeholder).trim());
+            boolean content = CONTENT_TYPES.contains(normalizedType);
+            Object labelRaw = raw.get("label");
+            Object contentRaw = raw.get("content");
+            String label = labelRaw == null ? "" : String.valueOf(labelRaw).trim();
+            String body = contentRaw == null ? "" : String.valueOf(contentRaw).trim();
+            if (content) {
+                if ("divider".equals(normalizedType)) {
+                    f.put("label", label.isBlank() ? "—" : label);
+                } else {
+                    String text = !body.isBlank() ? body : label;
+                    f.put("label", text);
+                    f.put("content", text);
+                }
+                f.put("required", false);
+            } else {
+                f.put("label", label);
+                Object placeholder = raw.get("placeholder");
+                if (placeholder != null && !String.valueOf(placeholder).isBlank()) {
+                    f.put("placeholder", String.valueOf(placeholder).trim());
+                }
+                Object required = raw.get("required");
+                f.put("required", required == null || Boolean.parseBoolean(String.valueOf(required)));
+                List<String> options = asStringList(raw.get("options"));
+                if (!options.isEmpty()) {
+                    f.put("options", options);
+                }
+                Object accept = raw.get("accept");
+                if (accept != null && !String.valueOf(accept).isBlank()) {
+                    f.put("accept", String.valueOf(accept).trim());
+                }
+                Object multiple = raw.get("multiple");
+                if (multiple != null) {
+                    f.put("multiple", Boolean.parseBoolean(String.valueOf(multiple)));
+                }
+                if ("attachment".equals(normalizedType) && multiple == null) {
+                    f.put("multiple", false);
+                }
+                Object helpText = raw.get("helpText");
+                if (helpText != null && !String.valueOf(helpText).isBlank()) {
+                    f.put("helpText", String.valueOf(helpText).trim());
+                }
             }
-            Object required = raw.get("required");
-            f.put("required", required == null || Boolean.parseBoolean(String.valueOf(required)));
-            List<String> options = asStringList(raw.get("options"));
-            if (!options.isEmpty()) {
-                f.put("options", options);
-            }
-            Object accept = raw.get("accept");
-            if (accept != null && !String.valueOf(accept).isBlank()) {
-                f.put("accept", String.valueOf(accept).trim());
-            }
-            Object multiple = raw.get("multiple");
-            if (multiple != null) {
-                f.put("multiple", Boolean.parseBoolean(String.valueOf(multiple)));
-            }
-            if ("attachment".equals(normalizedType) && multiple == null) {
-                f.put("multiple", false);
-            }
-            Object helpText = raw.get("helpText");
-            if (helpText != null && !String.valueOf(helpText).isBlank()) {
-                f.put("helpText", String.valueOf(helpText).trim());
+            Object id = raw.get("id");
+            if (id != null && !String.valueOf(id).isBlank()) {
+                f.put("id", String.valueOf(id).trim());
             }
             out.add(f);
         }

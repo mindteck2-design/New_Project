@@ -8,6 +8,8 @@ import { Paperclip } from 'lucide-react'
 import { fetchFormSchema, uploadDocument } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { normalizeFormDateValues, toCalendarDate } from '@/lib/dateTime'
+import { isContentBlock, isInputBlock } from '@/lib/formFieldTypes'
+import { FormContentBlock } from '@/components/FormContentBlocks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -62,7 +64,8 @@ function fieldZod(f) {
   const required = f.required !== false
   const label = f.label || f.name
   switch (f.type) {
-    case 'number': {
+    case 'number':
+    case 'measurement': {
       let s = z.coerce.number({ invalid_type_error: `${label} must be a number` })
       return required ? s : s.optional()
     }
@@ -80,8 +83,16 @@ function fieldZod(f) {
     }
     case 'email': {
       let s = z.string().trim()
-      s = required ? s.min(1, `${label} is required`).email('Enter a valid email') : s.email('Enter a valid email').or(z.literal(''))
+      s = required
+        ? s.min(1, `${label} is required`).email('Enter a valid email')
+        : s.email('Enter a valid email').or(z.literal(''))
       return s
+    }
+    case 'url': {
+      let s = z.string().trim()
+      return required
+        ? s.min(1, `${label} is required`).url('Enter a valid URL')
+        : s.url('Enter a valid URL').or(z.literal(''))
     }
     case 'date': {
       // Keep calendar dates as YYYY-MM-DD — never coerce through Date/ISO Instant.
@@ -92,6 +103,10 @@ function fieldZod(f) {
         .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), `${label} must be YYYY-MM-DD`)
       return required ? s.refine((v) => !!v, `${label} is required`) : s.optional()
     }
+    case 'signature':
+    case 'phone':
+    case 'textarea':
+    case 'text':
     default: {
       let s = z.string().trim()
       return required ? s.min(1, `${label} is required`) : s.optional()
@@ -102,6 +117,7 @@ function fieldZod(f) {
 function buildSchema(fields) {
   const shape = {}
   for (const f of fields) {
+    if (!isInputBlock(f.type) || !f.name) continue
     shape[f.name] = fieldZod(f)
   }
   shape.signaturePlaceholder = z.string().optional()
@@ -140,6 +156,7 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
         accept: f.accept || '',
         multiple: !!f.multiple,
         helpText: f.helpText || '',
+        content: f.content || f.label || '',
       }))
     }
     return (FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }]).map((f) => ({
@@ -150,17 +167,19 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
       accept: '',
       multiple: false,
       helpText: '',
+      content: '',
     }))
   }, [formKey, schemaQuery.data])
 
+  const inputFields = useMemo(() => fields.filter((f) => isInputBlock(f.type)), [fields])
   const fromMongo = schemaQuery.isSuccess && Array.isArray(schemaQuery.data?.fields)
   const schema = useMemo(() => buildSchema(fields), [fields])
 
   const defaultValues = useMemo(() => {
     const values = { signaturePlaceholder: '' }
-    for (const f of fields) values[f.name] = defaultForField(f)
+    for (const f of inputFields) values[f.name] = defaultForField(f)
     return values
-  }, [fields])
+  }, [inputFields])
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -204,7 +223,7 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
 
   function submit(values) {
     const { signaturePlaceholder, ...rawPayload } = values
-    const formPayload = normalizeFormDateValues(fields, rawPayload)
+    const formPayload = normalizeFormDateValues(inputFields, rawPayload)
     onSubmit({
       formPayload,
       signaturePlaceholder: signaturePlaceholder?.trim() || undefined,
@@ -221,49 +240,56 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
         {schemaQuery.isLoading && (
           <p className="text-sm text-muted-foreground">Loading form schema from MongoDB…</p>
         )}
-        {fields.map((f) => (
+        {fields.map((f, idx) => {
+          if (isContentBlock(f.type)) {
+            return <FormContentBlock key={`${f.name || 'c'}-${idx}`} block={f} />
+          }
+          return (
+            <FormField
+              key={f.name}
+              control={form.control}
+              name={f.name}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {f.label}
+                    {f.required === false && (
+                      <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
+                    )}
+                  </FormLabel>
+                  <FormControl>
+                    <FieldControl
+                      fieldDef={f}
+                      field={field}
+                      disabled={disabled}
+                      uploading={uploading === f.name}
+                      onFiles={(list) => handleAttachment(f, list)}
+                    />
+                  </FormControl>
+                  {f.helpText ? <FormDescription>{f.helpText}</FormDescription> : null}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )
+        })}
+        {inputFields.some((f) => f.type === 'signature') ? null : (
           <FormField
-            key={f.name}
             control={form.control}
-            name={f.name}
+            name="signaturePlaceholder"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  {f.label}
-                  {f.required === false && (
-                    <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
-                  )}
-                </FormLabel>
+                <FormLabel>Digital signature placeholder</FormLabel>
                 <FormControl>
-                  <FieldControl
-                    fieldDef={f}
-                    field={field}
-                    disabled={disabled}
-                    uploading={uploading === f.name}
-                    onFiles={(list) => handleAttachment(f, list)}
-                  />
+                  <Input disabled={disabled} placeholder="Typed acknowledgement" {...field} />
                 </FormControl>
-                {f.helpText ? <FormDescription>{f.helpText}</FormDescription> : null}
                 <FormMessage />
               </FormItem>
             )}
           />
-        ))}
-        <FormField
-          control={form.control}
-          name="signaturePlaceholder"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Digital signature placeholder</FormLabel>
-              <FormControl>
-                <Input disabled={disabled} placeholder="Typed acknowledgement" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        )}
         <Button type="submit" disabled={disabled || form.formState.isSubmitting || !!uploading}>
-          Complete step
+          {inputFields.length ? 'Complete step' : 'Acknowledge & continue'}
         </Button>
       </form>
     </Form>
@@ -271,8 +297,15 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
 }
 
 function FieldControl({ fieldDef: f, field, disabled, uploading, onFiles }) {
-  if (f.type === 'textarea') {
-    return <Textarea placeholder={f.placeholder || ''} disabled={disabled} rows={3} {...field} />
+  if (f.type === 'textarea' || f.type === 'signature') {
+    return (
+      <Textarea
+        placeholder={f.placeholder || (f.type === 'signature' ? 'Type full name to endorse' : '')}
+        disabled={disabled}
+        rows={f.type === 'signature' ? 2 : 3}
+        {...field}
+      />
+    )
   }
 
   if (f.type === 'select') {
@@ -383,17 +416,21 @@ function FieldControl({ fieldDef: f, field, disabled, uploading, onFiles }) {
   }
 
   const inputType =
-    f.type === 'number'
+    f.type === 'number' || f.type === 'measurement'
       ? 'number'
       : f.type === 'email'
         ? 'email'
-        : f.type === 'date'
-          ? 'date'
-          : f.type === 'time'
-            ? 'time'
-            : f.type === 'datetime'
-              ? 'datetime-local'
-              : 'text'
+        : f.type === 'url'
+          ? 'url'
+          : f.type === 'phone'
+            ? 'tel'
+            : f.type === 'date'
+              ? 'date'
+              : f.type === 'time'
+                ? 'time'
+                : f.type === 'datetime'
+                  ? 'datetime-local'
+                  : 'text'
 
   const value =
     f.type === 'date' ? toCalendarDate(field.value) : (field.value ?? '')
