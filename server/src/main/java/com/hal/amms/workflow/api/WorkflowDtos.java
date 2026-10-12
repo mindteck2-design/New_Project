@@ -8,7 +8,16 @@ import java.util.UUID;
 public final class WorkflowDtos {
     private WorkflowDtos() {}
 
-    public record WorkflowSummary(UUID id, String key, String name, int version) {}
+    public record WorkflowSummary(
+            UUID id,
+            String key,
+            String name,
+            int version,
+            boolean active,
+            String workType,
+            List<String> aircraftTypes,
+            String description
+    ) {}
 
     public record NodeView(
             String key,
@@ -68,9 +77,16 @@ public final class WorkflowDtos {
             String key,
             String name,
             Integer version,
+            String description,
+            String workType,
+            List<String> aircraftTypes,
             List<WorkflowNodeDraft> nodes,
             List<WorkflowTransitionDraft> transitions
     ) {}
+
+    public record CloneWorkflowRequest(String newKey, String name) {}
+
+    public record SetActiveRequest(Boolean active) {}
 
     public record AuditView(
             UUID id,

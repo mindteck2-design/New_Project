@@ -8,12 +8,12 @@ export const ROLE_GUIDANCE = {
   PROGRESS: {
     title: 'Progress Officer',
     charge:
-      'You own work packages against aircraft PO/SO — ROUTINE or REPAIR — plus intake and document handoffs. Create the package, add parts, and open each part to start its master workflow.',
+      'You own work orders against aircraft PO/SO — ROUTINE or REPAIR — plus intake and document handoffs. Create the order, add parts, and open each part to start its master workflow.',
     whenClear:
-      'Nothing is waiting on Progress right now. Open Work packages to map a PO/SO, or stay ready for the next handoff.',
-    primaryWhenClear: { to: '/packages', label: 'Open work packages' },
+      'Nothing is waiting on Progress right now. Open Work orders to map a PO/SO, or stay ready for the next handoff.',
+    primaryWhenClear: { to: '/packages', label: 'Open work orders' },
     typicalDuties: [
-      'Create a work package from PO/SO and choose ROUTINE or REPAIR',
+      'Create a work order from PO/SO and choose ROUTINE or REPAIR',
       'Add parts and open them one by one for test / reassemble',
       'Record spares demand and document handoffs on running steps',
     ],
@@ -49,10 +49,10 @@ export const ROLE_GUIDANCE = {
     charge:
       'You oversee completed work and quality visibility. Review package test reports by PO/SO and use analytics for assurance.',
     whenClear:
-      'No live steps require QA action. Open package reports or role analytics for assurance coverage.',
-    primaryWhenClear: { to: '/packages', label: 'Review work packages' },
+      'No live steps require QA action. Open work-order reports or role analytics for assurance coverage.',
+    primaryWhenClear: { to: '/packages', label: 'Review work orders' },
     typicalDuties: [
-      'Review package test reports after all parts close',
+      'Review work-order test reports after all parts close',
       'Monitor role analytics for backlog and throughput',
       'Escalate process gaps through the audit trail',
     ],

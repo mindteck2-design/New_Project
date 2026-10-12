@@ -2,11 +2,12 @@
  * AMMS information architecture — single source for sidebar labels and groups.
  *
  * Configure → Form Master, Workflow Master
- * Execute   → Pending actions, Work packages
+ * Execute   → Pending actions, Work orders
  * Track     → Maintenance runs (+ dashboard/analytics overview)
  *
  * Routes stay stable (AGENTS.md). Labels speak aircraft-maintenance language.
  * "Process map" is not a top-level menu — charts live under Workflow Master.
+ * API path remains `/packages` — "Work orders" is the shop-facing label.
  */
 
 import {
@@ -29,7 +30,7 @@ export const NAV_LABELS = {
   dashboard: 'Dashboard',
   analytics: 'Analytics',
   inbox: 'Pending actions',
-  packages: 'Work packages',
+  packages: 'Work orders',
   runs: 'Maintenance runs',
   forms: 'Form Master',
   workflows: 'Workflow Master',

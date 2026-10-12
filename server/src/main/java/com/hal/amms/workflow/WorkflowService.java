@@ -51,14 +51,46 @@ public class WorkflowService {
         this.workPackages = workPackages;
     }
 
-    public List<WorkflowSummary> listWorkflows() {
-        return repository.listActiveDefinitions().stream()
-                .map(d -> new WorkflowSummary(d.id(), d.key(), d.name(), d.version()))
+    public List<WorkflowSummary> listWorkflows(
+            boolean includeInactive,
+            String workTypeFilter,
+            String aircraftTypeFilter
+    ) {
+        String workType = workTypeFilter == null || workTypeFilter.isBlank() || "ALL".equalsIgnoreCase(workTypeFilter)
+                ? null
+                : workTypeFilter.trim().toUpperCase(Locale.ROOT);
+        String aircraft = aircraftTypeFilter == null || aircraftTypeFilter.isBlank() || "ALL".equalsIgnoreCase(aircraftTypeFilter)
+                ? null
+                : aircraftTypeFilter.trim().toUpperCase(Locale.ROOT);
+        return repository.listDefinitions(includeInactive).stream()
+                .map(this::toSummary)
+                .filter(s -> workType == null || workType.equalsIgnoreCase(nullToEmpty(s.workType())))
+                .filter(s -> aircraft == null || matchesAircraft(s.aircraftTypes(), aircraft))
                 .toList();
     }
 
+    public List<WorkflowSummary> listWorkflows() {
+        return listWorkflows(false, null, null);
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static boolean matchesAircraft(List<String> types, String needle) {
+        if (types == null || types.isEmpty()) {
+            return false;
+        }
+        for (String t : types) {
+            if (t != null && needle.equalsIgnoreCase(t.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public Map<String, Object> getDefinition(String key) {
-        WorkflowDefinition def = repository.findDefinitionByKey(key)
+        WorkflowDefinition def = repository.findDefinitionByKey(key, false)
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + key));
         try {
             Map<String, Object> raw = mapper.readValue(def.definitionJson(), new TypeReference<>() {});
@@ -90,12 +122,69 @@ public class WorkflowService {
             raw.put("nodes", liveNodes);
             raw.put("id", def.id().toString());
             raw.put("version", def.version());
+            raw.put("active", def.active());
+            raw.put("workType", metaString(raw, "workType"));
+            raw.put("aircraftTypes", metaStringList(raw, "aircraftTypes"));
+            raw.put("description", metaString(raw, "description"));
             return raw;
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
             throw ApiException.badRequest("Invalid definition JSON");
         }
+    }
+
+    private WorkflowSummary toSummary(WorkflowDefinition d) {
+        Map<String, Object> meta = readDefinitionMeta(d.definitionJson());
+        return new WorkflowSummary(
+                d.id(),
+                d.key(),
+                d.name(),
+                d.version(),
+                d.active(),
+                metaString(meta, "workType"),
+                metaStringList(meta, "aircraftTypes"),
+                metaString(meta, "description")
+        );
+    }
+
+    private Map<String, Object> readDefinitionMeta(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return mapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private static String metaString(Map<String, Object> meta, String key) {
+        if (meta == null || meta.get(key) == null) {
+            return null;
+        }
+        String s = String.valueOf(meta.get(key)).trim();
+        return s.isEmpty() || "null".equalsIgnoreCase(s) ? null : s;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> metaStringList(Map<String, Object> meta, String key) {
+        if (meta == null || meta.get(key) == null) {
+            return List.of();
+        }
+        Object raw = meta.get(key);
+        if (raw instanceof List<?> list) {
+            List<String> out = new ArrayList<>();
+            for (Object item : list) {
+                if (item == null) continue;
+                String s = String.valueOf(item).trim();
+                if (!s.isEmpty()) out.add(s);
+            }
+            return out;
+        }
+        String s = String.valueOf(raw).trim();
+        if (s.isEmpty()) return List.of();
+        return Arrays.stream(s.split("[,;]")).map(String::trim).filter(t -> !t.isEmpty()).toList();
     }
 
     /**
@@ -146,6 +235,22 @@ public class WorkflowService {
             definition.put("name", request.name().trim());
             definition.put("version", version);
             definition.put("source", "admin-ui");
+            if (request.description() != null && !request.description().isBlank()) {
+                definition.put("description", request.description().trim());
+            }
+            if (request.workType() != null && !request.workType().isBlank()) {
+                definition.put("workType", request.workType().trim().toUpperCase(Locale.ROOT));
+            }
+            if (request.aircraftTypes() != null && !request.aircraftTypes().isEmpty()) {
+                definition.put(
+                        "aircraftTypes",
+                        request.aircraftTypes().stream()
+                                .filter(Objects::nonNull)
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .toList()
+                );
+            }
             List<Map<String, Object>> nodeJson = new ArrayList<>();
             for (WorkflowNodeDraft n : request.nodes()) {
                 Map<String, Object> m = new LinkedHashMap<>();
@@ -216,11 +321,84 @@ public class WorkflowService {
                         priority++
                 ));
             }
-            return new WorkflowSummary(defId, key, request.name().trim(), version);
+            return toSummary(repository.findDefinitionByKey(key, false).orElseThrow());
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
             throw ApiException.badRequest("Could not create workflow: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public WorkflowSummary setWorkflowActive(String key, boolean active) {
+        WorkflowDefinition def = repository.findDefinitionByKey(key, false)
+                .orElseThrow(() -> ApiException.notFound("Workflow not found: " + key));
+        try {
+            repository.setDefinitionActive(def.key(), active);
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.notFound(ex.getMessage());
+        }
+        return toSummary(repository.findDefinitionByKey(key, false).orElseThrow());
+    }
+
+    /**
+     * Clone an existing chart under a new key (preserves stages/forms; new version starts at 1, active).
+     */
+    @Transactional
+    public WorkflowSummary cloneWorkflow(String sourceKey, CloneWorkflowRequest request) {
+        if (request == null || request.newKey() == null || request.newKey().isBlank()) {
+            throw ApiException.badRequest("newKey is required");
+        }
+        WorkflowDefinition source = repository.findDefinitionByKey(sourceKey, false)
+                .orElseThrow(() -> ApiException.notFound("Workflow not found: " + sourceKey));
+        String newKey = request.newKey().trim().toLowerCase(Locale.ROOT);
+        if (!newKey.matches("^[a-z][a-z0-9-]{1,62}$")) {
+            throw ApiException.badRequest("newKey must be lowercase kebab-case (2–63 chars)");
+        }
+        if (repository.definitionExists(newKey)) {
+            throw ApiException.conflict("Workflow already exists: " + newKey);
+        }
+        String newName = request.name() == null || request.name().isBlank()
+                ? source.name() + " (copy)"
+                : request.name().trim();
+        try {
+            Map<String, Object> raw = mapper.readValue(source.definitionJson(), new TypeReference<>() {});
+            raw.put("key", newKey);
+            raw.put("name", newName);
+            raw.put("version", 1);
+            raw.put("clonedFrom", source.key());
+            String json = mapper.writeValueAsString(raw);
+            UUID defId = UUID.randomUUID();
+            repository.upsertDefinition(defId, newKey, newName, 1, json);
+            defId = repository.definitionIdByKey(newKey);
+            for (WorkflowNode n : repository.nodesFor(source.id())) {
+                repository.insertNode(new WorkflowNode(
+                        UUID.randomUUID(),
+                        defId,
+                        n.nodeKey(),
+                        n.nodeType(),
+                        n.roleCode(),
+                        n.formKey(),
+                        n.label(),
+                        n.configJson()
+                ));
+            }
+            int priority = 0;
+            for (WorkflowTransition t : repository.transitionsFor(source.id())) {
+                repository.insertTransition(new WorkflowTransition(
+                        UUID.randomUUID(),
+                        defId,
+                        t.fromNodeKey(),
+                        t.toNodeKey(),
+                        t.conditionValue(),
+                        priority++
+                ));
+            }
+            return toSummary(repository.findDefinitionByKey(newKey, false).orElseThrow());
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw ApiException.badRequest("Could not clone workflow: " + e.getMessage());
         }
     }
 
@@ -234,7 +412,7 @@ public class WorkflowService {
             throw ApiException.badRequest("formKey is required");
         }
         String normalizedForm = formKey.trim().toLowerCase();
-        WorkflowDefinition def = repository.findDefinitionByKey(workflowKey)
+        WorkflowDefinition def = repository.findDefinitionByKey(workflowKey, false)
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + workflowKey));
         WorkflowNode node = repository.findNode(def.id(), nodeKey)
                 .orElseThrow(() -> ApiException.notFound("Node not found: " + nodeKey));

@@ -77,7 +77,11 @@ public class MongoFormSchemaSeeder implements ApplicationRunner {
     }
 
     private void seed(String key, String name, List<Map<String, Object>> fields) {
-        schemas.upsert(key, name, fields);
+        if (schemas.exists(key)) {
+            return;
+        }
+        // Seed catalog forms as published so Workflow Master can bind them immediately.
+        schemas.upsert(key, name, fields, MongoFormSchemaService.STATUS_PUBLISHED, 1);
     }
 
     private static Map<String, Object> field(String name, String label, String placeholder) {

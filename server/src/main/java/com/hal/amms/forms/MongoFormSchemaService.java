@@ -12,18 +12,23 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
  * Dynamic form schemas live in MongoDB {@code form_schemas} — ADR-002.
+ * Lifecycle: DRAFT → PUBLISHED; clone creates a new DRAFT key; edits to PUBLISHED bump version.
  */
 @Service
 @ConditionalOnProperty(name = "amms.forms.store", havingValue = "mongo")
 public class MongoFormSchemaService {
 
     public static final String COLLECTION = "form_schemas";
+    public static final String STATUS_DRAFT = "DRAFT";
+    public static final String STATUS_PUBLISHED = "PUBLISHED";
+
     private static final Pattern FORM_KEY = Pattern.compile("^[a-z][a-z0-9-]{1,62}$");
     private static final java.util.Set<String> ALLOWED_TYPES = java.util.Set.of(
             // Content / Markdown layout blocks (no operator payload)
@@ -45,24 +50,119 @@ public class MongoFormSchemaService {
     }
 
     public void upsert(String formKey, String name, List<Map<String, Object>> fields) {
+        upsert(formKey, name, fields, null, null);
+    }
+
+    /**
+     * @param statusHint optional DRAFT|PUBLISHED on create; ignored on update (use publish/setDraft)
+     * @param versionHint optional starting version on create
+     */
+    public void upsert(
+            String formKey,
+            String name,
+            List<Map<String, Object>> fields,
+            String statusHint,
+            Integer versionHint
+    ) {
         validate(formKey, name, fields);
         Query q = Query.query(Criteria.where("formKey").is(formKey));
         Document existing = mongoTemplate.findOne(q, Document.class, COLLECTION);
+        List<Map<String, Object>> normalized = normalizeFields(fields);
+
         Document doc = new Document()
                 .append("formKey", formKey)
                 .append("name", name.trim())
-                .append("fields", normalizeFields(fields))
+                .append("fields", normalized)
                 .append("updatedAt", AmmsDateTimes.now());
+
         if (existing != null && existing.get("_id") != null) {
             doc.put("_id", existing.get("_id"));
             if (existing.get("createdAt") != null) {
                 doc.put("createdAt", existing.get("createdAt"));
             }
+            String status = normalizeStatus(existing.get("status"));
+            int version = readVersion(existing);
+            // Editing a published schema preserves publish status and bumps version.
+            if (STATUS_PUBLISHED.equals(status)) {
+                version = Math.max(1, version) + 1;
+            } else {
+                status = STATUS_DRAFT;
+                if (version < 1) {
+                    version = 1;
+                }
+            }
+            doc.put("status", status);
+            doc.put("version", version);
+            if (existing.get("clonedFrom") != null) {
+                doc.put("clonedFrom", existing.get("clonedFrom"));
+            }
             mongoTemplate.save(doc, COLLECTION);
         } else {
+            String status = statusHint == null || statusHint.isBlank()
+                    ? STATUS_DRAFT
+                    : normalizeStatus(statusHint);
+            int version = versionHint == null || versionHint < 1 ? 1 : versionHint;
+            doc.put("status", status);
+            doc.put("version", version);
             doc.put("createdAt", AmmsDateTimes.now());
             mongoTemplate.insert(doc, COLLECTION);
         }
+    }
+
+    public Document publish(String formKey) {
+        Document existing = findByKey(formKey)
+                .orElseThrow(() -> new IllegalArgumentException("Form schema not found: " + formKey));
+        String status = normalizeStatus(existing.get("status"));
+        int version = readVersion(existing);
+        if (!STATUS_PUBLISHED.equals(status)) {
+            // First publish keeps current version (usually 1); re-publish after draft edit bumps.
+            if (version < 1) {
+                version = 1;
+            }
+        }
+        existing.put("status", STATUS_PUBLISHED);
+        existing.put("version", version);
+        existing.put("updatedAt", AmmsDateTimes.now());
+        existing.put("publishedAt", AmmsDateTimes.now());
+        mongoTemplate.save(existing, COLLECTION);
+        return existing;
+    }
+
+    public Document setDraft(String formKey) {
+        Document existing = findByKey(formKey)
+                .orElseThrow(() -> new IllegalArgumentException("Form schema not found: " + formKey));
+        existing.put("status", STATUS_DRAFT);
+        existing.put("updatedAt", AmmsDateTimes.now());
+        mongoTemplate.save(existing, COLLECTION);
+        return existing;
+    }
+
+    public Document cloneForm(String sourceKey, String newKey, String newName) {
+        Document source = findByKey(sourceKey)
+                .orElseThrow(() -> new IllegalArgumentException("Form schema not found: " + sourceKey));
+        if (newKey == null || !FORM_KEY.matcher(newKey).matches()) {
+            throw new IllegalArgumentException(
+                    "newKey must be lowercase kebab-case (2–63 chars), e.g. torque-check-v2");
+        }
+        if (exists(newKey)) {
+            throw new IllegalStateException("Form schema already exists: " + newKey);
+        }
+        String name = newName == null || newName.isBlank()
+                ? source.getString("name") + " (copy)"
+                : newName.trim();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> fields = (List<Map<String, Object>>) source.get("fields");
+        Document doc = new Document()
+                .append("formKey", newKey)
+                .append("name", name)
+                .append("fields", fields == null ? List.of() : fields)
+                .append("status", STATUS_DRAFT)
+                .append("version", 1)
+                .append("clonedFrom", sourceKey)
+                .append("createdAt", AmmsDateTimes.now())
+                .append("updatedAt", AmmsDateTimes.now());
+        mongoTemplate.insert(doc, COLLECTION);
+        return doc;
     }
 
     public Optional<Document> findByKey(String formKey) {
@@ -78,7 +178,32 @@ public class MongoFormSchemaService {
     }
 
     public List<Document> listAll() {
-        List<Document> docs = mongoTemplate.findAll(Document.class, COLLECTION);
+        return listAll(null);
+    }
+
+    /** @param statusFilter DRAFT|PUBLISHED|null (all) */
+    public List<Document> listAll(String statusFilter) {
+        List<Document> docs;
+        if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
+            String status = normalizeStatus(statusFilter);
+            docs = mongoTemplate.find(
+                    Query.query(Criteria.where("status").is(status)),
+                    Document.class,
+                    COLLECTION
+            );
+            // Legacy docs without status are treated as PUBLISHED when filtering published.
+            if (STATUS_PUBLISHED.equals(status)) {
+                List<Document> legacy = mongoTemplate.find(
+                        Query.query(Criteria.where("status").exists(false)),
+                        Document.class,
+                        COLLECTION
+                );
+                docs = new ArrayList<>(docs);
+                docs.addAll(legacy);
+            }
+        } else {
+            docs = mongoTemplate.findAll(Document.class, COLLECTION);
+        }
         docs.sort(Comparator.comparing(d -> String.valueOf(d.get("formKey")), String.CASE_INSENSITIVE_ORDER));
         return docs;
     }
@@ -104,16 +229,52 @@ public class MongoFormSchemaService {
         out.put("formKey", doc.getString("formKey"));
         out.put("name", doc.getString("name"));
         out.put("fields", doc.get("fields", List.class));
+        out.put("status", normalizeStatus(doc.get("status")));
+        out.put("version", readVersion(doc));
         out.put("store", "mongo");
+        Object clonedFrom = doc.get("clonedFrom");
+        if (clonedFrom != null) {
+            out.put("clonedFrom", String.valueOf(clonedFrom));
+        }
         Object created = doc.get("createdAt");
         Object updated = doc.get("updatedAt");
+        Object published = doc.get("publishedAt");
         if (created != null) {
             out.put("createdAt", created.toString());
         }
         if (updated != null) {
             out.put("updatedAt", updated.toString());
         }
+        if (published != null) {
+            out.put("publishedAt", published.toString());
+        }
         return out;
+    }
+
+    private static String normalizeStatus(Object raw) {
+        if (raw == null || String.valueOf(raw).isBlank()) {
+            return STATUS_PUBLISHED; // legacy seeded docs without status are live
+        }
+        String s = String.valueOf(raw).trim().toUpperCase(Locale.ROOT);
+        if (STATUS_DRAFT.equals(s)) {
+            return STATUS_DRAFT;
+        }
+        return STATUS_PUBLISHED;
+    }
+
+    private static int readVersion(Document doc) {
+        if (doc == null || doc.get("version") == null) {
+            return 1;
+        }
+        Object v = doc.get("version");
+        if (v instanceof Number n) {
+            return Math.max(1, n.intValue());
+        }
+        try {
+            return Math.max(1, Integer.parseInt(String.valueOf(v)));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
     }
 
     private void validate(String formKey, String name, List<Map<String, Object>> fields) {

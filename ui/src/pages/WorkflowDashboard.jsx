@@ -44,7 +44,7 @@ export default function WorkflowDashboard() {
       <PageFrame>
         <PageHeader
           title="Your work today"
-          description="Pending maintenance stages for your roles — then execute work packages or configure masters."
+          description="Pending maintenance stages for your roles — then execute work orders or configure masters."
           breadcrumbs={[{ label: NAV_LABELS.dashboard }]}
           actions={
             <div className="flex flex-wrap gap-2">
@@ -57,7 +57,7 @@ export default function WorkflowDashboard() {
               <Button asChild size="sm">
                 <Link to="/packages/new">
                   <Package className="h-3.5 w-3.5" />
-                  New work package
+                  New work order
                 </Link>
               </Button>
             </div>

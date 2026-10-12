@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { FileText, Package, Play, Plus } from 'lucide-react'
+import { Copy, FileText, Package, Play, Plus, Power } from 'lucide-react'
 import {
   assignWorkflowNodeForm,
+  cloneWorkflow,
   createFormForWorkflowNode,
   fetchFormSchemas,
   fetchWorkflowDefinition,
+  setWorkflowActive,
   startInstance,
 } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
@@ -167,13 +169,19 @@ export default function WorkflowDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [creatingFor, setCreatingFor] = useState(null)
+  const [showClone, setShowClone] = useState(false)
+  const [cloneKey, setCloneKey] = useState('')
+  const [cloneName, setCloneName] = useState('')
 
   const definition = useQuery({
     queryKey: queryKeys.workflows.detail(key),
     queryFn: () => fetchWorkflowDefinition(key),
     enabled: !!key,
   })
-  const forms = useQuery({ queryKey: queryKeys.forms.all, queryFn: fetchFormSchemas })
+  const forms = useQuery({
+    queryKey: queryKeys.forms.list({ status: 'PUBLISHED' }),
+    queryFn: () => fetchFormSchemas({ status: 'PUBLISHED' }),
+  })
 
   const start = useMutation({
     mutationFn: () => startInstance(key, `BK-${Date.now()}`),
@@ -194,19 +202,44 @@ export default function WorkflowDetailPage() {
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not attach form'),
   })
 
+  const toggleActive = useMutation({
+    mutationFn: (active) => setWorkflowActive(key, active),
+    onSuccess: (data) => {
+      toast.success(data.active ? 'Workflow activated' : 'Workflow deactivated')
+      qc.invalidateQueries({ queryKey: queryKeys.workflows.detail(key) })
+      qc.invalidateQueries({ queryKey: ['workflows'] })
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Could not update status'),
+  })
+
+  const clone = useMutation({
+    mutationFn: () =>
+      cloneWorkflow(key, {
+        newKey: cloneKey.trim().toLowerCase(),
+        name: cloneName.trim() || undefined,
+      }),
+    onSuccess: (data) => {
+      toast.success(`Cloned as ${data.key}`)
+      qc.invalidateQueries({ queryKey: ['workflows'] })
+      navigate(`/workflows/${data.key}`)
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Could not clone'),
+  })
+
   const nodes = useMemo(() => definition.data?.nodes || [], [definition.data])
   const taskNodes = useMemo(
     () => nodes.filter((n) => String(n.type).toUpperCase() === 'TASK'),
     [nodes],
   )
   const formOptions = forms.data || []
+  const isActive = definition.data?.active !== false
 
   return (
     <Shell>
       <PageFrame>
         <PageHeader
           title={definition.data?.name || key}
-          description="Assign a Form Master checklist and responsible role to each stage. Shop work runs through Work packages; Test run validates the chart only."
+          description="Assign a Form Master checklist and responsible role to each stage. Shop work runs through Work orders; Test run validates the chart only."
           backTo="/workflows"
           backLabel={NAV_LABELS.workflows}
           breadcrumbs={[
@@ -219,15 +252,36 @@ export default function WorkflowDetailPage() {
               <Button asChild size="sm" variant="outline">
                 <Link to="/packages/new">
                   <Package className="h-3.5 w-3.5" />
-                  New work package
+                  New work order
                 </Link>
               </Button>
               <Button
                 size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowClone(true)
+                  setCloneKey(`${key}-copy`.slice(0, 63))
+                  setCloneName(`${definition.data?.name || key} (copy)`)
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Clone
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={toggleActive.isPending || !definition.data}
+                onClick={() => toggleActive.mutate(!isActive)}
+              >
+                <Power className="h-3.5 w-3.5" />
+                {isActive ? 'Deactivate' : 'Activate'}
+              </Button>
+              <Button
+                size="sm"
                 variant="secondary"
-                disabled={start.isPending}
+                disabled={!isActive || start.isPending}
                 onClick={() => start.mutate()}
-                title="Standalone validation run — prefer Work packages for shop execution"
+                title="Standalone validation run — prefer Work orders for shop execution"
               >
                 <Play className="h-3.5 w-3.5" />
                 Test run
@@ -245,7 +299,40 @@ export default function WorkflowDetailPage() {
 
         {definition.data && (
           <>
-            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+            {showClone && (
+              <div className="space-y-3 rounded-lg border border-primary/20 bg-accent/20 p-4">
+                <p className="text-sm font-semibold">Clone this workflow</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>New key</Label>
+                    <Input
+                      value={cloneKey}
+                      onChange={(e) =>
+                        setCloneKey(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>New name</Label>
+                    <Input value={cloneName} onChange={(e) => setCloneName(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={!cloneKey.trim() || clone.isPending}
+                    onClick={() => clone.mutate()}
+                  >
+                    {clone.isPending ? 'Cloning…' : 'Clone'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowClone(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 lg:grid-cols-6">
               <div className="bg-card px-4 py-3">
                 <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                   Key
@@ -260,9 +347,29 @@ export default function WorkflowDetailPage() {
               </div>
               <div className="bg-card px-4 py-3">
                 <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Nodes
+                  Status
                 </div>
-                <div className="mt-1 text-sm font-semibold">{nodes.length}</div>
+                <div className="mt-1">
+                  <Badge variant={isActive ? 'default' : 'outline'}>
+                    {isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+              </div>
+              <div className="bg-card px-4 py-3">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Work type
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {definition.data.workType || '—'}
+                </div>
+              </div>
+              <div className="bg-card px-4 py-3">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Aircraft
+                </div>
+                <div className="mt-1 text-sm font-semibold">
+                  {(definition.data.aircraftTypes || []).join(', ') || '—'}
+                </div>
               </div>
               <div className="bg-card px-4 py-3">
                 <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">

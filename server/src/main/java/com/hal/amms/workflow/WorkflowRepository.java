@@ -25,24 +25,81 @@ public class WorkflowRepository {
     }
 
     public List<WorkflowDefinition> listActiveDefinitions() {
-        return dsl.select(WORKFLOW_DEFINITIONS.ID, WORKFLOW_DEFINITIONS.KEY, WORKFLOW_DEFINITIONS.NAME, WORKFLOW_DEFINITIONS.VERSION, WORKFLOW_DEFINITIONS.ACTIVE, WORKFLOW_DEFINITIONS.DEFINITION_JSON)
-                .from(WORKFLOW_DEFINITIONS)
-                .where(WORKFLOW_DEFINITIONS.ACTIVE.isTrue())
+        return listDefinitions(false);
+    }
+
+    public List<WorkflowDefinition> listDefinitions(boolean includeInactive) {
+        var base = dsl.select(
+                        WORKFLOW_DEFINITIONS.ID,
+                        WORKFLOW_DEFINITIONS.KEY,
+                        WORKFLOW_DEFINITIONS.NAME,
+                        WORKFLOW_DEFINITIONS.VERSION,
+                        WORKFLOW_DEFINITIONS.ACTIVE,
+                        WORKFLOW_DEFINITIONS.DEFINITION_JSON
+                )
+                .from(WORKFLOW_DEFINITIONS);
+        var step = includeInactive
+                ? base.where(org.jooq.impl.DSL.trueCondition())
+                : base.where(WORKFLOW_DEFINITIONS.ACTIVE.isTrue());
+        return step
                 .orderBy(WORKFLOW_DEFINITIONS.NAME.asc())
                 .fetch(r -> new WorkflowDefinition(
-                        r.get(WORKFLOW_DEFINITIONS.ID), r.get(WORKFLOW_DEFINITIONS.KEY), r.get(WORKFLOW_DEFINITIONS.NAME), r.get(WORKFLOW_DEFINITIONS.VERSION),
-                        Boolean.TRUE.equals(r.get(WORKFLOW_DEFINITIONS.ACTIVE)), jsonb(r.get(WORKFLOW_DEFINITIONS.DEFINITION_JSON))
+                        r.get(WORKFLOW_DEFINITIONS.ID),
+                        r.get(WORKFLOW_DEFINITIONS.KEY),
+                        r.get(WORKFLOW_DEFINITIONS.NAME),
+                        r.get(WORKFLOW_DEFINITIONS.VERSION),
+                        Boolean.TRUE.equals(r.get(WORKFLOW_DEFINITIONS.ACTIVE)),
+                        jsonb(r.get(WORKFLOW_DEFINITIONS.DEFINITION_JSON))
                 ));
     }
 
     public Optional<WorkflowDefinition> findDefinitionByKey(String key) {
-        return dsl.select(WORKFLOW_DEFINITIONS.ID, WORKFLOW_DEFINITIONS.KEY, WORKFLOW_DEFINITIONS.NAME, WORKFLOW_DEFINITIONS.VERSION, WORKFLOW_DEFINITIONS.ACTIVE, WORKFLOW_DEFINITIONS.DEFINITION_JSON)
+        return findDefinitionByKey(key, true);
+    }
+
+    /** @param activeOnly when true, inactive charts are hidden (runtime start path). */
+    public Optional<WorkflowDefinition> findDefinitionByKey(String key, boolean activeOnly) {
+        var condition = WORKFLOW_DEFINITIONS.KEY.eq(key);
+        if (activeOnly) {
+            condition = condition.and(WORKFLOW_DEFINITIONS.ACTIVE.isTrue());
+        }
+        return dsl.select(
+                        WORKFLOW_DEFINITIONS.ID,
+                        WORKFLOW_DEFINITIONS.KEY,
+                        WORKFLOW_DEFINITIONS.NAME,
+                        WORKFLOW_DEFINITIONS.VERSION,
+                        WORKFLOW_DEFINITIONS.ACTIVE,
+                        WORKFLOW_DEFINITIONS.DEFINITION_JSON
+                )
                 .from(WORKFLOW_DEFINITIONS)
-                .where(WORKFLOW_DEFINITIONS.KEY.eq(key).and(WORKFLOW_DEFINITIONS.ACTIVE.isTrue()))
+                .where(condition)
                 .fetchOptional(r -> new WorkflowDefinition(
-                        r.get(WORKFLOW_DEFINITIONS.ID), r.get(WORKFLOW_DEFINITIONS.KEY), r.get(WORKFLOW_DEFINITIONS.NAME), r.get(WORKFLOW_DEFINITIONS.VERSION),
-                        Boolean.TRUE.equals(r.get(WORKFLOW_DEFINITIONS.ACTIVE)), jsonb(r.get(WORKFLOW_DEFINITIONS.DEFINITION_JSON))
+                        r.get(WORKFLOW_DEFINITIONS.ID),
+                        r.get(WORKFLOW_DEFINITIONS.KEY),
+                        r.get(WORKFLOW_DEFINITIONS.NAME),
+                        r.get(WORKFLOW_DEFINITIONS.VERSION),
+                        Boolean.TRUE.equals(r.get(WORKFLOW_DEFINITIONS.ACTIVE)),
+                        jsonb(r.get(WORKFLOW_DEFINITIONS.DEFINITION_JSON))
                 ));
+    }
+
+    public void setDefinitionActive(String key, boolean active) {
+        int updated = dsl.update(WORKFLOW_DEFINITIONS)
+                .set(WORKFLOW_DEFINITIONS.ACTIVE, active)
+                .where(WORKFLOW_DEFINITIONS.KEY.eq(key))
+                .execute();
+        if (updated == 0) {
+            throw new IllegalArgumentException("Workflow not found: " + key);
+        }
+    }
+
+    public void bumpDefinitionVersion(String key, int version, String definitionJson) {
+        JSONB json = JSONB.valueOf(definitionJson);
+        dsl.update(WORKFLOW_DEFINITIONS)
+                .set(WORKFLOW_DEFINITIONS.VERSION, version)
+                .set(WORKFLOW_DEFINITIONS.DEFINITION_JSON, json)
+                .where(WORKFLOW_DEFINITIONS.KEY.eq(key))
+                .execute();
     }
 
     public Optional<WorkflowDefinition> findDefinitionById(UUID id) {
@@ -150,6 +207,29 @@ public class WorkflowRepository {
                 .fetch(r -> new WorkflowTransition(
                         r.get(WORKFLOW_TRANSITIONS.ID), r.get(WORKFLOW_TRANSITIONS.DEFINITION_ID), r.get(WORKFLOW_TRANSITIONS.FROM_NODE_KEY), r.get(WORKFLOW_TRANSITIONS.TO_NODE_KEY),
                         r.get(WORKFLOW_TRANSITIONS.CONDITION_VALUE), r.get(WORKFLOW_TRANSITIONS.PRIORITY)
+                ));
+    }
+
+    /** All transitions for a definition (clone / export). Ordered by from-node then priority. */
+    public List<WorkflowTransition> transitionsFor(UUID definitionId) {
+        return dsl.select(
+                        WORKFLOW_TRANSITIONS.ID,
+                        WORKFLOW_TRANSITIONS.DEFINITION_ID,
+                        WORKFLOW_TRANSITIONS.FROM_NODE_KEY,
+                        WORKFLOW_TRANSITIONS.TO_NODE_KEY,
+                        WORKFLOW_TRANSITIONS.CONDITION_VALUE,
+                        WORKFLOW_TRANSITIONS.PRIORITY
+                )
+                .from(WORKFLOW_TRANSITIONS)
+                .where(WORKFLOW_TRANSITIONS.DEFINITION_ID.eq(definitionId))
+                .orderBy(WORKFLOW_TRANSITIONS.FROM_NODE_KEY.asc(), WORKFLOW_TRANSITIONS.PRIORITY.asc())
+                .fetch(r -> new WorkflowTransition(
+                        r.get(WORKFLOW_TRANSITIONS.ID),
+                        r.get(WORKFLOW_TRANSITIONS.DEFINITION_ID),
+                        r.get(WORKFLOW_TRANSITIONS.FROM_NODE_KEY),
+                        r.get(WORKFLOW_TRANSITIONS.TO_NODE_KEY),
+                        r.get(WORKFLOW_TRANSITIONS.CONDITION_VALUE),
+                        r.get(WORKFLOW_TRANSITIONS.PRIORITY)
                 ));
     }
 

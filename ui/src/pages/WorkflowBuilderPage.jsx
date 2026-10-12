@@ -35,13 +35,19 @@ export default function WorkflowBuilderPage() {
 
   const [key, setKey] = useState('')
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [workType, setWorkType] = useState('ROUTINE')
+  const [aircraftTypes, setAircraftTypes] = useState('')
   const [startRole, setStartRole] = useState('PROGRESS')
   const [steps, setSteps] = useState([
     { id: crypto.randomUUID(), type: 'TASK', label: '', roleCode: 'PROGRESS', formKey: '' },
   ])
   const [endRole, setEndRole] = useState('PROGRESS')
 
-  const masterForms = forms.data || []
+  const masterForms = useMemo(
+    () => (forms.data || []).filter((f) => String(f.status || 'PUBLISHED').toUpperCase() !== 'DRAFT'),
+    [forms.data],
+  )
   const roleCodes = useMemo(
     () => (roles.data || []).map((r) => r.code),
     [roles.data],
@@ -124,10 +130,18 @@ export default function WorkflowBuilderPage() {
         prevNeedsPass ? { from: prev, to: 'end', when: 'PASS' } : { from: prev, to: 'end' },
       )
 
+      const aircraftList = aircraftTypes
+        .split(/[,;]/)
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean)
+
       return createWorkflow({
         key: wfKey,
         name: name.trim(),
         version: 1,
+        description: description.trim() || undefined,
+        workType: workType || undefined,
+        aircraftTypes: aircraftList.length ? aircraftList : undefined,
         nodes,
         transitions,
       })
@@ -188,6 +202,34 @@ export default function WorkflowBuilderPage() {
                 placeholder="Bench intake process"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Work type</Label>
+              <Select value={workType} onValueChange={setWorkType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ROUTINE">ROUTINE</SelectItem>
+                  <SelectItem value="REPAIR">REPAIR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Aircraft types</Label>
+              <Input
+                placeholder="A320, B737 (comma-separated)"
+                value={aircraftTypes}
+                onChange={(e) => setAircraftTypes(e.target.value.toUpperCase())}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Description</Label>
+              <Input
+                placeholder="Optional applicability notes"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">

@@ -62,7 +62,7 @@ function PackageList() {
       <PageFrame>
         <PageHeader
           title={NAV_LABELS.packages}
-          description="Create an aircraft maintenance job from PO/SO. Choose ROUTINE or REPAIR, open parts, complete each stage form, and consolidate the report."
+          description="Create an aircraft work order from PO/SO. Choose ROUTINE or REPAIR, open parts, complete each stage form, and consolidate the report."
           backTo="/"
           backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
@@ -73,7 +73,7 @@ function PackageList() {
             <Button asChild size="sm">
               <Link to="/packages/new">
                 <Plus className="h-3.5 w-3.5" />
-                New package
+                New work order
               </Link>
             </Button>
           }
@@ -131,14 +131,14 @@ function PackageList() {
               {packages.isLoading && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                    Loading packages…
+                    Loading work orders…
                   </TableCell>
                 </TableRow>
               )}
               {!packages.isLoading && (packages.data || []).length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                    No work packages yet.{' '}
+                    No work orders yet.{' '}
                     <Link className="text-primary underline-offset-2 hover:underline" to="/packages/new">
                       Create one from a PO/SO
                     </Link>
@@ -148,7 +148,7 @@ function PackageList() {
               {packages.isError && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-10 text-center text-destructive">
-                    Could not load packages.
+                    Could not load work orders.
                   </TableCell>
                 </TableRow>
               )}
@@ -162,7 +162,6 @@ function PackageList() {
 
 function PackageCreate() {
   const navigate = useNavigate()
-  const workflows = useQuery({ queryKey: queryKeys.workflows.all, queryFn: fetchWorkflows })
   const [form, setForm] = useState({
     aircraftId: '',
     poNumber: '',
@@ -172,25 +171,39 @@ function PackageCreate() {
     notes: '',
   })
 
+  const workflowFilters = useMemo(
+    () => ({ includeInactive: false, workType: form.testingType }),
+    [form.testingType],
+  )
+  const workflows = useQuery({
+    queryKey: queryKeys.workflows.list(workflowFilters),
+    queryFn: () => fetchWorkflows(workflowFilters),
+  })
+
   const create = useMutation({
     mutationFn: () => createPackage(form),
     onSuccess: (data) => {
-      toast.success('Work package created')
+      toast.success('Work order created')
       navigate(`/packages/${data.id}`)
     },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Could not create package'),
+    onError: (err) => toast.error(err?.response?.data?.message || 'Could not create work order'),
   })
 
-  const workflowOptions = workflows.data || []
+  const workflowOptions = useMemo(() => {
+    const rows = workflows.data || []
+    // Prefer workType match; if catalog has no meta yet, still show active charts.
+    const typed = rows.filter((w) => !w.workType || w.workType === form.testingType)
+    return typed.length ? typed : rows
+  }, [workflows.data, form.testingType])
 
   return (
     <Shell>
       <PageFrame>
         <PageHeader
-          title="New work package"
+          title="New work order"
           description="Tie a master workflow to an aircraft PO/SO. Choose ROUTINE for scheduled checks or REPAIR for finding-driven retest."
           backTo="/packages"
-          backLabel="Packages"
+          backLabel={NAV_LABELS.packages}
           breadcrumbs={[
             { label: NAV_LABELS.dashboard, to: '/' },
             { label: NAV_LABELS.packages, to: '/packages' },
@@ -244,7 +257,9 @@ function PackageCreate() {
             <Label>Testing type</Label>
             <Select
               value={form.testingType}
-              onValueChange={(v) => setForm((f) => ({ ...f, testingType: v }))}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, testingType: v, workflowKey: '' }))
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -290,7 +305,7 @@ function PackageCreate() {
           <div className="flex flex-wrap gap-2 pt-2">
             <Button type="submit" disabled={create.isPending}>
               <Package className="h-3.5 w-3.5" />
-              {create.isPending ? 'Creating…' : 'Create package'}
+              {create.isPending ? 'Creating…' : 'Create work order'}
             </Button>
             <Button type="button" variant="outline" asChild>
               <Link to="/packages">Cancel</Link>
@@ -346,7 +361,7 @@ function PackageDetail() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title={data?.packageNo || 'Work package'}
+          title={data?.packageNo || 'Work order'}
           description={
             data
               ? `${data.aircraftId} · PO ${data.poNumber}${data.soNumber ? ` · SO ${data.soNumber}` : ''} · ${data.testingType} · ${data.workflowName || data.workflowKey}`

@@ -16,8 +16,25 @@ export function currentUser() {
   return useAuthStore.getState().user
 }
 
-export async function fetchWorkflows() {
-  const { data } = await api.get('/workflows')
+export async function fetchWorkflows(params = {}) {
+  const { includeInactive = false, workType, aircraftType } = params
+  const { data } = await api.get('/workflows', {
+    params: {
+      includeInactive: includeInactive ? true : undefined,
+      workType: workType || undefined,
+      aircraftType: aircraftType || undefined,
+    },
+  })
+  return data
+}
+
+export async function cloneWorkflow(key, body) {
+  const { data } = await api.post(`/workflows/${encodeURIComponent(key)}/clone`, body)
+  return data
+}
+
+export async function setWorkflowActive(key, active) {
+  const { data } = await api.put(`/workflows/${encodeURIComponent(key)}/active`, { active })
   return data
 }
 
@@ -119,8 +136,11 @@ export async function fetchFormSchema(formKey) {
   return data
 }
 
-export async function fetchFormSchemas() {
-  const { data } = await api.get('/forms')
+export async function fetchFormSchemas(params = {}) {
+  const { status } = params
+  const { data } = await api.get('/forms', {
+    params: { status: status || undefined },
+  })
   return data
 }
 
@@ -134,12 +154,27 @@ export async function updateFormSchema(formKey, body) {
   return data
 }
 
+export async function publishFormSchema(formKey) {
+  const { data } = await api.post(`/forms/${encodeURIComponent(formKey)}/publish`)
+  return data
+}
+
+export async function draftFormSchema(formKey) {
+  const { data } = await api.post(`/forms/${encodeURIComponent(formKey)}/draft`)
+  return data
+}
+
+export async function cloneFormSchema(formKey, body) {
+  const { data } = await api.post(`/forms/${encodeURIComponent(formKey)}/clone`, body)
+  return data
+}
+
 export async function deleteFormSchema(formKey) {
   const { data } = await api.delete(`/forms/${encodeURIComponent(formKey)}`)
   return data
 }
 
-/** Aircraft work packages (PO/SO + ROUTINE|REPAIR + parts). */
+/** Aircraft work orders (UI alias for packages: PO/SO + ROUTINE|REPAIR + parts). */
 export async function fetchPackages() {
   const { data } = await api.get('/packages')
   return data

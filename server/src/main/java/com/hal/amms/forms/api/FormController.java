@@ -11,13 +11,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * CRUD for dynamic form definitions stored in MongoDB {@code form_schemas}.
+ * CRUD + lifecycle for dynamic form definitions stored in MongoDB {@code form_schemas}.
  */
 @RestController
 @RequestMapping("/api/v1/forms")
@@ -39,14 +41,25 @@ public class FormController {
             List<String> options,
             String accept,
             Boolean multiple,
-            String helpText
+            String helpText,
+            String content,
+            String id
     ) {}
 
-    public record UpsertFormRequest(String formKey, String name, List<FormFieldDto> fields) {}
+    public record UpsertFormRequest(
+            String formKey,
+            String name,
+            List<FormFieldDto> fields,
+            String status
+    ) {}
+
+    public record CloneFormRequest(String newKey, String name) {}
 
     @GetMapping
-    public List<Map<String, Object>> list() {
-        return schemas.listAll().stream().map(schemas::toApi).toList();
+    public List<Map<String, Object>> list(
+            @RequestParam(name = "status", required = false) String status
+    ) {
+        return schemas.listAll(status).stream().map(schemas::toApi).toList();
     }
 
     @GetMapping("/{formKey}")
@@ -66,7 +79,7 @@ public class FormController {
             throw ApiException.conflict("Form schema already exists: " + key);
         }
         try {
-            schemas.upsert(key, request.name(), toMaps(request.fields()));
+            schemas.upsert(key, request.name(), toMaps(request.fields()), request.status(), 1);
         } catch (IllegalArgumentException ex) {
             throw ApiException.badRequest(ex.getMessage());
         }
@@ -89,6 +102,46 @@ public class FormController {
         return schemas.toApi(schemas.findByKey(key).orElseThrow());
     }
 
+    @PostMapping("/{formKey}/publish")
+    public Map<String, Object> publish(@PathVariable String formKey) {
+        try {
+            return schemas.toApi(schemas.publish(formKey.trim().toLowerCase()));
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.notFound(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/{formKey}/draft")
+    public Map<String, Object> setDraft(@PathVariable String formKey) {
+        try {
+            return schemas.toApi(schemas.setDraft(formKey.trim().toLowerCase()));
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.notFound(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/{formKey}/clone")
+    public Map<String, Object> cloneForm(
+            @PathVariable String formKey,
+            @RequestBody CloneFormRequest request
+    ) {
+        if (request == null || request.newKey() == null || request.newKey().isBlank()) {
+            throw ApiException.badRequest("newKey is required");
+        }
+        try {
+            Document cloned = schemas.cloneForm(
+                    formKey.trim().toLowerCase(),
+                    request.newKey().trim().toLowerCase(),
+                    request.name()
+            );
+            return schemas.toApi(cloned);
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.badRequest(ex.getMessage());
+        } catch (IllegalStateException ex) {
+            throw ApiException.conflict(ex.getMessage());
+        }
+    }
+
     @DeleteMapping("/{formKey}")
     public Map<String, String> delete(@PathVariable String formKey) {
         if (!schemas.deleteByKey(formKey)) {
@@ -103,7 +156,7 @@ public class FormController {
         }
         return fields.stream()
                 .map(f -> {
-                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    Map<String, Object> m = new LinkedHashMap<>();
                     m.put("name", f.name());
                     m.put("label", f.label());
                     m.put("type", f.type());
@@ -120,6 +173,12 @@ public class FormController {
                     }
                     if (f.helpText() != null) {
                         m.put("helpText", f.helpText());
+                    }
+                    if (f.content() != null) {
+                        m.put("content", f.content());
+                    }
+                    if (f.id() != null) {
+                        m.put("id", f.id());
                     }
                     return m;
                 })

@@ -29,8 +29,12 @@ public class WorkflowController {
     }
 
     @GetMapping("/workflows")
-    public List<WorkflowSummary> workflows() {
-        return workflowService.listWorkflows();
+    public List<WorkflowSummary> workflows(
+            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
+            @RequestParam(name = "workType", required = false) String workType,
+            @RequestParam(name = "aircraftType", required = false) String aircraftType
+    ) {
+        return workflowService.listWorkflows(includeInactive, workType, aircraftType);
     }
 
     @PostMapping("/workflows")
@@ -41,6 +45,25 @@ public class WorkflowController {
     @GetMapping("/workflows/{key}")
     public Map<String, Object> workflow(@PathVariable String key) {
         return workflowService.getDefinition(key);
+    }
+
+    @PostMapping("/workflows/{key}/clone")
+    public WorkflowSummary cloneWorkflow(
+            @PathVariable String key,
+            @RequestBody CloneWorkflowRequest request
+    ) {
+        return workflowService.cloneWorkflow(key, request);
+    }
+
+    @PutMapping("/workflows/{key}/active")
+    public WorkflowSummary setWorkflowActive(
+            @PathVariable String key,
+            @RequestBody SetActiveRequest request
+    ) {
+        if (request == null || request.active() == null) {
+            throw com.hal.amms.platform.web.ApiException.badRequest("active is required");
+        }
+        return workflowService.setWorkflowActive(key, request.active());
     }
 
     /**

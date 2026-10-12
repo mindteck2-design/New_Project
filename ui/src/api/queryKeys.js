@@ -5,6 +5,7 @@
 export const queryKeys = {
   workflows: {
     all: ['workflows'],
+    list: (filters = {}) => ['workflows', filters],
     detail: (key) => ['workflow-def', key],
   },
   instances: {
@@ -21,6 +22,7 @@ export const queryKeys = {
   },
   forms: {
     all: ['form-schemas'],
+    list: (filters = {}) => ['form-schemas', filters],
     detail: (formKey) => ['form-schema', formKey],
   },
   roles: {
