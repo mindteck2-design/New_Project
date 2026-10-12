@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.hal.amms.identity.UserRepository;
 import com.hal.amms.workflow.WorkflowRepository;
+import com.hal.amms.workflow.domain.NodeType;
 import com.hal.amms.workflow.domain.WorkflowNode;
 import com.hal.amms.workflow.domain.WorkflowTransition;
 import org.slf4j.Logger;
@@ -142,7 +143,7 @@ public class SeedDataRunner implements ApplicationRunner {
                     UUID.randomUUID(),
                     defId,
                     n.path("key").asText(),
-                    n.path("type").asText(),
+                    NodeType.parse(n.path("type").asText()),
                     textOrNull(n, "roleCode"),
                     textOrNull(n, "formKey"),
                     n.path("label").asText(),

@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
+import com.hal.amms.shared.AmmsDateTimes;
 
-import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -35,7 +35,7 @@ public class MongoFormSubmissionStore implements FormSubmissionStore {
                 .append("nodeKey", nodeKey)
                 .append("payloadJson", payloadJson)
                 .append("createdBy", createdBy.toString())
-                .append("createdAt", Instant.now());
+                .append("createdAt", AmmsDateTimes.now());
         mongoTemplate.insert(doc, COLLECTION);
         log.debug("Mongo form_submissions saved formKey={} instanceId={}", formKey, instanceId);
     }

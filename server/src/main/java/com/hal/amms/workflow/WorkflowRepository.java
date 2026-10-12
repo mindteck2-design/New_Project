@@ -1,5 +1,7 @@
 package com.hal.amms.workflow;
 
+import com.hal.amms.shared.AmmsDateTimes;
+import com.hal.amms.shared.EnumCodes;
 import com.hal.amms.workflow.domain.*;
 import org.jooq.DSLContext;
 import org.jooq.JSONB;
@@ -7,7 +9,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -82,7 +83,7 @@ public class WorkflowRepository {
         dsl.insertInto(WORKFLOW_NODES)
                 .columns(WORKFLOW_NODES.ID, WORKFLOW_NODES.DEFINITION_ID, WORKFLOW_NODES.NODE_KEY, WORKFLOW_NODES.NODE_TYPE, WORKFLOW_NODES.ROLE_CODE, WORKFLOW_NODES.FORM_KEY, WORKFLOW_NODES.LABEL, WORKFLOW_NODES.CONFIG_JSON)
                 .values(
-                        node.id(), node.definitionId(), node.nodeKey(), node.nodeType(),
+                        node.id(), node.definitionId(), node.nodeKey(), EnumCodes.code(node.nodeType()),
                         node.roleCode(), node.formKey(), node.label(),
                         node.configJson() == null ? null : JSONB.valueOf(node.configJson())
                 )
@@ -104,20 +105,14 @@ public class WorkflowRepository {
         return dsl.select(WORKFLOW_NODES.ID, WORKFLOW_NODES.DEFINITION_ID, WORKFLOW_NODES.NODE_KEY, WORKFLOW_NODES.NODE_TYPE, WORKFLOW_NODES.ROLE_CODE, WORKFLOW_NODES.FORM_KEY, WORKFLOW_NODES.LABEL, WORKFLOW_NODES.CONFIG_JSON)
                 .from(WORKFLOW_NODES)
                 .where(WORKFLOW_NODES.DEFINITION_ID.eq(definitionId))
-                .fetch(r -> new WorkflowNode(
-                        r.get(WORKFLOW_NODES.ID), r.get(WORKFLOW_NODES.DEFINITION_ID), r.get(WORKFLOW_NODES.NODE_KEY), r.get(WORKFLOW_NODES.NODE_TYPE),
-                        r.get(WORKFLOW_NODES.ROLE_CODE), r.get(WORKFLOW_NODES.FORM_KEY), r.get(WORKFLOW_NODES.LABEL), jsonb(r.get(WORKFLOW_NODES.CONFIG_JSON))
-                ));
+                .fetch(this::mapNode);
     }
 
     public Optional<WorkflowNode> findNode(UUID definitionId, String nodeKey) {
         return dsl.select(WORKFLOW_NODES.ID, WORKFLOW_NODES.DEFINITION_ID, WORKFLOW_NODES.NODE_KEY, WORKFLOW_NODES.NODE_TYPE, WORKFLOW_NODES.ROLE_CODE, WORKFLOW_NODES.FORM_KEY, WORKFLOW_NODES.LABEL, WORKFLOW_NODES.CONFIG_JSON)
                 .from(WORKFLOW_NODES)
                 .where(WORKFLOW_NODES.DEFINITION_ID.eq(definitionId).and(WORKFLOW_NODES.NODE_KEY.eq(nodeKey)))
-                .fetchOptional(r -> new WorkflowNode(
-                        r.get(WORKFLOW_NODES.ID), r.get(WORKFLOW_NODES.DEFINITION_ID), r.get(WORKFLOW_NODES.NODE_KEY), r.get(WORKFLOW_NODES.NODE_TYPE),
-                        r.get(WORKFLOW_NODES.ROLE_CODE), r.get(WORKFLOW_NODES.FORM_KEY), r.get(WORKFLOW_NODES.LABEL), jsonb(r.get(WORKFLOW_NODES.CONFIG_JSON))
-                ));
+                .fetchOptional(this::mapNode);
     }
 
     public void updateNodeFormKey(UUID definitionId, String nodeKey, String formKey) {
@@ -162,7 +157,7 @@ public class WorkflowRepository {
         dsl.insertInto(WORKFLOW_INSTANCES)
                 .columns(WORKFLOW_INSTANCES.ID, WORKFLOW_INSTANCES.DEFINITION_ID, WORKFLOW_INSTANCES.BUSINESS_KEY, WORKFLOW_INSTANCES.STATUS, WORKFLOW_INSTANCES.CURRENT_NODE_KEY, WORKFLOW_INSTANCES.CONTEXT_JSON, WORKFLOW_INSTANCES.STARTED_BY, WORKFLOW_INSTANCES.STARTED_AT, WORKFLOW_INSTANCES.UPDATED_AT)
                 .values(
-                        i.id(), i.definitionId(), i.businessKey(), i.status(), i.currentNodeKey(),
+                        i.id(), i.definitionId(), i.businessKey(), EnumCodes.code(i.status()), i.currentNodeKey(),
                         JSONB.valueOf(i.contextJson() == null ? "{}" : i.contextJson()),
                         i.startedBy(), toOdt(i.startedAt()), toOdt(i.updatedAt())
                 )
@@ -171,7 +166,7 @@ public class WorkflowRepository {
 
     public void updateInstance(WorkflowInstance i) {
         dsl.update(WORKFLOW_INSTANCES)
-                .set(WORKFLOW_INSTANCES.STATUS, i.status())
+                .set(WORKFLOW_INSTANCES.STATUS, EnumCodes.code(i.status()))
                 .set(WORKFLOW_INSTANCES.CURRENT_NODE_KEY, i.currentNodeKey())
                 .set(WORKFLOW_INSTANCES.CONTEXT_JSON, JSONB.valueOf(i.contextJson() == null ? "{}" : i.contextJson()))
                 .set(WORKFLOW_INSTANCES.UPDATED_AT, toOdt(i.updatedAt()))
@@ -270,11 +265,30 @@ public class WorkflowRepository {
         );
     }
 
+    private WorkflowNode mapNode(org.jooq.Record r) {
+        return new WorkflowNode(
+                r.get(WORKFLOW_NODES.ID),
+                r.get(WORKFLOW_NODES.DEFINITION_ID),
+                r.get(WORKFLOW_NODES.NODE_KEY),
+                NodeType.parse(r.get(WORKFLOW_NODES.NODE_TYPE)),
+                r.get(WORKFLOW_NODES.ROLE_CODE),
+                r.get(WORKFLOW_NODES.FORM_KEY),
+                r.get(WORKFLOW_NODES.LABEL),
+                jsonb(r.get(WORKFLOW_NODES.CONFIG_JSON))
+        );
+    }
+
     private WorkflowInstance mapInstance(org.jooq.Record r) {
         return new WorkflowInstance(
-                r.get(WORKFLOW_INSTANCES.ID), r.get(WORKFLOW_INSTANCES.DEFINITION_ID), r.get(WORKFLOW_INSTANCES.BUSINESS_KEY), r.get(WORKFLOW_INSTANCES.STATUS),
-                r.get(WORKFLOW_INSTANCES.CURRENT_NODE_KEY), jsonb(r.get(WORKFLOW_INSTANCES.CONTEXT_JSON)), r.get(WORKFLOW_INSTANCES.STARTED_BY),
-                toInstant(r.get(WORKFLOW_INSTANCES.STARTED_AT)), toInstant(r.get(WORKFLOW_INSTANCES.UPDATED_AT))
+                r.get(WORKFLOW_INSTANCES.ID),
+                r.get(WORKFLOW_INSTANCES.DEFINITION_ID),
+                r.get(WORKFLOW_INSTANCES.BUSINESS_KEY),
+                InstanceStatus.parse(r.get(WORKFLOW_INSTANCES.STATUS)),
+                r.get(WORKFLOW_INSTANCES.CURRENT_NODE_KEY),
+                jsonb(r.get(WORKFLOW_INSTANCES.CONTEXT_JSON)),
+                r.get(WORKFLOW_INSTANCES.STARTED_BY),
+                toInstant(r.get(WORKFLOW_INSTANCES.STARTED_AT)),
+                toInstant(r.get(WORKFLOW_INSTANCES.UPDATED_AT))
         );
     }
 
@@ -283,10 +297,10 @@ public class WorkflowRepository {
     }
 
     private static OffsetDateTime toOdt(Instant instant) {
-        return instant == null ? OffsetDateTime.now(ZoneOffset.UTC) : instant.atOffset(ZoneOffset.UTC);
+        return instant == null ? AmmsDateTimes.nowOdt() : AmmsDateTimes.toUtcOdt(instant);
     }
 
     private static Instant toInstant(OffsetDateTime odt) {
-        return odt == null ? null : odt.toInstant();
+        return AmmsDateTimes.toInstant(odt);
     }
 }

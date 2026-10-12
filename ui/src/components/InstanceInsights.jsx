@@ -26,32 +26,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { calendarDayEndMs, calendarDayStartMs, formatDateTime } from '@/lib/dateTime'
 
 function formatDate(value) {
-  if (!value) return '—'
-  try {
-    return new Date(value).toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return String(value)
-  }
+  return formatDateTime(value)
 }
 
 function toDayStart(isoDate) {
-  if (!isoDate) return null
-  const d = new Date(`${isoDate}T00:00:00`)
-  return Number.isNaN(d.getTime()) ? null : d
+  const ms = calendarDayStartMs(isoDate)
+  return ms == null ? null : new Date(ms)
 }
 
 function toDayEnd(isoDate) {
-  if (!isoDate) return null
-  const d = new Date(`${isoDate}T23:59:59.999`)
-  return Number.isNaN(d.getTime()) ? null : d
+  const ms = calendarDayEndMs(isoDate)
+  return ms == null ? null : new Date(ms)
 }
 
 function SortIcon({ column }) {

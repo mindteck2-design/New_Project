@@ -14,6 +14,7 @@ import DocumentPanel from '@/components/DocumentPanel'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
+import { formatDateTime } from '@/lib/dateTime'
 
 export default function InstancePage() {
   const { id } = useParams()
@@ -185,7 +186,7 @@ export default function InstancePage() {
                             {a.fromNode} → {a.toNode}
                           </div>
                           <div className="text-[11px] text-muted-foreground">
-                            {a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}
+                            {a.createdAt ? formatDateTime(a.createdAt) : ''}
                             {a.signaturePlaceholder ? ` · sig: ${a.signaturePlaceholder}` : ''}
                           </div>
                         </li>

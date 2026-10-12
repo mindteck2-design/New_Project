@@ -3,12 +3,12 @@ package com.hal.amms.notification;
 import com.hal.amms.notification.NotificationRepository;
 import com.hal.amms.platform.security.UserPrincipal;
 import com.hal.amms.platform.web.ApiException;
+import com.hal.amms.shared.AmmsDateTimes;
 import com.hal.amms.notification.api.NotificationDtos.NotificationView;
 import org.jooq.Record;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -68,7 +68,7 @@ public class NotificationService {
                 r.get(WORKFLOW_NOTIFICATIONS.BODY),
                 r.get(WORKFLOW_NOTIFICATIONS.ACTION_PATH),
                 Boolean.TRUE.equals(read),
-                created == null ? Instant.now() : created.toInstant()
+                created == null ? AmmsDateTimes.now() : AmmsDateTimes.toInstant(created)
         );
     }
 }

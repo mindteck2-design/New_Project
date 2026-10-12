@@ -1,6 +1,9 @@
 package com.hal.amms.analytics;
 
 import com.hal.amms.workflow.WorkflowRepository;
+import com.hal.amms.identity.AmmsRole;
+import com.hal.amms.workflow.domain.InspectionResult;
+import com.hal.amms.workflow.domain.InstanceStatus;
 import com.hal.amms.workflow.domain.WorkflowDefinition;
 import com.hal.amms.workflow.domain.WorkflowInstance;
 import com.hal.amms.workflow.domain.WorkflowNode;
@@ -10,8 +13,8 @@ import com.hal.amms.analytics.api.AnalyticsDtos.RoleMetric;
 import org.jooq.DSLContext;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import com.hal.amms.shared.AmmsDateTimes;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -41,7 +44,7 @@ public class AnalyticsService {
                 .toList();
 
         long waitingOnMe = visible.stream()
-                .filter(i -> "RUNNING".equals(i.status()))
+                .filter(i -> i.status() == InstanceStatus.RUNNING)
                 .filter(i -> {
                     WorkflowDefinition def = workflowRepository.findDefinitionById(i.definitionId()).orElse(null);
                     if (def == null) return false;
@@ -51,20 +54,20 @@ public class AnalyticsService {
                 })
                 .count();
 
-        long running = visible.stream().filter(i -> "RUNNING".equals(i.status())).count();
-        long completed = visible.stream().filter(i -> "COMPLETED".equals(i.status())).count();
+        long running = visible.stream().filter(i -> i.status() == InstanceStatus.RUNNING).count();
+        long completed = visible.stream().filter(i -> i.status() == InstanceStatus.COMPLETED).count();
 
-        OffsetDateTime weekAgo = OffsetDateTime.now(ZoneOffset.UTC).minusDays(7);
+        var weekAgo = AmmsDateTimes.nowOdt().minusDays(7);
         int decisions = dsl.fetchCount(
                 dsl.selectFrom(INSPECTION_RECORDS).where(INSPECTION_RECORDS.RECORDED_AT.ge(weekAgo))
         );
         int passes = dsl.fetchCount(
                 dsl.selectFrom(INSPECTION_RECORDS)
-                        .where(INSPECTION_RECORDS.RECORDED_AT.ge(weekAgo).and(INSPECTION_RECORDS.RESULT.eq("PASS")))
+                        .where(INSPECTION_RECORDS.RECORDED_AT.ge(weekAgo).and(INSPECTION_RECORDS.RESULT.eq(InspectionResult.PASS.name())))
         );
         int fails = dsl.fetchCount(
                 dsl.selectFrom(INSPECTION_RECORDS)
-                        .where(INSPECTION_RECORDS.RECORDED_AT.ge(weekAgo).and(INSPECTION_RECORDS.RESULT.eq("FAIL")))
+                        .where(INSPECTION_RECORDS.RECORDED_AT.ge(weekAgo).and(INSPECTION_RECORDS.RESULT.eq(InspectionResult.FAIL.name())))
         );
 
         List<RoleMetric> metrics = new ArrayList<>();
@@ -72,35 +75,35 @@ public class AnalyticsService {
         metrics.add(new RoleMetric("runningVisible", "Visible in-progress", running, "Instances you can view."));
         metrics.add(new RoleMetric("completedVisible", "Visible completed", completed, "Closed instances in your scope."));
 
-        if (roles.contains("INSPECTION") || roles.contains("QA") || roles.contains("SHOP_MANAGER")
-                || roles.contains("PROGRESS") || roles.contains("ADMIN") || roles.size() > 3) {
+        if (roles.contains(AmmsRole.INSPECTION.name()) || roles.contains(AmmsRole.QA.name()) || roles.contains(AmmsRole.SHOP_MANAGER.name())
+                || roles.contains(AmmsRole.PROGRESS.name()) || roles.contains(AmmsRole.ADMIN.name()) || roles.size() > 3) {
             metrics.add(new RoleMetric("decisions7d", "Decisions (7d)", decisions, "Pass/Fail and related inspection outcomes."));
             metrics.add(new RoleMetric("pass7d", "PASS (7d)", passes, "Inspection PASS count this week."));
             metrics.add(new RoleMetric("fail7d", "FAIL (7d)", fails, "Inspection FAIL count this week."));
         }
 
-        if (roles.contains("PROGRESS")) {
+        if (roles.contains(AmmsRole.PROGRESS.name())) {
             long progressWaiting = waitingOnMe;
             metrics.add(new RoleMetric("progressHandoffs", "Progress handoffs", progressWaiting,
                     "Spares / rotable / return steps assigned to Progress."));
         }
-        if (roles.contains("SHOP_MANAGER")) {
+        if (roles.contains(AmmsRole.SHOP_MANAGER.name())) {
             long repair = visible.stream()
-                    .filter(i -> "RUNNING".equals(i.status()))
+                    .filter(i -> i.status() == InstanceStatus.RUNNING)
                     .filter(i -> {
                         WorkflowDefinition def = workflowRepository.findDefinitionById(i.definitionId()).orElse(null);
                         if (def == null) return false;
                         WorkflowNode node = workflowRepository.findNode(def.id(), i.currentNodeKey()).orElse(null);
-                        return node != null && "SHOP_MANAGER".equalsIgnoreCase(node.roleCode());
+                        return node != null && AmmsRole.SHOP_MANAGER.matches(node.roleCode());
                     })
                     .count();
             metrics.add(new RoleMetric("repairWip", "Repair / rework WIP", repair, "Shop Manager tasks in flight."));
         }
-        if (roles.contains("STORES")) {
+        if (roles.contains(AmmsRole.STORES.name())) {
             metrics.add(new RoleMetric("storesNote", "Stores workflows", 0,
                     "Stores RR charts are inventoried; runtime seed deferred (see PRODUCTION_GAPS)."));
         }
-        if (roles.contains("CUSTOMER")) {
+        if (roles.contains(AmmsRole.CUSTOMER.name())) {
             metrics.add(new RoleMetric("customerVisible", "Customer-visible instances", completed + running,
                     "Acceptance / ferry charts deferred; visibility follows participation."));
         }
@@ -121,6 +124,6 @@ public class AnalyticsService {
         WorkflowNode node = workflowRepository.findNode(def.id(), instance.currentNodeKey()).orElse(null);
         if (node == null) return false;
         if (node.roleCode() == null || node.roleCode().isBlank()) return true;
-        return user.getRoles().stream().anyMatch(r -> r.equalsIgnoreCase(node.roleCode()));
+        return AmmsRole.userHas(user.getRoles(), node.roleCode());
     }
 }

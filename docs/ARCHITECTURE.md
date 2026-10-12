@@ -32,6 +32,18 @@ config/ supplies env to both
 **Codegen (required):** `jooq-codegen-maven` + `DDLDatabase` generates `com.hal.amms.jooq.*` from `server/src/main/resources/db/migration/*.sql` during `generate-sources`. Flyway SQL is the schema source of truth — do not hand-maintain table/column meta. Use `import static com.hal.amms.jooq.Tables.*` and typed fields (`USERS.ID`, `WORKFLOW_INSTANCES.STATUS`).  
 **When DDLDatabase is not enough:** Postgres-only DDL (partial indexes, exotic types) that the H2-backed parser rejects — switch the Maven profile to JDBC codegen against a migrated Postgres (Testcontainers / `testcontainers-jooq-codegen-maven-plugin`).
 
+## ADR-002d: Single date/time policy (calendar vs instant)
+
+**Decision:** One canonical helper on each side — server `AmmsDateTimes`, UI `ui/src/lib/dateTime.js`.  
+**Rules:**
+
+| Kind | Storage / wire format | Examples |
+|------|----------------------|----------|
+| Calendar date | `YYYY-MM-DD` / `LocalDate` | DOB, schedule day |
+| Timestamp | UTC `Instant` ISO-8601 (`…Z`) | `createdAt`, audit |
+
+**Why:** Converting a date-only value through `Date`/`Instant` midnight + local TZ is the classic “saved 1 Aug, retrieved 2 Aug” bug. Calendar dates must never be timezone-shifted; extract `YYYY-MM-DD` from the string prefix when normalizing.
+
 ## ADR-002c: Package-by-feature (2026)
 
 **Decision:** Server code is organized by **feature module**, not by technical layer (`dao` / `service` / `web`).  

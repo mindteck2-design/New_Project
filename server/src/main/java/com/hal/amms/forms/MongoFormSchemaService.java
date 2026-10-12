@@ -6,8 +6,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
+import com.hal.amms.shared.AmmsDateTimes;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -44,7 +44,7 @@ public class MongoFormSchemaService {
                 .append("formKey", formKey)
                 .append("name", name.trim())
                 .append("fields", normalizeFields(fields))
-                .append("updatedAt", Instant.now());
+                .append("updatedAt", AmmsDateTimes.now());
         if (existing != null && existing.get("_id") != null) {
             doc.put("_id", existing.get("_id"));
             if (existing.get("createdAt") != null) {
@@ -52,7 +52,7 @@ public class MongoFormSchemaService {
             }
             mongoTemplate.save(doc, COLLECTION);
         } else {
-            doc.put("createdAt", Instant.now());
+            doc.put("createdAt", AmmsDateTimes.now());
             mongoTemplate.insert(doc, COLLECTION);
         }
     }

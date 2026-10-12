@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Paperclip } from 'lucide-react'
 import { fetchFormSchema, uploadDocument } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import { normalizeFormDateValues, toCalendarDate } from '@/lib/dateTime'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -81,6 +82,15 @@ function fieldZod(f) {
       let s = z.string().trim()
       s = required ? s.min(1, `${label} is required`).email('Enter a valid email') : s.email('Enter a valid email').or(z.literal(''))
       return s
+    }
+    case 'date': {
+      // Keep calendar dates as YYYY-MM-DD — never coerce through Date/ISO Instant.
+      let s = z
+        .string()
+        .trim()
+        .transform((v) => toCalendarDate(v))
+        .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), `${label} must be YYYY-MM-DD`)
+      return required ? s.refine((v) => !!v, `${label} is required`) : s.optional()
     }
     default: {
       let s = z.string().trim()
@@ -193,7 +203,8 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
   }
 
   function submit(values) {
-    const { signaturePlaceholder, ...formPayload } = values
+    const { signaturePlaceholder, ...rawPayload } = values
+    const formPayload = normalizeFormDateValues(fields, rawPayload)
     onSubmit({
       formPayload,
       signaturePlaceholder: signaturePlaceholder?.trim() || undefined,
@@ -384,13 +395,25 @@ function FieldControl({ fieldDef: f, field, disabled, uploading, onFiles }) {
               ? 'datetime-local'
               : 'text'
 
+  const value =
+    f.type === 'date' ? toCalendarDate(field.value) : (field.value ?? '')
+
   return (
     <Input
       type={inputType}
       placeholder={f.placeholder || ''}
       disabled={disabled}
-      {...field}
-      value={field.value ?? ''}
+      name={field.name}
+      ref={field.ref}
+      onBlur={field.onBlur}
+      onChange={(e) => {
+        if (f.type === 'date') {
+          field.onChange(toCalendarDate(e.target.value))
+          return
+        }
+        field.onChange(e)
+      }}
+      value={value}
     />
   )
 }

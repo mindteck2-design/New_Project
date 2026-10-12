@@ -6,7 +6,7 @@ public record WorkflowNode(
         UUID id,
         UUID definitionId,
         String nodeKey,
-        String nodeType,
+        NodeType nodeType,
         String roleCode,
         String formKey,
         String label,

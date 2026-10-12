@@ -3,10 +3,13 @@ package com.hal.amms.workpackage;
 import com.hal.amms.workpackage.WorkPackageRepository.PartRow;
 import com.hal.amms.workpackage.WorkPackageRepository.WorkPackageRow;
 import com.hal.amms.workflow.WorkflowRepository;
+import com.hal.amms.shared.EnumCodes;
+import com.hal.amms.workflow.domain.InstanceStatus;
 import com.hal.amms.workflow.domain.WorkflowDefinition;
 import com.hal.amms.workflow.domain.WorkflowInstance;
 import com.hal.amms.platform.security.UserPrincipal;
 import com.hal.amms.platform.web.ApiException;
+import com.hal.amms.shared.AmmsDateTimes;
 import com.hal.amms.workflow.api.WorkflowDtos.InstanceView;
 import com.hal.amms.workflow.api.WorkflowDtos.StartInstanceRequest;
 import com.hal.amms.workflow.WorkflowService;
@@ -60,23 +63,25 @@ public class WorkPackageService {
         if (aircraftId == null || po == null || testingType == null || workflowKey == null) {
             throw ApiException.badRequest("aircraftId, poNumber, testingType, workflowKey are required");
         }
-        testingType = testingType.trim().toUpperCase();
-        if (!testingType.equals("ROUTINE") && !testingType.equals("REPAIR")) {
+        TestingType testing;
+        try {
+            testing = TestingType.parse(testingType);
+        } catch (IllegalArgumentException ex) {
             throw ApiException.badRequest("testingType must be ROUTINE or REPAIR");
         }
         WorkflowDefinition def = workflows.findDefinitionByKey(workflowKey)
                 .orElseThrow(() -> ApiException.notFound("Master workflow not found: " + workflowKey));
 
-        String packageNo = "WP-" + po.trim() + "-" + Instant.now().getEpochSecond();
+        Instant now = AmmsDateTimes.now();
+        String packageNo = "WP-" + po.trim() + "-" + now.getEpochSecond();
         if (packages.packageNoExists(packageNo)) {
             packageNo = packageNo + "-" + UUID.randomUUID().toString().substring(0, 4);
         }
         UUID id = UUID.randomUUID();
-        Instant now = Instant.now();
         packages.insertPackage(new WorkPackageRow(
                 id, packageNo, aircraftId.trim(), po.trim(),
                 so == null || so.isBlank() ? null : so.trim(),
-                testingType, def.id(), "READY",
+                testing, def.id(), PackageStatus.READY,
                 notes == null || notes.isBlank() ? null : notes.trim(),
                 user.getId(), now, now
         ));
@@ -87,7 +92,7 @@ public class WorkPackageService {
     public Map<String, Object> addPart(UUID packageId, Map<String, Object> body) {
         WorkPackageRow pkg = packages.findPackage(packageId)
                 .orElseThrow(() -> ApiException.notFound("Work package not found"));
-        if ("COMPLETED".equals(pkg.status()) || "CANCELLED".equals(pkg.status())) {
+        if (pkg.status().isClosed()) {
             throw ApiException.conflict("Cannot add parts to a closed package");
         }
         String partNo = str(body, "partNo");
@@ -102,10 +107,10 @@ public class WorkPackageService {
                 partId, packageId, seq, partNo.trim(),
                 serial == null || serial.isBlank() ? null : serial.trim(),
                 description == null || description.isBlank() ? null : description.trim(),
-                "PENDING", null, null, null
+                PartStatus.PENDING, null, null, null
         ));
-        if ("READY".equals(pkg.status()) || "DRAFT".equals(pkg.status())) {
-            packages.updatePackageStatus(packageId, "READY");
+        if (pkg.status() == PackageStatus.READY || pkg.status() == PackageStatus.DRAFT) {
+            packages.updatePackageStatus(packageId, PackageStatus.READY);
         }
         return get(packageId);
     }
@@ -138,7 +143,7 @@ public class WorkPackageService {
         context.put("poNumber", pkg.poNumber());
         context.put("soNumber", pkg.soNumber());
         context.put("aircraftId", pkg.aircraftId());
-        context.put("testingType", pkg.testingType());
+        context.put("testingType", EnumCodes.code(pkg.testingType()));
         context.put("partNo", part.partNo());
         context.put("serialNo", part.serialNo());
 
@@ -148,7 +153,7 @@ public class WorkPackageService {
                 user
         );
         packages.linkPartInstance(partId, started.instanceId());
-        packages.updatePackageStatus(packageId, "IN_PROGRESS");
+        packages.updatePackageStatus(packageId, PackageStatus.IN_PROGRESS);
 
         Map<String, Object> out = get(packageId);
         out.put("openedInstanceId", started.instanceId().toString());
@@ -167,11 +172,11 @@ public class WorkPackageService {
         if (instance == null) {
             return;
         }
-        if ("COMPLETED".equals(instance.status())) {
-            packages.updatePartStatus(part.id(), "PASSED");
+        if (instance.status() == InstanceStatus.COMPLETED) {
+            packages.updatePartStatus(part.id(), PartStatus.PASSED);
             maybeCompletePackage(part.packageId());
-        } else if ("CANCELLED".equals(instance.status())) {
-            packages.updatePartStatus(part.id(), "SKIPPED");
+        } else if (instance.status() == InstanceStatus.CANCELLED) {
+            packages.updatePartStatus(part.id(), PartStatus.SKIPPED);
             maybeCompletePackage(part.packageId());
         }
     }
@@ -181,10 +186,9 @@ public class WorkPackageService {
         if (parts.isEmpty()) {
             return;
         }
-        boolean allDone = parts.stream().allMatch(p ->
-                "PASSED".equals(p.status()) || "FAILED".equals(p.status()) || "SKIPPED".equals(p.status()));
+        boolean allDone = parts.stream().allMatch(p -> p.status().isTerminal());
         if (allDone) {
-            packages.updatePackageStatus(packageId, "COMPLETED");
+            packages.updatePackageStatus(packageId, PackageStatus.COMPLETED);
         }
     }
 
@@ -192,10 +196,12 @@ public class WorkPackageService {
         Map<String, Object> pkg = get(packageId);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> parts = (List<Map<String, Object>>) pkg.get("parts");
-        long passed = parts.stream().filter(p -> "PASSED".equals(p.get("status"))).count();
-        long failed = parts.stream().filter(p -> "FAILED".equals(p.get("status"))).count();
-        long pending = parts.stream().filter(p ->
-                "PENDING".equals(p.get("status")) || "IN_TEST".equals(p.get("status"))).count();
+        long passed = parts.stream().filter(p -> PartStatus.PASSED.name().equals(p.get("status"))).count();
+        long failed = parts.stream().filter(p -> PartStatus.FAILED.name().equals(p.get("status"))).count();
+        long pending = parts.stream().filter(p -> {
+            Object s = p.get("status");
+            return PartStatus.PENDING.name().equals(s) || PartStatus.IN_TEST.name().equals(s);
+        }).count();
         Map<String, Object> report = new LinkedHashMap<>(pkg);
         report.put("summary", Map.of(
                 "totalParts", parts.size(),
@@ -214,8 +220,8 @@ public class WorkPackageService {
         m.put("aircraftId", row.aircraftId());
         m.put("poNumber", row.poNumber());
         m.put("soNumber", row.soNumber());
-        m.put("testingType", row.testingType());
-        m.put("status", row.status());
+        m.put("testingType", EnumCodes.code(row.testingType()));
+        m.put("status", EnumCodes.code(row.status()));
         m.put("notes", row.notes());
         m.put("workflowKey", def == null ? null : def.key());
         m.put("workflowName", def == null ? null : def.name());
@@ -231,18 +237,18 @@ public class WorkPackageService {
         m.put("partNo", p.partNo());
         m.put("serialNo", p.serialNo());
         m.put("description", p.description());
-        m.put("status", p.status());
+        m.put("status", EnumCodes.code(p.status()));
         m.put("instanceId", p.instanceId() == null ? null : p.instanceId().toString());
         m.put("openedAt", p.openedAt() == null ? null : p.openedAt().toString());
         m.put("closedAt", p.closedAt() == null ? null : p.closedAt().toString());
         if (p.instanceId() != null) {
             workflows.findInstance(p.instanceId()).ifPresent(inst -> {
-                m.put("instanceStatus", inst.status());
+                m.put("instanceStatus", EnumCodes.code(inst.status()));
                 m.put("currentNodeKey", inst.currentNodeKey());
-                if ("COMPLETED".equals(inst.status()) && "IN_TEST".equals(p.status())) {
+                if (inst.status() == InstanceStatus.COMPLETED && p.status() == PartStatus.IN_TEST) {
                     // lazy sync for UI
-                    packages.updatePartStatus(p.id(), "PASSED");
-                    m.put("status", "PASSED");
+                    packages.updatePartStatus(p.id(), PartStatus.PASSED);
+                    m.put("status", PartStatus.PASSED.name());
                 }
             });
         }

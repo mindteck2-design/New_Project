@@ -1,12 +1,13 @@
 package com.hal.amms.workpackage;
 
+import com.hal.amms.shared.AmmsDateTimes;
+import com.hal.amms.shared.EnumCodes;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,9 +23,9 @@ public class WorkPackageRepository {
             String aircraftId,
             String poNumber,
             String soNumber,
-            String testingType,
+            TestingType testingType,
             UUID workflowDefinitionId,
-            String status,
+            PackageStatus status,
             String notes,
             UUID createdBy,
             Instant createdAt,
@@ -38,7 +39,7 @@ public class WorkPackageRepository {
             String partNo,
             String serialNo,
             String description,
-            String status,
+            PartStatus status,
             UUID instanceId,
             Instant openedAt,
             Instant closedAt
@@ -58,16 +59,16 @@ public class WorkPackageRepository {
                 )
                 .values(
                         row.id(), row.packageNo(), row.aircraftId(), row.poNumber(), row.soNumber(),
-                        row.testingType(), row.workflowDefinitionId(), row.status(), row.notes(),
+                        EnumCodes.code(row.testingType()), row.workflowDefinitionId(), EnumCodes.code(row.status()), row.notes(),
                         row.createdBy(), odt(row.createdAt()), odt(row.updatedAt())
                 )
                 .execute();
     }
 
-    public void updatePackageStatus(UUID id, String status) {
+    public void updatePackageStatus(UUID id, PackageStatus status) {
         dsl.update(WORK_PACKAGES)
-                .set(WORK_PACKAGES.STATUS, status)
-                .set(WORK_PACKAGES.UPDATED_AT, OffsetDateTime.now(ZoneOffset.UTC))
+                .set(WORK_PACKAGES.STATUS, EnumCodes.code(status))
+                .set(WORK_PACKAGES.UPDATED_AT, AmmsDateTimes.nowOdt())
                 .where(WORK_PACKAGES.ID.eq(id))
                 .execute();
     }
@@ -94,7 +95,7 @@ public class WorkPackageRepository {
                 )
                 .values(
                         row.id(), row.packageId(), row.sequenceNo(), row.partNo(), row.serialNo(),
-                        row.description(), row.status(), row.instanceId(),
+                        row.description(), EnumCodes.code(row.status()), row.instanceId(),
                         odt(row.openedAt()), odt(row.closedAt())
                 )
                 .execute();
@@ -126,16 +127,16 @@ public class WorkPackageRepository {
     public void linkPartInstance(UUID partId, UUID instanceId) {
         dsl.update(WORK_PACKAGE_PARTS)
                 .set(WORK_PACKAGE_PARTS.INSTANCE_ID, instanceId)
-                .set(WORK_PACKAGE_PARTS.STATUS, "IN_TEST")
-                .set(WORK_PACKAGE_PARTS.OPENED_AT, OffsetDateTime.now(ZoneOffset.UTC))
+                .set(WORK_PACKAGE_PARTS.STATUS, PartStatus.IN_TEST.name())
+                .set(WORK_PACKAGE_PARTS.OPENED_AT, AmmsDateTimes.nowOdt())
                 .where(WORK_PACKAGE_PARTS.ID.eq(partId))
                 .execute();
     }
 
-    public void updatePartStatus(UUID partId, String status) {
-        var q = dsl.update(WORK_PACKAGE_PARTS).set(WORK_PACKAGE_PARTS.STATUS, status);
-        if ("PASSED".equals(status) || "FAILED".equals(status) || "SKIPPED".equals(status)) {
-            q = q.set(WORK_PACKAGE_PARTS.CLOSED_AT, OffsetDateTime.now(ZoneOffset.UTC));
+    public void updatePartStatus(UUID partId, PartStatus status) {
+        var q = dsl.update(WORK_PACKAGE_PARTS).set(WORK_PACKAGE_PARTS.STATUS, EnumCodes.code(status));
+        if (status.closesPart()) {
+            q = q.set(WORK_PACKAGE_PARTS.CLOSED_AT, AmmsDateTimes.nowOdt());
         }
         q.where(WORK_PACKAGE_PARTS.ID.eq(partId)).execute();
     }
@@ -149,7 +150,7 @@ public class WorkPackageRepository {
     private WorkPackageRow mapPackage(Record r) {
         return new WorkPackageRow(
                 r.get(WORK_PACKAGES.ID), r.get(WORK_PACKAGES.PACKAGE_NO), r.get(WORK_PACKAGES.AIRCRAFT_ID), r.get(WORK_PACKAGES.PO_NUMBER), r.get(WORK_PACKAGES.SO_NUMBER),
-                r.get(WORK_PACKAGES.TESTING_TYPE), r.get(WORK_PACKAGES.WORKFLOW_DEFINITION_ID), r.get(WORK_PACKAGES.STATUS), r.get(WORK_PACKAGES.NOTES),
+                TestingType.parse(r.get(WORK_PACKAGES.TESTING_TYPE)), r.get(WORK_PACKAGES.WORKFLOW_DEFINITION_ID), PackageStatus.parse(r.get(WORK_PACKAGES.STATUS)), r.get(WORK_PACKAGES.NOTES),
                 r.get(WORK_PACKAGES.CREATED_BY), toInstant(r.get(WORK_PACKAGES.CREATED_AT)), toInstant(r.get(WORK_PACKAGES.UPDATED_AT))
         );
     }
@@ -157,16 +158,16 @@ public class WorkPackageRepository {
     private PartRow mapPart(Record r) {
         return new PartRow(
                 r.get(WORK_PACKAGE_PARTS.ID), r.get(WORK_PACKAGE_PARTS.PACKAGE_ID), r.get(WORK_PACKAGE_PARTS.SEQUENCE_NO), r.get(WORK_PACKAGE_PARTS.PART_NO), r.get(WORK_PACKAGE_PARTS.SERIAL_NO),
-                r.get(WORK_PACKAGE_PARTS.DESCRIPTION), r.get(WORK_PACKAGE_PARTS.STATUS), r.get(WORK_PACKAGE_PARTS.INSTANCE_ID),
+                r.get(WORK_PACKAGE_PARTS.DESCRIPTION), PartStatus.parse(r.get(WORK_PACKAGE_PARTS.STATUS)), r.get(WORK_PACKAGE_PARTS.INSTANCE_ID),
                 toInstant(r.get(WORK_PACKAGE_PARTS.OPENED_AT)), toInstant(r.get(WORK_PACKAGE_PARTS.CLOSED_AT))
         );
     }
 
     private static OffsetDateTime odt(Instant i) {
-        return i == null ? null : OffsetDateTime.ofInstant(i, ZoneOffset.UTC);
+        return AmmsDateTimes.toUtcOdt(i);
     }
 
     private static Instant toInstant(OffsetDateTime odt) {
-        return odt == null ? null : odt.toInstant();
+        return AmmsDateTimes.toInstant(odt);
     }
 }

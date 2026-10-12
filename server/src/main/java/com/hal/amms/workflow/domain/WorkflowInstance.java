@@ -7,7 +7,7 @@ public record WorkflowInstance(
         UUID id,
         UUID definitionId,
         String businessKey,
-        String status,
+        InstanceStatus status,
         String currentNodeKey,
         String contextJson,
         UUID startedBy,

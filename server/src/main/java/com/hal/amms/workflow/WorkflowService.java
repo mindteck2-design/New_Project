@@ -3,6 +3,9 @@ package com.hal.amms.workflow;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hal.amms.identity.AmmsRole;
+import com.hal.amms.shared.AmmsDateTimes;
+import com.hal.amms.shared.EnumCodes;
 import com.hal.amms.workflow.domain.*;
 import com.hal.amms.platform.security.UserPrincipal;
 import com.hal.amms.attachments.AttachmentStorageService;
@@ -16,8 +19,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.*;
+import java.util.Locale;
 
 @Service
 public class WorkflowService {
@@ -64,7 +67,7 @@ public class WorkflowService {
                     .map(n -> {
                         Map<String, Object> m = new LinkedHashMap<>();
                         m.put("key", n.nodeKey());
-                        m.put("type", n.nodeType());
+                        m.put("type", EnumCodes.code(n.nodeType()));
                         m.put("label", n.label());
                         m.put("roleCode", n.roleCode());
                         m.put("formKey", n.formKey());
@@ -119,8 +122,8 @@ public class WorkflowService {
         if (repository.definitionExists(key)) {
             throw ApiException.conflict("Workflow already exists: " + key);
         }
-        boolean hasStart = request.nodes().stream().anyMatch(n -> "START".equalsIgnoreCase(n.type()));
-        boolean hasEnd = request.nodes().stream().anyMatch(n -> "END".equalsIgnoreCase(n.type()));
+        boolean hasStart = request.nodes().stream().anyMatch(n -> NodeType.START.matches(n.type()));
+        boolean hasEnd = request.nodes().stream().anyMatch(n -> NodeType.END.matches(n.type()));
         if (!hasStart || !hasEnd) {
             throw ApiException.badRequest("workflow must include START and END nodes");
         }
@@ -128,7 +131,7 @@ public class WorkflowService {
             if (n.key() == null || n.key().isBlank() || n.type() == null || n.label() == null) {
                 throw ApiException.badRequest("each node needs key, type, and label");
             }
-            if ("TASK".equalsIgnoreCase(n.type()) && (n.formKey() == null || n.formKey().isBlank())) {
+            if (NodeType.TASK.matches(n.type()) && (n.formKey() == null || n.formKey().isBlank())) {
                 throw ApiException.badRequest("TASK node " + n.key() + " must select a master form");
             }
             if (n.roleCode() == null || n.roleCode().isBlank()) {
@@ -195,7 +198,7 @@ public class WorkflowService {
                         UUID.randomUUID(),
                         defId,
                         n.key().trim(),
-                        n.type().trim().toUpperCase(),
+                        NodeType.parse(n.type()),
                         n.roleCode().trim().toUpperCase(),
                         n.formKey() == null || n.formKey().isBlank() ? null : n.formKey().trim().toLowerCase(),
                         n.label().trim(),
@@ -235,7 +238,7 @@ public class WorkflowService {
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + workflowKey));
         WorkflowNode node = repository.findNode(def.id(), nodeKey)
                 .orElseThrow(() -> ApiException.notFound("Node not found: " + nodeKey));
-        if (!"TASK".equalsIgnoreCase(node.nodeType())) {
+        if (node.nodeType() != NodeType.TASK) {
             throw ApiException.badRequest("Only TASK nodes can carry a dynamic form (got " + node.nodeType() + ")");
         }
         try {
@@ -277,7 +280,7 @@ public class WorkflowService {
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + key));
 
         WorkflowNode start = repository.nodesFor(def.id()).stream()
-                .filter(n -> "START".equalsIgnoreCase(n.nodeType()))
+                .filter(n -> n.nodeType() == NodeType.START)
                 .findFirst()
                 .orElseThrow(() -> ApiException.conflict("Workflow has no START node"));
 
@@ -291,12 +294,12 @@ public class WorkflowService {
                 UUID.randomUUID(),
                 def.id(),
                 request != null ? request.businessKey() : null,
-                "RUNNING",
+                InstanceStatus.RUNNING,
                 firstTaskKey,
                 writeJson(request != null && request.context() != null ? request.context() : Map.of()),
                 user.getId(),
-                Instant.now(),
-                Instant.now()
+                AmmsDateTimes.now(),
+                AmmsDateTimes.now()
         );
         repository.insertInstance(instance);
         writeAudit(instance.id(), user.getId(), "START", start.nodeKey(), firstTaskKey, null, null);
@@ -339,7 +342,7 @@ public class WorkflowService {
     public InstanceView transition(UUID id, TransitionRequest request, UserPrincipal user) {
         WorkflowInstance instance = repository.findInstance(id)
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
-        if (!"RUNNING".equals(instance.status())) {
+        if (instance.status() != InstanceStatus.RUNNING) {
             throw ApiException.conflict("Instance is not running");
         }
 
@@ -349,12 +352,13 @@ public class WorkflowService {
 
         assertRole(user, current);
 
-        String action = request.action() == null ? "" : request.action().trim().toUpperCase(Locale.ROOT);
+        String action = request.action() == null ? "" : request.action().trim();
         Map<String, Object> context = readMap(instance.contextJson());
 
         if (request.formPayload() != null && !request.formPayload().isEmpty()) {
-            context.putAll(request.formPayload());
-            saveForm(instance, current, request.formPayload(), user);
+            Map<String, Object> formPayload = AmmsDateTimes.normalizeFormPayloadDates(request.formPayload(), null);
+            context.putAll(formPayload);
+            saveForm(instance, current, formPayload, user);
         }
         if (request.notes() != null) {
             context.put("lastNotes", request.notes());
@@ -363,7 +367,7 @@ public class WorkflowService {
         String from = current.nodeKey();
         String to;
 
-        if ("DECISION".equalsIgnoreCase(current.nodeType())) {
+        if (current.nodeType() == NodeType.DECISION) {
             if (request.decisionValue() == null || request.decisionValue().isBlank()) {
                 throw ApiException.badRequest("decisionValue required for DECISION node");
             }
@@ -374,8 +378,8 @@ public class WorkflowService {
             repository.insertInspection(UUID.randomUUID(), instance.id(), current.nodeKey(), decision, request.notes(), user.getId());
             writeAudit(instance.id(), user.getId(), "DECISION_" + decision, from, to,
                     Map.of("decision", decision), request.signaturePlaceholder());
-        } else if ("COMPLETE".equals(action) || "SUBMIT".equals(action) || action.isBlank()) {
-            if ("END".equalsIgnoreCase(current.nodeType())) {
+        } else if (StepAction.isCompleteLike(action)) {
+            if (current.nodeType() == NodeType.END) {
                 throw ApiException.conflict("Instance already at END");
             }
             to = resolveNext(def.id(), from, null)
@@ -386,19 +390,19 @@ public class WorkflowService {
             throw ApiException.badRequest("Unknown action: " + request.action());
         }
 
-        String status = instance.status();
+        InstanceStatus status = instance.status();
         WorkflowNode next = repository.findNode(def.id(), to).orElseThrow();
-        if ("END".equalsIgnoreCase(next.nodeType())) {
-            status = "COMPLETED";
+        if (next.nodeType() == NodeType.END) {
+            status = InstanceStatus.COMPLETED;
             writeAudit(instance.id(), user.getId(), "COMPLETE_WORKFLOW", from, to, null, request.signaturePlaceholder());
         }
 
         WorkflowInstance updated = new WorkflowInstance(
                 instance.id(), instance.definitionId(), instance.businessKey(), status, to,
-                writeJson(context), instance.startedBy(), instance.startedAt(), Instant.now()
+                writeJson(context), instance.startedBy(), instance.startedAt(), AmmsDateTimes.now()
         );
         repository.updateInstance(updated);
-        if (!"END".equalsIgnoreCase(next.nodeType())) {
+        if (next.nodeType() != NodeType.END) {
             notifications.notifyRole(
                     updated.id(),
                     next.roleCode(),
@@ -407,7 +411,7 @@ public class WorkflowService {
             );
         }
         // Keep work-package part lines in sync when this instance is bound to a part.
-        if ("COMPLETED".equals(status) || "CANCELLED".equals(status)) {
+        if (status.isTerminal()) {
             WorkPackageService wp = workPackages.getIfAvailable();
             if (wp != null) {
                 wp.syncPartFromInstance(updated.id());
@@ -495,7 +499,7 @@ public class WorkflowService {
                 .orElseThrow(() -> ApiException.notFound("Instance not found"));
         DocumentEntry doc = new DocumentEntry(
                 UUID.randomUUID(), instance.id(), instance.currentNodeKey(), fileName, contentType,
-                storageKey, user.getId(), Instant.now()
+                storageKey, user.getId(), AmmsDateTimes.now()
         );
         repository.insertDocument(doc);
         writeAudit(instance.id(), user.getId(), "UPLOAD_DOCUMENT", instance.currentNodeKey(),
@@ -516,7 +520,7 @@ public class WorkflowService {
             return true;
         }
         // AUTHZ: completed instances remain visible to QA / Customer for acceptance review.
-        if ("COMPLETED".equalsIgnoreCase(instance.status()) && hasAnyRole(user, "QA", "CUSTOMER")) {
+        if (instance.status() == InstanceStatus.COMPLETED && AmmsRole.userHasAny(user.getRoles(), AmmsRole.QA, AmmsRole.CUSTOMER)) {
             return true;
         }
         WorkflowNode node = repository.findNode(def.id(), instance.currentNodeKey()).orElse(null);
@@ -533,33 +537,32 @@ public class WorkflowService {
         if (roles == null || roles.length == 0) {
             return false;
         }
-        return user.getRoles().stream().anyMatch(r -> {
-            for (String needed : roles) {
-                if (r != null && r.equalsIgnoreCase(needed)) {
-                    return true;
-                }
+        for (String needed : roles) {
+            if (AmmsRole.userHas(user.getRoles(), needed)) {
+                return true;
             }
-            return false;
-        });
+        }
+        return false;
     }
 
     private void assertRole(UserPrincipal user, WorkflowNode node) {
         if (node.roleCode() == null || node.roleCode().isBlank()) {
             return;
         }
-        boolean allowed = user.getRoles().stream().anyMatch(r -> r.equalsIgnoreCase(node.roleCode()));
-        if (!allowed) {
+        if (!AmmsRole.userHas(user.getRoles(), node.roleCode())) {
             throw ApiException.forbidden("Role " + node.roleCode() + " required for step " + node.nodeKey());
         }
     }
 
     private void saveForm(WorkflowInstance instance, WorkflowNode node, Map<String, Object> payload, UserPrincipal user) {
+        // Calendar dates (DOB etc.) stay YYYY-MM-DD — never midnight Instant (off-by-one TZ bug).
+        Map<String, Object> normalized = AmmsDateTimes.normalizeFormPayloadDates(payload, null);
         formStore.save(
                 UUID.randomUUID(),
                 instance.id(),
                 node.formKey() != null ? node.formKey() : "generic",
                 node.nodeKey(),
-                writeJson(payload),
+                writeJson(normalized),
                 user.getId()
         );
     }
@@ -568,7 +571,7 @@ public class WorkflowService {
                             Object payload, String signature) {
         repository.insertAudit(new AuditEntry(
                 UUID.randomUUID(), instanceId, userId, action, from, to,
-                payload == null ? null : writeJson(payload), signature, Instant.now()
+                payload == null ? null : writeJson(payload), signature, AmmsDateTimes.now()
         ));
     }
 
@@ -581,8 +584,8 @@ public class WorkflowService {
                 def.key(),
                 def.name(),
                 instance.businessKey(),
-                instance.status(),
-                new NodeView(node.nodeKey(), node.nodeType(), node.label(), node.roleCode(), node.formKey(), options),
+                EnumCodes.code(instance.status()),
+                new NodeView(node.nodeKey(), EnumCodes.code(node.nodeType()), node.label(), node.roleCode(), node.formKey(), options),
                 buildActions(node, options, user),
                 readMap(instance.contextJson()),
                 instance.startedAt(),
@@ -593,14 +596,20 @@ public class WorkflowService {
     private List<AllowedAction> buildActions(WorkflowNode node, List<String> options, UserPrincipal user) {
         boolean canAct = node.roleCode() == null
                 || node.roleCode().isBlank()
-                || user.getRoles().stream().anyMatch(r -> r.equalsIgnoreCase(node.roleCode()));
-        if (!canAct || "END".equalsIgnoreCase(node.nodeType())) {
+                || AmmsRole.userHas(user.getRoles(), node.roleCode());
+        if (!canAct || node.nodeType() == NodeType.END) {
             return List.of();
         }
-        if ("DECISION".equalsIgnoreCase(node.nodeType())) {
-            return options.stream().map(o -> new AllowedAction("DECISION", o, o)).toList();
+        if (node.nodeType() == NodeType.DECISION) {
+            return options.stream()
+                    .map(o -> new AllowedAction(AllowedActionType.DECISION.name(), o, o))
+                    .toList();
         }
-        return List.of(new AllowedAction("COMPLETE", "COMPLETE", "Complete step"));
+        return List.of(new AllowedAction(
+                AllowedActionType.COMPLETE.name(),
+                StepAction.COMPLETE.name(),
+                "Complete step"
+        ));
     }
 
     private List<String> readOptions(WorkflowNode node) {
