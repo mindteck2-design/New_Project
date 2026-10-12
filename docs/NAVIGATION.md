@@ -64,6 +64,8 @@ Meta (`workType`, `aircraftTypes`, `description`) lives in `definition_json`.
 
 Editing a published form bumps `version`. Seeded catalog forms are PUBLISHED.
 
+**Table field type:** designers add/remove columns (`columns: [{ key, label }]`); operators add/remove rows. Payload is an array of row objects keyed by column.
+
 ## Gaps (tracked — out of this pass)
 
 - Formal separate Work-order table (current UI alias on `/packages` is sufficient).
