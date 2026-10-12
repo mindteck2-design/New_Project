@@ -11,12 +11,16 @@ import {
   ALL_BLOCK_TYPES,
   CONTENT_BLOCK_TYPES,
   INPUT_BLOCK_TYPES,
+  defaultTableColumns,
   emptyFormField,
   fieldNeedsOptions,
   isContentBlock,
+  isTableField,
   slugifyFieldName,
 } from '@/lib/formFieldTypes'
 import { FormContentBlock } from '@/components/FormContentBlocks'
+import TableColumnsEditor from '@/components/TableColumnsEditor'
+import TableFieldInput from '@/components/TableFieldInput'
 import Markdown from '@/components/Markdown'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -205,6 +209,12 @@ function BlockRow({
                       fieldNeedsOptions(v) && !field.optionsText
                         ? 'Option A\nOption B'
                         : field.optionsText,
+                    columns:
+                      isTableField(v) && !(field.columns || []).length
+                        ? defaultTableColumns()
+                        : field.columns,
+                    label:
+                      isTableField(v) && !field.label ? 'Data table' : field.label,
                     name:
                       isContentBlock(v) && !field.name?.startsWith('block_')
                         ? `block_${field.id || 'x'}`
@@ -350,7 +360,10 @@ function BlockRow({
                     />
                   </div>
                 </div>
-                {field.type !== 'checkbox' && field.type !== 'attachment' && !fieldNeedsOptions(field.type) && (
+                {field.type !== 'checkbox' &&
+                  field.type !== 'attachment' &&
+                  !fieldNeedsOptions(field.type) &&
+                  !isTableField(field.type) && (
                   <Input
                     value={field.placeholder}
                     placeholder={
@@ -379,6 +392,12 @@ function BlockRow({
                     value={field.optionsText}
                     placeholder={'PASS\nFAIL\nN/A'}
                     onChange={(e) => updateField({ optionsText: e.target.value })}
+                  />
+                )}
+                {isTableField(field.type) && (
+                  <TableColumnsEditor
+                    columns={field.columns}
+                    onChange={(columns) => updateField({ columns })}
                   />
                 )}
                 {field.type === 'attachment' && (
@@ -415,6 +434,8 @@ function BlockRow({
                       <input type="checkbox" disabled className="h-3.5 w-3.5" />
                       {field.placeholder || field.label || 'Yes'}
                     </label>
+                  ) : isTableField(field.type) ? (
+                    <TableFieldInput columns={field.columns} preview disabled />
                   ) : fieldNeedsOptions(field.type) ? (
                     <div className="space-y-1 text-sm text-muted-foreground">
                       {String(field.optionsText || '')

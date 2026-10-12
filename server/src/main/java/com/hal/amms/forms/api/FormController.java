@@ -32,6 +32,8 @@ public class FormController {
         this.schemas = schemas;
     }
 
+    public record FormColumnDto(String key, String label, String id) {}
+
     public record FormFieldDto(
             String name,
             String label,
@@ -43,7 +45,8 @@ public class FormController {
             Boolean multiple,
             String helpText,
             String content,
-            String id
+            String id,
+            List<FormColumnDto> columns
     ) {}
 
     public record UpsertFormRequest(
@@ -179,6 +182,22 @@ public class FormController {
                     }
                     if (f.id() != null) {
                         m.put("id", f.id());
+                    }
+                    if (f.columns() != null && !f.columns().isEmpty()) {
+                        m.put(
+                                "columns",
+                                f.columns().stream()
+                                        .map(c -> {
+                                            Map<String, Object> col = new LinkedHashMap<>();
+                                            col.put("key", c.key());
+                                            col.put("label", c.label());
+                                            if (c.id() != null) {
+                                                col.put("id", c.id());
+                                            }
+                                            return col;
+                                        })
+                                        .toList()
+                        );
                     }
                     return m;
                 })

@@ -28,6 +28,7 @@ export const INPUT_BLOCK_TYPES = [
   { value: 'radio', label: 'Radio', group: 'Input', hint: 'Single choice buttons' },
   { value: 'checkbox', label: 'Checkbox', group: 'Input', hint: 'Yes / no confirm' },
   { value: 'multiselect', label: 'Multi-select', group: 'Input', hint: 'Pick many options' },
+  { value: 'table', label: 'Table', group: 'Input', hint: 'Rows with add/remove columns' },
   { value: 'attachment', label: 'Attachment', group: 'Input', hint: 'File upload' },
   { value: 'signature', label: 'Signature', group: 'Input', hint: 'Typed endorsement' },
 ]
@@ -50,6 +51,60 @@ export function isInputBlock(type) {
 export function fieldNeedsOptions(type) {
   const t = String(type || '')
   return t === 'select' || t === 'radio' || t === 'multiselect'
+}
+
+export function isTableField(type) {
+  return String(type || '').toLowerCase() === 'table'
+}
+
+export function emptyTableColumn(label = 'Column') {
+  const id = newBlockId()
+  return {
+    id,
+    key: slugifyFieldName(label, `col_${id.slice(0, 6)}`),
+    label,
+    keyLocked: false,
+  }
+}
+
+export function defaultTableColumns() {
+  return [
+    emptyTableColumn('Part No'),
+    emptyTableColumn('Serial No'),
+    emptyTableColumn('Result'),
+  ]
+}
+
+export function normalizeTableColumns(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return defaultTableColumns()
+  }
+  return raw
+    .map((c, i) => {
+      if (c == null) return null
+      if (typeof c === 'string') {
+        const label = c.trim()
+        if (!label) return null
+        return {
+          id: newBlockId(),
+          key: slugifyFieldName(label, `col_${i + 1}`),
+          label,
+          keyLocked: true,
+        }
+      }
+      const label = String(c.label || c.key || `Column ${i + 1}`).trim()
+      let key = String(c.key || '').trim()
+      if (!key) key = slugifyFieldName(label, `col_${i + 1}`)
+      key = key.replace(/[^a-zA-Z0-9_]/g, '')
+      if (!key || !/^[a-zA-Z]/.test(key)) key = `col_${i + 1}`
+      return {
+        id: c.id || newBlockId(),
+        key,
+        label: label || key,
+        keyLocked: true,
+      }
+    })
+    .filter(Boolean)
 }
 
 export function slugifyFieldName(label, fallback = 'field') {
@@ -75,7 +130,7 @@ export function emptyFormField(type = 'text') {
   return {
     id,
     name: content ? `block_${id}` : '',
-    label: content && type === 'divider' ? '—' : '',
+    label: content && type === 'divider' ? '—' : type === 'table' ? 'Data table' : '',
     type,
     placeholder: '',
     required: !content,
@@ -84,6 +139,7 @@ export function emptyFormField(type = 'text') {
     multiple: false,
     helpText: '',
     content: '',
+    columns: isTableField(type) ? defaultTableColumns() : [],
   }
 }
 
@@ -104,6 +160,7 @@ export function normalizeFieldFromApi(f) {
     multiple: !!f.multiple,
     helpText: f.helpText || '',
     content: f.content || f.label || '',
+    columns: isTableField(type) ? normalizeTableColumns(f.columns) : [],
   }
 }
 
@@ -153,6 +210,13 @@ export function fieldToApiPayload(f) {
   }
   if (type === 'measurement' && f.placeholder) {
     payload.placeholder = f.placeholder.trim()
+  }
+  if (isTableField(type)) {
+    payload.columns = normalizeTableColumns(f.columns).map((c) => ({
+      key: c.key,
+      label: c.label,
+      id: c.id,
+    }))
   }
   return payload
 }

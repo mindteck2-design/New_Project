@@ -1,11 +1,15 @@
 import { Plus, Trash2, Paperclip } from 'lucide-react'
 import {
   FORM_FIELD_TYPES,
+  defaultTableColumns,
   emptyFormField,
   fieldNeedsOptions,
   isContentBlock,
+  isTableField,
 } from '@/lib/formFieldTypes'
 import { FormContentBlock } from '@/components/FormContentBlocks'
+import TableColumnsEditor from '@/components/TableColumnsEditor'
+import TableFieldInput from '@/components/TableFieldInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -111,6 +115,14 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                             fieldNeedsOptions(v) && !field.optionsText
                               ? 'Option A\nOption B'
                               : field.optionsText,
+                          columns:
+                            isTableField(v) && !(field.columns || []).length
+                              ? defaultTableColumns()
+                              : field.columns,
+                          label:
+                            isTableField(v) && !field.label
+                              ? 'Data table'
+                              : field.label,
                         })
                       }
                     >
@@ -152,7 +164,8 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {!fieldNeedsOptions(field.type) &&
                     field.type !== 'attachment' &&
-                    field.type !== 'checkbox' && (
+                    field.type !== 'checkbox' &&
+                    !isTableField(field.type) && (
                       <div className="space-y-1.5">
                         <Label>Placeholder</Label>
                         <Input
@@ -192,6 +205,13 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                       onChange={(e) => updateField(index, { optionsText: e.target.value })}
                     />
                   </div>
+                )}
+
+                {isTableField(field.type) && (
+                  <TableColumnsEditor
+                    columns={field.columns}
+                    onChange={(columns) => updateField(index, { columns })}
+                  />
                 )}
 
                 {field.type === 'attachment' && (
@@ -293,7 +313,10 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                       {f.accept ? ` · ${f.accept}` : ''}
                     </div>
                   )}
-                  {!['textarea', 'select', 'radio', 'checkbox', 'multiselect', 'attachment'].includes(
+                  {isTableField(f.type) && (
+                    <TableFieldInput columns={f.columns} preview disabled />
+                  )}
+                  {!['textarea', 'select', 'radio', 'checkbox', 'multiselect', 'attachment', 'table'].includes(
                     f.type,
                   ) && (
                     <Input

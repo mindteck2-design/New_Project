@@ -36,7 +36,7 @@ public class MongoFormSchemaService {
             // Input blocks
             "text", "textarea", "number", "measurement", "email", "phone", "url",
             "date", "time", "datetime",
-            "select", "radio", "checkbox", "multiselect", "attachment", "signature"
+            "select", "radio", "checkbox", "multiselect", "table", "attachment", "signature"
     );
 
     private static final java.util.Set<String> CONTENT_TYPES = java.util.Set.of(
@@ -322,6 +322,12 @@ public class MongoFormSchemaService {
                     throw new IllegalArgumentException(type + " field " + n + " needs at least one option");
                 }
             }
+            if ("table".equals(type)) {
+                List<Map<String, Object>> columns = normalizeColumns(field.get("columns"));
+                if (columns.isEmpty()) {
+                    throw new IllegalArgumentException("table field " + n + " needs at least one column");
+                }
+            }
         }
     }
 
@@ -376,12 +382,72 @@ public class MongoFormSchemaService {
                 if (helpText != null && !String.valueOf(helpText).isBlank()) {
                     f.put("helpText", String.valueOf(helpText).trim());
                 }
+                if ("table".equals(normalizedType)) {
+                    f.put("columns", normalizeColumns(raw.get("columns")));
+                }
             }
             Object id = raw.get("id");
             if (id != null && !String.valueOf(id).isBlank()) {
                 f.put("id", String.valueOf(id).trim());
             }
             out.add(f);
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> normalizeColumns(Object raw) {
+        if (raw == null) {
+            return List.of();
+        }
+        List<?> list;
+        if (raw instanceof List<?> l) {
+            list = l;
+        } else {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        int i = 0;
+        for (Object item : list) {
+            i++;
+            if (item == null) {
+                continue;
+            }
+            Map<String, Object> col = new LinkedHashMap<>();
+            if (item instanceof Map<?, ?> map) {
+                Object keyObj = map.get("key");
+                Object labelObj = map.get("label");
+                String label = labelObj == null ? "" : String.valueOf(labelObj).trim();
+                String key = keyObj == null ? "" : String.valueOf(keyObj).trim().replaceAll("[^a-zA-Z0-9_]", "");
+                if (label.isBlank() && key.isBlank()) {
+                    continue;
+                }
+                if (key.isBlank() || !key.matches("^[a-zA-Z].*")) {
+                    key = "col_" + i;
+                }
+                if (label.isBlank()) {
+                    label = key;
+                }
+                col.put("key", key);
+                col.put("label", label);
+                Object id = map.get("id");
+                if (id != null && !String.valueOf(id).isBlank()) {
+                    col.put("id", String.valueOf(id).trim());
+                }
+            } else {
+                String label = String.valueOf(item).trim();
+                if (label.isBlank()) {
+                    continue;
+                }
+                String key = label.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_")
+                        .replaceAll("^_+|_+$", "");
+                if (key.isBlank() || !key.matches("^[a-z].*")) {
+                    key = "col_" + i;
+                }
+                col.put("key", key);
+                col.put("label", label);
+            }
+            out.add(col);
         }
         return out;
     }

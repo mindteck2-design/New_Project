@@ -8,8 +8,9 @@ import { Paperclip } from 'lucide-react'
 import { fetchFormSchema, uploadDocument } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { normalizeFormDateValues, toCalendarDate } from '@/lib/dateTime'
-import { isContentBlock, isInputBlock } from '@/lib/formFieldTypes'
+import { isContentBlock, isInputBlock, isTableField, normalizeTableColumns } from '@/lib/formFieldTypes'
 import { FormContentBlock } from '@/components/FormContentBlocks'
+import TableFieldInput from '@/components/TableFieldInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -77,6 +78,22 @@ function fieldZod(f) {
       let s = z.array(z.string())
       return required ? s.min(1, `Select at least one ${label}`) : s.optional()
     }
+    case 'table': {
+      const rowSchema = z.record(z.string(), z.string())
+      let s = z.array(rowSchema)
+      if (required) {
+        s = s
+          .min(1, `${label} needs at least one row`)
+          .refine(
+            (rows) =>
+              rows.some((row) =>
+                Object.values(row || {}).some((v) => String(v || '').trim()),
+              ),
+            `${label} needs at least one filled cell`,
+          )
+      }
+      return required ? s : s.optional()
+    }
     case 'attachment': {
       let s = z.string().trim()
       return required ? s.min(1, `${label} is required`) : s.optional()
@@ -127,6 +144,12 @@ function buildSchema(fields) {
 function defaultForField(f) {
   if (f.type === 'checkbox') return false
   if (f.type === 'multiselect') return []
+  if (isTableField(f.type)) {
+    const cols = normalizeTableColumns(f.columns)
+    const row = {}
+    for (const c of cols) row[c.key] = ''
+    return [row]
+  }
   if (f.type === 'number') return ''
   return ''
 }
@@ -157,6 +180,7 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
         multiple: !!f.multiple,
         helpText: f.helpText || '',
         content: f.content || f.label || '',
+        columns: isTableField(f.type) ? normalizeTableColumns(f.columns) : [],
       }))
     }
     return (FIELD_HINTS[formKey] || [{ name: 'notes', label: 'Notes / remarks' }]).map((f) => ({
@@ -168,6 +192,7 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
       multiple: false,
       helpText: '',
       content: '',
+      columns: [],
     }))
   }, [formKey, schemaQuery.data])
 
@@ -412,6 +437,17 @@ function FieldControl({ fieldDef: f, field, disabled, uploading, onFiles }) {
           <p className="text-xs text-muted-foreground">Attached: {field.value}</p>
         ) : null}
       </div>
+    )
+  }
+
+  if (isTableField(f.type)) {
+    return (
+      <TableFieldInput
+        columns={f.columns}
+        value={Array.isArray(field.value) ? field.value : []}
+        onChange={field.onChange}
+        disabled={disabled}
+      />
     )
   }
 
