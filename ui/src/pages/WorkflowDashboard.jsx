@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Bell, ClipboardList, GitBranch, Package, Play, BarChart3 } from 'lucide-react'
+import { ArrowRight, Bell, ClipboardList, FileStack, Package, Workflow, BarChart3 } from 'lucide-react'
 import { actionableNotifications, fetchInstances, fetchWorkflows } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import { NAV_LABELS } from '@/lib/navConfig'
 import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
@@ -15,12 +16,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 const QUICK_LINKS = [
-  { to: '/inbox', label: 'Action inbox', description: 'Full role-grouped pending queue', icon: Bell },
-  { to: '/packages', label: 'Work packages', description: 'PO/SO · ROUTINE or REPAIR · parts', icon: Package },
-  { to: '/workflows', label: 'Workflows', description: 'Definitions and start actions', icon: Play },
-  { to: '/process', label: 'Process map', description: 'XY graph for seeded charts', icon: GitBranch },
-  { to: '/instances', label: 'Instances', description: 'Table, filters, Excel export', icon: ClipboardList },
-  { to: '/analytics', label: 'Analytics', description: 'Role-curated KPIs', icon: BarChart3 },
+  { to: '/inbox', label: NAV_LABELS.inbox, description: 'Stages waiting on your role', icon: Bell },
+  { to: '/packages', label: NAV_LABELS.packages, description: 'Aircraft PO/SO · ROUTINE or REPAIR', icon: Package },
+  { to: '/instances', label: NAV_LABELS.runs, description: 'Active and completed stage history', icon: ClipboardList },
+  { to: '/forms', label: NAV_LABELS.forms, description: 'Reusable checklists and stage forms', icon: FileStack },
+  { to: '/workflows', label: NAV_LABELS.workflows, description: 'Configure stages, roles, and transitions', icon: Workflow },
+  { to: '/analytics', label: NAV_LABELS.analytics, description: 'Role-curated maintenance KPIs', icon: BarChart3 },
 ]
 
 /** Overview home — role briefing first, then pending work, then modules. */
@@ -43,20 +44,20 @@ export default function WorkflowDashboard() {
       <PageFrame>
         <PageHeader
           title="Your work today"
-          description="Curated for your active roles — pending steps first, then the modules you need."
-          breadcrumbs={[{ label: 'Dashboard' }]}
+          description="Pending maintenance stages for your roles — then execute work packages or configure masters."
+          breadcrumbs={[{ label: NAV_LABELS.dashboard }]}
           actions={
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link to="/packages">
-                  <Package className="h-3.5 w-3.5" />
-                  Work packages
+                <Link to="/inbox">
+                  <Bell className="h-3.5 w-3.5" />
+                  {NAV_LABELS.inbox}
                 </Link>
               </Button>
               <Button asChild size="sm">
-                <Link to="/workflows">
-                  <Play className="h-3.5 w-3.5" />
-                  Start workflow
+                <Link to="/packages/new">
+                  <Package className="h-3.5 w-3.5" />
+                  New work package
                 </Link>
               </Button>
             </div>
@@ -86,7 +87,7 @@ export default function WorkflowDashboard() {
           </div>
           <div className="bg-card px-4 py-3.5">
             <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Definitions
+              Workflows
             </div>
             <div className="mt-1 text-2xl font-semibold tabular-nums">
               {(workflows.data || []).length}
@@ -106,7 +107,7 @@ export default function WorkflowDashboard() {
           <div className="-mt-2">
             <Button asChild size="sm" variant="ghost">
               <Link to="/inbox">
-                View all {inbox.length} in action inbox
+                View all {inbox.length} pending actions
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -115,7 +116,7 @@ export default function WorkflowDashboard() {
 
         <section aria-labelledby="modules-heading">
           <h2 id="modules-heading" className="mb-3 text-sm font-semibold tracking-tight">
-            Modules
+            Go to
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {QUICK_LINKS.map((item) => {

@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { formatDateTime } from '@/lib/dateTime'
+import { NAV_LABELS } from '@/lib/navConfig'
 
 export default function InstancePage() {
   const { id } = useParams()
@@ -64,13 +65,13 @@ export default function InstancePage() {
                 : 'Instance unavailable'
           }
           backTo="/instances"
-          backLabel="Instances"
+          backLabel={NAV_LABELS.runs}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Instances', to: '/instances' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.runs, to: '/instances' },
             {
-              label: data?.workflowName || 'Workflow',
-              to: data?.workflowKey ? `/process/${data.workflowKey}` : '/process',
+              label: data?.workflowName || NAV_LABELS.workflows,
+              to: data?.workflowKey ? `/workflows/${data.workflowKey}` : '/workflows',
             },
             { label: shortId },
           ]}

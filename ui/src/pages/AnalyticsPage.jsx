@@ -1,3 +1,4 @@
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -8,13 +9,13 @@ export default function AnalyticsPage() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title="Role analytics"
-          description="KPIs curated for your active roles — workload, completions, and waiting steps."
+          title={NAV_LABELS.analytics}
+          description="Maintenance KPIs for your roles — workload, completions, and stages waiting on you."
           backTo="/"
-          backLabel="Dashboard"
+          backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Analytics' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.analytics },
           ]}
         />
         <RoleAnalytics />

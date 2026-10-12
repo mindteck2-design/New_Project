@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { GitBranch, Play, Plus } from 'lucide-react'
+import { Play, Plus } from 'lucide-react'
 import { fetchWorkflows, startInstance } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -19,7 +20,7 @@ export default function WorkflowsPage() {
   const start = useMutation({
     mutationFn: ({ key }) => startInstance(key, `BK-${Date.now()}`),
     onSuccess: (data) => {
-      toast.success('Workflow started', {
+      toast.success('Test run started', {
         action: {
           label: 'Open',
           onClick: () => navigate(`/instances/${data.instanceId}`),
@@ -35,18 +36,18 @@ export default function WorkflowsPage() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title="Workflow definitions"
-          description="Admin creates master forms, then builds workflows by assigning role + form to each step. Operators only run instances."
+          title={NAV_LABELS.workflows}
+          description="Configure maintenance stages, assigned roles, forms, and transitions. Shop execution starts from Work packages — use Test run only to validate a chart."
           backTo="/"
-          backLabel="Dashboard"
+          backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Workflows' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.workflows },
           ]}
           actions={
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link to="/forms">Master forms</Link>
+                <Link to="/forms">{NAV_LABELS.forms}</Link>
               </Button>
               <Button asChild size="sm">
                 <Link to="/workflows/new">
@@ -85,23 +86,19 @@ export default function WorkflowsPage() {
                     <div className="flex flex-wrap justify-end gap-2">
                       <Button asChild size="sm" variant="outline" className="h-8">
                         <Link to={`/workflows/${w.key}`}>
-                          Forms & steps
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline" className="h-8">
-                        <Link to={`/process/${w.key}`}>
-                          <GitBranch className="h-3.5 w-3.5" />
-                          Map
+                          Edit stages
                         </Link>
                       </Button>
                       <Button
                         size="sm"
+                        variant="secondary"
                         className="h-8"
                         disabled={start.isPending}
                         onClick={() => start.mutate({ key: w.key })}
+                        title="Starts a standalone test run — prefer Work packages for shop work"
                       >
                         <Play className="h-3.5 w-3.5" />
-                        Start
+                        Test run
                       </Button>
                     </div>
                   </TableCell>

@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 import { createWorkflow, fetchFormSchemas, fetchRoles } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { ROLE_LABELS } from '@/lib/demoUsers'
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -150,12 +151,12 @@ export default function WorkflowBuilderPage() {
       <PageFrame>
         <PageHeader
           title="Create workflow"
-          description="Paint the chart on the canvas — assign a role and master form to each step. Master forms stay in the catalog; this only binds them."
+          description="Paint maintenance stages on the canvas — assign a role and Form Master checklist to each step. Forms stay in the catalog; this only binds them."
           backTo="/workflows"
-          backLabel="Workflows"
+          backLabel={NAV_LABELS.workflows}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Workflows', to: '/workflows' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.workflows, to: '/workflows' },
             { label: 'Create' },
           ]}
         />

@@ -1,20 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import {
-  BarChart3,
-  Bell,
-  ChevronsLeft,
-  ChevronsRight,
-  ClipboardList,
-  FileStack,
-  GitBranch,
-  LayoutDashboard,
-  LogOut,
-  Package,
-  Play,
-  Workflow,
-} from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, LogOut, Workflow } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
+import { APP_BRAND, NAV_GROUPS } from '@/lib/navConfig'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,84 +17,6 @@ import {
 import { ROLE_LABELS } from '@/lib/demoUsers'
 
 const STORAGE_KEY = 'amms.sidebar.collapsed'
-
-const NAV_GROUPS = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    items: [
-      {
-        id: 'dashboard',
-        to: '/',
-        label: 'Dashboard',
-        icon: LayoutDashboard,
-        match: (pathname) => pathname === '/',
-      },
-      {
-        id: 'analytics',
-        to: '/analytics',
-        label: 'Analytics',
-        icon: BarChart3,
-        match: (pathname) => pathname.startsWith('/analytics'),
-      },
-    ],
-  },
-  {
-    id: 'operations',
-    label: 'Operations',
-    items: [
-      {
-        id: 'inbox',
-        to: '/inbox',
-        label: 'Action inbox',
-        icon: Bell,
-        badge: true,
-        match: (pathname) => pathname.startsWith('/inbox'),
-      },
-      {
-        id: 'packages',
-        to: '/packages',
-        label: 'Work packages',
-        icon: Package,
-        match: (pathname) => pathname === '/packages' || pathname.startsWith('/packages/'),
-      },
-      {
-        id: 'workflows',
-        to: '/workflows',
-        label: 'Workflows',
-        icon: Play,
-        match: (pathname) => pathname === '/workflows' || pathname.startsWith('/workflows/'),
-      },
-      {
-        id: 'process',
-        to: '/process',
-        label: 'Process map',
-        icon: GitBranch,
-        match: (pathname) => pathname.startsWith('/process'),
-      },
-      {
-        id: 'instances',
-        to: '/instances',
-        label: 'Instances',
-        icon: ClipboardList,
-        match: (pathname) => pathname.startsWith('/instances'),
-      },
-    ],
-  },
-  {
-    id: 'admin',
-    label: 'Administration',
-    items: [
-      {
-        id: 'master-forms',
-        to: '/forms',
-        label: 'Master forms',
-        icon: FileStack,
-        match: (pathname) => pathname === '/forms' || pathname.startsWith('/forms/'),
-      },
-    ],
-  },
-]
 
 function NavItem({ item, collapsed, active, unreadCount, onNavigate }) {
   const Icon = item.icon
@@ -156,6 +66,7 @@ function NavItem({ item, collapsed, active, unreadCount, onNavigate }) {
 
 /**
  * Persistent app navigation rail — React Router links (no hash scrolling).
+ * Structure: Overview → Execute → Track → Configure (AMMS business IA).
  */
 export default function AppSidebar({
   className,
@@ -229,10 +140,10 @@ export default function AppSidebar({
             {!collapsed && (
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold leading-none tracking-tight text-foreground">
-                  AMMS
+                  {APP_BRAND.name}
                 </div>
                 <div className="mt-1 truncate text-[10px] text-muted-foreground">
-                  Workflow Engine
+                  {APP_BRAND.subtitle}
                 </div>
               </div>
             )}
@@ -360,7 +271,6 @@ export default function AppSidebar({
               </Tooltip>
             )}
           </div>
-
         </div>
       </aside>
     </TooltipProvider>

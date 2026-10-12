@@ -201,7 +201,7 @@ export default function InstanceInsights({ instances = [] }) {
     const rows = filteredRows.map((r) => r.original)
     const wb = new ExcelJS.Workbook()
     wb.creator = 'AMMS'
-    const sheet = wb.addWorksheet('Instances', {
+    const sheet = wb.addWorksheet('Maintenance runs', {
       properties: { defaultRowHeight: 18 },
     })
     sheet.addRow(['Workflow', 'Business key', 'Step', 'Status', 'Started', 'Updated'])

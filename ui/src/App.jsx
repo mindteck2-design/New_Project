@@ -1,17 +1,22 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { useAuth } from '@/stores/authStore'
 import LoginPage from '@/pages/LoginPage'
 import WorkflowDashboard from '@/pages/WorkflowDashboard'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import InboxPage from '@/pages/InboxPage'
 import WorkflowsPage from '@/pages/WorkflowsPage'
-import ProcessMapPage from '@/pages/ProcessMapPage'
 import InstancesPage from '@/pages/InstancesPage'
 import InstancePage from '@/pages/InstancePage'
 import FormsPage from '@/pages/FormsPage'
 import WorkflowDetailPage from '@/pages/WorkflowDetailPage'
 import WorkflowBuilderPage from '@/pages/WorkflowBuilderPage'
 import PackagesPage from '@/pages/PackagesPage'
+
+/** Legacy /process routes → Workflow Master (chart lives on definition detail). */
+function ProcessMapRedirect() {
+  const { key } = useParams()
+  return <Navigate to={key ? `/workflows/${key}` : '/workflows'} replace />
+}
 
 function RequireAuth({ children }) {
   const { isAuthenticated } = useAuth()
@@ -86,7 +91,7 @@ export default function App() {
         path="/process"
         element={
           <RequireAuth>
-            <ProcessMapPage />
+            <ProcessMapRedirect />
           </RequireAuth>
         }
       />
@@ -94,7 +99,7 @@ export default function App() {
         path="/process/:key"
         element={
           <RequireAuth>
-            <ProcessMapPage />
+            <ProcessMapRedirect />
           </RequireAuth>
         }
       />

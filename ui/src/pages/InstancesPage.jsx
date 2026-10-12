@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Package } from 'lucide-react'
 import { fetchInstances } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import { NAV_LABELS } from '@/lib/navConfig'
 import { useAuth } from '@/stores/authStore'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
@@ -18,26 +20,29 @@ export default function InstancesPage() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title="Instances"
-          description="Search, filter, chart, and export operational workflow history."
+          title={NAV_LABELS.runs}
+          description="Track active and completed maintenance stage executions — filter, chart, and export history."
           backTo="/"
-          backLabel="Dashboard"
+          backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Instances' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.runs },
           ]}
           actions={
             <Button asChild size="sm" variant="outline">
-              <Link to="/workflows">Start workflow</Link>
+              <Link to="/packages">
+                <Package className="h-3.5 w-3.5" />
+                {NAV_LABELS.packages}
+              </Link>
             </Button>
           }
         />
 
         {instances.isLoading && (
-          <p className="text-sm text-muted-foreground">Loading instances…</p>
+          <p className="text-sm text-muted-foreground">Loading maintenance runs…</p>
         )}
         {instances.isError && (
-          <p className="text-sm text-destructive">Could not load instances.</p>
+          <p className="text-sm text-destructive">Could not load maintenance runs.</p>
         )}
         {!instances.isLoading && !instances.isError && (
           <InstanceInsights instances={rows} />

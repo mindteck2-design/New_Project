@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { FileText, GitBranch, Play, Plus } from 'lucide-react'
+import { FileText, Package, Play, Plus } from 'lucide-react'
 import {
   assignWorkflowNodeForm,
   createFormForWorkflowNode,
@@ -11,9 +11,11 @@ import {
   startInstance,
 } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
+import WorkflowChart from '@/components/WorkflowChart'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -204,25 +206,31 @@ export default function WorkflowDetailPage() {
       <PageFrame>
         <PageHeader
           title={definition.data?.name || key}
-          description="Dynamic forms belong to workflow steps. Attach or create a Mongo form on each TASK node — instances will collect that data at runtime."
+          description="Assign a Form Master checklist and responsible role to each stage. Shop work runs through Work packages; Test run validates the chart only."
           backTo="/workflows"
-          backLabel="Workflows"
+          backLabel={NAV_LABELS.workflows}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Workflows', to: '/workflows' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.workflows, to: '/workflows' },
             { label: definition.data?.name || key },
           ]}
           actions={
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link to={`/process/${key}`}>
-                  <GitBranch className="h-3.5 w-3.5" />
-                  Process map
+                <Link to="/packages/new">
+                  <Package className="h-3.5 w-3.5" />
+                  New work package
                 </Link>
               </Button>
-              <Button size="sm" disabled={start.isPending} onClick={() => start.mutate()}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={start.isPending}
+                onClick={() => start.mutate()}
+                title="Standalone validation run — prefer Work packages for shop execution"
+              >
                 <Play className="h-3.5 w-3.5" />
-                Start instance
+                Test run
               </Button>
             </div>
           }
@@ -266,14 +274,29 @@ export default function WorkflowDetailPage() {
               </div>
             </div>
 
+            <section className="space-y-3" aria-labelledby="wf-chart-heading">
+              <div>
+                <h2 id="wf-chart-heading" className="text-sm font-semibold tracking-tight">
+                  Stage sequence
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Visual map of maintenance stages and transitions for this workflow.
+                </p>
+              </div>
+              <WorkflowChart
+                definition={definition.data}
+                className="h-[min(52vh,480px)] min-h-[320px]"
+              />
+            </section>
+
             <section className="space-y-3" aria-labelledby="wf-forms-heading">
               <div>
                 <h2 id="wf-forms-heading" className="text-sm font-semibold tracking-tight">
-                  Step forms
+                  Stage forms
                 </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Only TASK steps collect operator input. Create a form here or assign an existing
-                  Mongo schema.
+                  Only TASK stages collect operator input. Create a form here or assign an existing
+                  Form Master schema.
                 </p>
               </div>
 

@@ -4,6 +4,7 @@ import { actionableNotifications, fetchInstances } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import { useAuth } from '@/stores/authStore'
 import { guidanceForRoles } from '@/lib/roleGuidance'
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -26,13 +27,13 @@ export default function InboxPage() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title="Action inbox"
-          description="Role-grouped review queue — open a row to continue at the current server-driven step."
+          title={NAV_LABELS.inbox}
+          description="Maintenance stages waiting on your role — open a row to complete the required form or decision."
           backTo="/"
-          backLabel="Dashboard"
+          backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Action inbox' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.inbox },
           ]}
           actions={
             <Badge variant={inbox.length ? 'default' : 'secondary'} className="tabular-nums">

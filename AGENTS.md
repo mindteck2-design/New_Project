@@ -81,16 +81,20 @@ Project skills live in [`.cursor/skills/`](.cursor/skills/) — see [SOURCES.md]
 
 ### Routing rule (React Router)
 
-| Path | Activity |
-|------|----------|
-| `/` | Dashboard overview |
-| `/analytics` | Role analytics |
-| `/inbox` | Action inbox |
-| `/workflows` | Workflow definitions (list / start) |
-| `/process`, `/process/:key` | Process map |
-| `/instances` | Instance list / insights |
-| `/instances/:id` | Instance execution |
+| Path | Menu label / activity |
+|------|------------------------|
+| `/` | Dashboard (Overview) |
+| `/analytics` | Analytics (Overview) |
+| `/inbox` | Pending actions (Execute) |
+| `/packages` | Work packages (Execute) — primary shop entry |
+| `/instances` | Maintenance runs (Track) |
+| `/instances/:id` | Stage execution (forms / decisions) |
+| `/forms` | Form Master (Configure) |
+| `/workflows` | Workflow Master (Configure) |
+| `/process`, `/process/:key` | Legacy — redirects to Workflow Master |
 | `/login` | Auth |
+
+IA details: [`docs/NAVIGATION.md`](docs/NAVIGATION.md). Labels: `ui/src/lib/navConfig.js`.
 
 Do **not** collapse these into one page with hash sections.
 

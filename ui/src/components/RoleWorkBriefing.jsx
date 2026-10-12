@@ -74,7 +74,7 @@ export default function RoleWorkBriefing({ user, pendingCount = 0 }) {
               )
             )}
             <Button asChild variant="outline">
-              <Link to="/inbox">Action inbox</Link>
+              <Link to="/inbox">Pending actions</Link>
             </Button>
           </div>
         </div>

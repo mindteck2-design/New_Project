@@ -18,6 +18,7 @@ import {
   fieldToApiPayload,
   normalizeFieldFromApi,
 } from '@/lib/formFieldTypes'
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -408,23 +409,23 @@ function FormsList() {
   return (
     <>
       <PageHeader
-        title="Master forms"
-        description="Admin catalog of MongoDB form schemas. When building a workflow, pick these forms for each TASK step."
+        title={NAV_LABELS.forms}
+        description="Reusable checklists and stage forms. Bind a published form to each Workflow Master stage — in-progress runs keep their original structure."
         backTo="/"
-        backLabel="Dashboard"
+        backLabel={NAV_LABELS.dashboard}
         breadcrumbs={[
-          { label: 'Dashboard', to: '/' },
-          { label: 'Master forms' },
+          { label: NAV_LABELS.dashboard, to: '/' },
+          { label: NAV_LABELS.forms },
         ]}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link to="/workflows/new">Create workflow</Link>
+              <Link to="/workflows">{NAV_LABELS.workflows}</Link>
             </Button>
             <Button asChild size="sm">
               <Link to="/forms/new">
                 <Plus className="h-3.5 w-3.5" />
-                Create master form
+                Create form
               </Link>
             </Button>
           </div>
@@ -504,13 +505,13 @@ function FormCreatePage() {
   return (
     <>
       <PageHeader
-        title="Create dynamic form"
-        description="Define a MongoDB form schema. Attach its form key to a workflow node to collect data at that step."
+        title="Create form"
+        description="Define fields, validation, and options. Publish, then bind the form key to a Workflow Master stage."
         backTo="/forms"
-        backLabel="Forms"
+        backLabel={NAV_LABELS.forms}
         breadcrumbs={[
-          { label: 'Dashboard', to: '/' },
-          { label: 'Dynamic forms', to: '/forms' },
+          { label: NAV_LABELS.dashboard, to: '/' },
+          { label: NAV_LABELS.forms, to: '/forms' },
           { label: 'Create' },
         ]}
       />
@@ -556,18 +557,18 @@ function FormDetailPage({ workflowKey }) {
             : `Mongo schema · ${formKey} · ${(schema.data.fields || []).length} fields`
         }
         backTo={backTo}
-        backLabel={workflowKey ? 'Workflow steps' : 'Forms'}
+        backLabel={workflowKey ? NAV_LABELS.workflows : NAV_LABELS.forms}
         breadcrumbs={
           workflowKey
             ? [
-                { label: 'Dashboard', to: '/' },
-                { label: 'Workflows', to: '/workflows' },
+                { label: NAV_LABELS.dashboard, to: '/' },
+                { label: NAV_LABELS.workflows, to: '/workflows' },
                 { label: workflowKey, to: `/workflows/${workflowKey}` },
                 { label: formKey },
               ]
             : [
-                { label: 'Dashboard', to: '/' },
-                { label: 'Dynamic forms', to: '/forms' },
+                { label: NAV_LABELS.dashboard, to: '/' },
+                { label: NAV_LABELS.forms, to: '/forms' },
                 { label: formKey },
               ]
         }

@@ -32,6 +32,13 @@ config/ supplies env to both
 **Codegen (required):** `jooq-codegen-maven` + `DDLDatabase` generates `com.hal.amms.jooq.*` from `server/src/main/resources/db/migration/*.sql` during `generate-sources`. Flyway SQL is the schema source of truth — do not hand-maintain table/column meta. Use `import static com.hal.amms.jooq.Tables.*` and typed fields (`USERS.ID`, `WORKFLOW_INSTANCES.STATUS`).  
 **When DDLDatabase is not enough:** Postgres-only DDL (partial indexes, exotic types) that the H2-backed parser rejects — switch the Maven profile to JDBC codegen against a migrated Postgres (Testcontainers / `testcontainers-jooq-codegen-maven-plugin`).
 
+## ADR-002e: Configure / Execute / Track navigation
+
+**Decision:** Sidebar groups map to AMMS business layers — not engine jargon.  
+**Labels:** Form Master, Workflow Master, Work packages, Pending actions, Maintenance runs.  
+**Process map:** Not a top-level menu; chart lives under Workflow Master detail; `/process*` redirects.  
+**Detail:** [`docs/NAVIGATION.md`](NAVIGATION.md), `ui/src/lib/navConfig.js`.
+
 ## ADR-002d: Single date/time policy (calendar vs instant)
 
 **Decision:** One canonical helper on each side — server `AmmsDateTimes`, UI `ui/src/lib/dateTime.js`.  

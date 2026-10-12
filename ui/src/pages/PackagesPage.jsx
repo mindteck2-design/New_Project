@@ -13,6 +13,7 @@ import {
   openPackagePart,
 } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
+import { NAV_LABELS } from '@/lib/navConfig'
 import Shell from '@/components/Shell'
 import PageHeader from '@/components/PageHeader'
 import PageFrame from '@/components/PageFrame'
@@ -60,13 +61,13 @@ function PackageList() {
     <Shell>
       <PageFrame>
         <PageHeader
-          title="Work packages"
-          description="Map master workflows to aircraft PO/SO. ROUTINE or REPAIR testing — open parts one by one, test, reassemble, and report."
+          title={NAV_LABELS.packages}
+          description="Create an aircraft maintenance job from PO/SO. Choose ROUTINE or REPAIR, open parts, complete each stage form, and consolidate the report."
           backTo="/"
-          backLabel="Dashboard"
+          backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Work packages' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.packages },
           ]}
           actions={
             <Button asChild size="sm">
@@ -191,8 +192,8 @@ function PackageCreate() {
           backTo="/packages"
           backLabel="Packages"
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Work packages', to: '/packages' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.packages, to: '/packages' },
             { label: 'New' },
           ]}
         />
@@ -354,8 +355,8 @@ function PackageDetail() {
           backTo="/packages"
           backLabel="Packages"
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Work packages', to: '/packages' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.packages, to: '/packages' },
             { label: data?.packageNo || 'Detail' },
           ]}
           actions={
@@ -534,8 +535,8 @@ function PackageReport() {
           backTo={`/packages/${id}`}
           backLabel="Package"
           breadcrumbs={[
-            { label: 'Dashboard', to: '/' },
-            { label: 'Work packages', to: '/packages' },
+            { label: NAV_LABELS.dashboard, to: '/' },
+            { label: NAV_LABELS.packages, to: '/packages' },
             { label: data?.packageNo || 'Package', to: `/packages/${id}` },
             { label: 'Report' },
           ]}
