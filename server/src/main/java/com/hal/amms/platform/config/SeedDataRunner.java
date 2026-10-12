@@ -118,6 +118,7 @@ public class SeedDataRunner implements ApplicationRunner {
 
         // Do not wipe runtime formKey assignments on every boot — seed only once per key.
         if (workflowRepository.definitionExists(key)) {
+            mergeWorkflowMeta(key, root);
             log.info("Workflow {} already present — skipping re-seed (keeps node form bindings)", key);
             return;
         }
@@ -163,6 +164,48 @@ public class SeedDataRunner implements ApplicationRunner {
             ));
         }
         log.info("Seeded workflow {}", key);
+    }
+
+    /**
+     * Additive meta patch for already-seeded charts (workType / aircraftTypes / description).
+     * Never rewrites nodes or transitions.
+     */
+    private void mergeWorkflowMeta(String key, JsonNode seedRoot) {
+        try {
+            var existing = workflowRepository.findDefinitionByKey(key, false);
+            if (existing.isEmpty()) {
+                return;
+            }
+            var def = existing.get();
+            JsonNode parsed = mapper.readTree(def.definitionJson() == null ? "{}" : def.definitionJson());
+            if (!(parsed instanceof ObjectNode stored)) {
+                return;
+            }
+            boolean changed = false;
+            for (String field : new String[]{"workType", "description"}) {
+                String seedVal = seedRoot.path(field).asText("").trim();
+                String have = stored.path(field).asText("").trim();
+                if (!seedVal.isEmpty() && have.isEmpty()) {
+                    stored.put(field, seedVal);
+                    changed = true;
+                }
+            }
+            if (seedRoot.has("aircraftTypes")
+                    && seedRoot.get("aircraftTypes").isArray()
+                    && seedRoot.get("aircraftTypes").size() > 0
+                    && (!stored.has("aircraftTypes")
+                        || !stored.get("aircraftTypes").isArray()
+                        || stored.get("aircraftTypes").isEmpty())) {
+                stored.set("aircraftTypes", seedRoot.get("aircraftTypes"));
+                changed = true;
+            }
+            if (changed) {
+                workflowRepository.updateDefinitionJson(def.id(), mapper.writeValueAsString(stored));
+                log.info("Patched workflow meta for {}", key);
+            }
+        } catch (Exception e) {
+            log.warn("Could not patch workflow meta for {}: {}", key, e.getMessage());
+        }
     }
 
     private static String textOrNull(JsonNode node, String field) {

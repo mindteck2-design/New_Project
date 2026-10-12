@@ -64,7 +64,8 @@ Meta (`workType`, `aircraftTypes`, `description`) lives in `definition_json`.
 
 Editing a published form bumps `version`. Seeded catalog forms are PUBLISHED.
 
-## Gaps (tracked)
+## Gaps (tracked — out of this pass)
 
-- Formal separate Work-order table (current alias is sufficient).
+- Formal separate Work-order table (current UI alias on `/packages` is sufficient).
 - Skip rules / escalation UI (engine transitions already support conditions).
+- Broader production gaps: see `docs/PRODUCTION_GAPS.md` (P7–P12).

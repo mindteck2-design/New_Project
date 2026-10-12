@@ -64,8 +64,15 @@ public class WorkflowService {
                 : aircraftTypeFilter.trim().toUpperCase(Locale.ROOT);
         return repository.listDefinitions(includeInactive).stream()
                 .map(this::toSummary)
-                .filter(s -> workType == null || workType.equalsIgnoreCase(nullToEmpty(s.workType())))
-                .filter(s -> aircraft == null || matchesAircraft(s.aircraftTypes(), aircraft))
+                // Missing workType / aircraftTypes = applicable to all (generic master charts).
+                .filter(s -> workType == null
+                        || s.workType() == null
+                        || s.workType().isBlank()
+                        || workType.equalsIgnoreCase(s.workType()))
+                .filter(s -> aircraft == null
+                        || s.aircraftTypes() == null
+                        || s.aircraftTypes().isEmpty()
+                        || matchesAircraft(s.aircraftTypes(), aircraft))
                 .toList();
     }
 
@@ -73,14 +80,7 @@ public class WorkflowService {
         return listWorkflows(false, null, null);
     }
 
-    private static String nullToEmpty(String s) {
-        return s == null ? "" : s;
-    }
-
     private static boolean matchesAircraft(List<String> types, String needle) {
-        if (types == null || types.isEmpty()) {
-            return false;
-        }
         for (String t : types) {
             if (t != null && needle.equalsIgnoreCase(t.trim())) {
                 return true;

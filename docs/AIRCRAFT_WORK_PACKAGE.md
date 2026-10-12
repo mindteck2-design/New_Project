@@ -68,12 +68,14 @@ Tag master workflows in `definition_json` or a column later:
 { "key": "aircraft-routine-test", "workType": "ROUTINE", ... }
 ```
 
-## UI routes (proposed)
+## UI routes
+
+Shop label is **Work orders**; API path remains `/api/v1/packages`.
 
 | Route | Purpose |
 |-------|---------|
-| `/packages` | List work packages (filter by PO/SO, type, status) |
-| `/packages/new` | Create package: PO/SO, aircraft, ROUTINE\|REPAIR, master workflow |
+| `/packages` | List work orders (filter by PO/SO, type, status) |
+| `/packages/new` | Create work order: PO/SO, aircraft, ROUTINE\|REPAIR, optional aircraft-type filter, master workflow |
 | `/packages/:id` | Parts board — open part, status, link to instance |
 | `/packages/:id/report` | Consolidated test report |
 | Existing `/instances/:id` | Stage execution (forms, decisions, attachments) |
@@ -103,7 +105,7 @@ Tag master workflows in `definition_json` or a column later:
 |-------|-------------|
 | **A (next)** | Flyway tables + API + Packages UI (create, parts, open → start instance) |
 | **B** | Package report page (aggregate PASS/FAIL + form payloads + docs) |
-| **C** | Seed ROUTINE / REPAIR master workflow stubs + workType filter in builder |
+| **C** | Seed ROUTINE / REPAIR `workType` on master charts + builder/list filters (**done**) |
 | **D** | Excel/PDF package report, IFS PO/SO lookup (integration) |
 
 ## Non-goals (this design)

@@ -83,7 +83,7 @@ function PackageList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Package</TableHead>
+                <TableHead>Work order</TableHead>
                 <TableHead className="hidden sm:table-cell">Aircraft</TableHead>
                 <TableHead>PO / SO</TableHead>
                 <TableHead className="hidden md:table-cell">Type</TableHead>
@@ -167,13 +167,18 @@ function PackageCreate() {
     poNumber: '',
     soNumber: '',
     testingType: 'ROUTINE',
+    aircraftType: '',
     workflowKey: '',
     notes: '',
   })
 
   const workflowFilters = useMemo(
-    () => ({ includeInactive: false, workType: form.testingType }),
-    [form.testingType],
+    () => ({
+      includeInactive: false,
+      workType: form.testingType,
+      aircraftType: form.aircraftType.trim() || undefined,
+    }),
+    [form.testingType, form.aircraftType],
   )
   const workflows = useQuery({
     queryKey: queryKeys.workflows.list(workflowFilters),
@@ -181,7 +186,10 @@ function PackageCreate() {
   })
 
   const create = useMutation({
-    mutationFn: () => createPackage(form),
+    mutationFn: () => {
+      const { aircraftType, ...body } = form
+      return createPackage(body)
+    },
     onSuccess: (data) => {
       toast.success('Work order created')
       navigate(`/packages/${data.id}`)
@@ -189,12 +197,7 @@ function PackageCreate() {
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not create work order'),
   })
 
-  const workflowOptions = useMemo(() => {
-    const rows = workflows.data || []
-    // Prefer workType match; if catalog has no meta yet, still show active charts.
-    const typed = rows.filter((w) => !w.workType || w.workType === form.testingType)
-    return typed.length ? typed : rows
-  }, [workflows.data, form.testingType])
+  const workflowOptions = workflows.data || []
 
   return (
     <Shell>
@@ -253,22 +256,39 @@ function PackageCreate() {
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Testing type</Label>
-            <Select
-              value={form.testingType}
-              onValueChange={(v) =>
-                setForm((f) => ({ ...f, testingType: v, workflowKey: '' }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ROUTINE">ROUTINE — scheduled / periodic</SelectItem>
-                <SelectItem value="REPAIR">REPAIR — finding / retest</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Testing type</Label>
+              <Select
+                value={form.testingType}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, testingType: v, workflowKey: '' }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ROUTINE">ROUTINE — scheduled / periodic</SelectItem>
+                  <SelectItem value="REPAIR">REPAIR — finding / retest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="aircraftType">Aircraft type filter (optional)</Label>
+              <Input
+                id="aircraftType"
+                value={form.aircraftType}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    aircraftType: e.target.value.toUpperCase(),
+                    workflowKey: '',
+                  }))
+                }
+                placeholder="e.g. A320 — leave blank for all"
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Master workflow</Label>
@@ -277,19 +297,28 @@ function PackageCreate() {
               onValueChange={(v) => setForm((f) => ({ ...f, workflowKey: v }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder={workflows.isLoading ? 'Loading…' : 'Select workflow'} />
+                <SelectValue
+                  placeholder={
+                    workflows.isLoading
+                      ? 'Loading…'
+                      : workflowOptions.length
+                        ? 'Select workflow'
+                        : 'No matching active workflows'
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {workflowOptions.map((w) => (
                   <SelectItem key={w.key} value={w.key}>
                     {w.name} ({w.key})
+                    {w.workType ? ` · ${w.workType}` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Each part you open will run an instance of this master chart (disassemble → test →
-              reassemble → report).
+              Active Workflow Master charts filtered by testing type / aircraft. Each part you open
+              runs an instance of this chart.
             </p>
           </div>
           <div className="space-y-2">
@@ -365,10 +394,10 @@ function PackageDetail() {
           description={
             data
               ? `${data.aircraftId} · PO ${data.poNumber}${data.soNumber ? ` · SO ${data.soNumber}` : ''} · ${data.testingType} · ${data.workflowName || data.workflowKey}`
-              : 'Loading package…'
+              : 'Loading work order…'
           }
           backTo="/packages"
-          backLabel="Packages"
+          backLabel={NAV_LABELS.packages}
           breadcrumbs={[
             { label: NAV_LABELS.dashboard, to: '/' },
             { label: NAV_LABELS.packages, to: '/packages' },
@@ -388,10 +417,10 @@ function PackageDetail() {
         />
 
         {pkg.isLoading && (
-          <p className="text-sm text-muted-foreground">Loading package…</p>
+          <p className="text-sm text-muted-foreground">Loading work order…</p>
         )}
         {pkg.isError && (
-          <p className="text-sm text-destructive">Could not load this package.</p>
+          <p className="text-sm text-destructive">Could not load this work order.</p>
         )}
 
         {data && (
@@ -505,7 +534,7 @@ function PackageDetail() {
                   {parts.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        Add parts to this package, then open them one by one to run the master
+                        Add parts to this work order, then open them one by one to run the master
                         workflow (open → test → reassemble → report).
                       </TableCell>
                     </TableRow>
@@ -548,11 +577,11 @@ function PackageReport() {
               : 'Loading report…'
           }
           backTo={`/packages/${id}`}
-          backLabel="Package"
+          backLabel={NAV_LABELS.packages}
           breadcrumbs={[
             { label: NAV_LABELS.dashboard, to: '/' },
             { label: NAV_LABELS.packages, to: '/packages' },
-            { label: data?.packageNo || 'Package', to: `/packages/${id}` },
+            { label: data?.packageNo || 'Work order', to: `/packages/${id}` },
             { label: 'Report' },
           ]}
           actions={

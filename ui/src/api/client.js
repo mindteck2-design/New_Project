@@ -63,12 +63,13 @@ export async function assignWorkflowNodeForm(workflowKey, nodeKey, formKey) {
 }
 
 /**
- * Create a Mongo form schema and bind it to a workflow node in one operator flow.
+ * Create a Mongo form schema, publish it, and bind it to a workflow node.
  */
 export async function createFormForWorkflowNode(workflowKey, nodeKey, formBody) {
   const created = await createFormSchema(formBody)
-  await assignWorkflowNodeForm(workflowKey, nodeKey, created.formKey)
-  return created
+  const published = await publishFormSchema(created.formKey)
+  await assignWorkflowNodeForm(workflowKey, nodeKey, published.formKey)
+  return published
 }
 
 export async function startInstance(key, businessKey) {

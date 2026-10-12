@@ -3,6 +3,9 @@
   "name": "NDT Radiography Testing",
   "version": 1,
   "source": "summaries §8.5.2 Radiography Testing",
+  "workType": "ROUTINE",
+  "aircraftTypes": [],
+  "description": "Scheduled radiography path for part/serial inspection.",
   "nodes": [
     {
       "key": "start",

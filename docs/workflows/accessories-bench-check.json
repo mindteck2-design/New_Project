@@ -3,6 +3,9 @@
   "name": "Accessories Bench Check / Repair",
   "version": 1,
   "source": "summaries §11.1 Bench Check / Repair",
+  "workType": "REPAIR",
+  "aircraftTypes": [],
+  "description": "Bench check with PASS/FAIL repair branch for accessory units.",
   "nodes": [
     {
       "key": "start",
