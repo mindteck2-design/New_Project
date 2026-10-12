@@ -1,8 +1,8 @@
 package com.hal.amms.workflow;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.hal.amms.identity.AmmsRole;
 import com.hal.amms.shared.AmmsDateTimes;
 import com.hal.amms.shared.EnumCodes;
@@ -27,7 +27,7 @@ public class WorkflowService {
 
     private final WorkflowRepository repository;
     private final DecisionEngine decisionEngine;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
     private final AttachmentStorageService attachments;
     private final FormSubmissionStore formStore;
     private final NotificationService notifications;
@@ -36,7 +36,7 @@ public class WorkflowService {
     public WorkflowService(
             WorkflowRepository repository,
             DecisionEngine decisionEngine,
-            ObjectMapper mapper,
+            JsonMapper mapper,
             AttachmentStorageService attachments,
             FormSubmissionStore formStore,
             NotificationService notifications,
@@ -437,11 +437,11 @@ public class WorkflowService {
         try {
             String json = repository.definitionJsonById(definitionId);
             JsonNode root = mapper.readTree(json == null ? "{}" : json);
-            if (!(root instanceof com.fasterxml.jackson.databind.node.ObjectNode obj) || !obj.has("nodes")) {
+            if (!(root instanceof tools.jackson.databind.node.ObjectNode obj) || !obj.has("nodes")) {
                 return;
             }
             for (JsonNode n : obj.path("nodes")) {
-                if (n instanceof com.fasterxml.jackson.databind.node.ObjectNode on
+                if (n instanceof tools.jackson.databind.node.ObjectNode on
                         && nodeKey.equals(on.path("key").asText())) {
                     on.put("formKey", formKey);
                 }

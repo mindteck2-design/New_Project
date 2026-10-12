@@ -49,8 +49,8 @@ Used in constrained environments:
 | postgres | 5432 |
 | mongo | 27017 (`MONGODB_URI`, `AMMS_FORMS_STORE=mongo`; Spring Boot 4 uses `spring.mongodb.uri`) |
 | minio | 9000 / 9001 |
-| server | 18080 |
-| ui (optional compose) | 15173 |
+| server | 8080 |
+| ui (optional compose) | 5173 |
 
 ## Profiles
 

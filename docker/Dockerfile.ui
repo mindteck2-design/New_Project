@@ -3,7 +3,7 @@ WORKDIR /app
 COPY ui/package.json ui/package-lock.json* ./
 RUN npm install
 COPY ui/ ./
-ARG VITE_API_URL=http://127.0.0.1:18080/api/v1
+ARG VITE_API_URL=http://127.0.0.1:8080/api/v1
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 

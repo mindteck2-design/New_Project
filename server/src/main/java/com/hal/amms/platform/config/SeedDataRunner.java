@@ -1,8 +1,8 @@
 package com.hal.amms.platform.config;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.hal.amms.identity.UserRepository;
 import com.hal.amms.workflow.WorkflowRepository;
 import com.hal.amms.workflow.domain.NodeType;
@@ -34,7 +34,7 @@ public class SeedDataRunner implements ApplicationRunner {
     private final UserRepository userRepository;
     private final WorkflowRepository workflowRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
     private final String seedPassword;
     private final String workflowsDir;
 
@@ -42,7 +42,7 @@ public class SeedDataRunner implements ApplicationRunner {
             UserRepository userRepository,
             WorkflowRepository workflowRepository,
             PasswordEncoder passwordEncoder,
-            ObjectMapper mapper,
+            JsonMapper mapper,
             @Value("${amms.seed.password:Passw0rd!}") String seedPassword,
             @Value("${amms.workflows-dir:../docs/workflows}") String workflowsDir
     ) {

@@ -3,7 +3,6 @@ package com.hal.amms.workflow;
 import com.hal.amms.workflow.domain.WorkflowTransition;
 import org.springframework.stereotype.Component;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -20,7 +19,7 @@ public class DecisionEngine {
         }
 
         List<WorkflowTransition> ordered = candidates.stream()
-                .sorted(Comparator.comparingInt(WorkflowTransition::priority))
+                .sorted((a, b) -> Integer.compare(a.priority(), b.priority()))
                 .toList();
 
         String normalized = decisionValue == null ? null : decisionValue.trim().toUpperCase(Locale.ROOT);

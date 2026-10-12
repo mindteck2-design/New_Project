@@ -1,7 +1,7 @@
 package com.hal.amms.workflow;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 class RoleMatrixE2ETest {
 
     @Autowired MockMvc mockMvc;
-    @Autowired ObjectMapper mapper;
+    @Autowired JsonMapper mapper;
 
     WorkflowE2ESupport e2e;
 

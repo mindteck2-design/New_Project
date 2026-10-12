@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
   const fromUi = loadEnv(mode, __dirname, 'VITE_')
   const env = { ...fromConfig, ...fromUi }
 
-  const uiPort = Number(env.VITE_UI_PORT || process.env.UI_PORT || 15173)
-  const apiProxyTarget = env.VITE_API_PROXY_TARGET || process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:18080'
+  const uiPort = Number(env.VITE_UI_PORT || process.env.UI_PORT || 5173)
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET || process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8080'
 
   return {
     plugins: [react(), tailwindcss()],

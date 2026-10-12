@@ -25,7 +25,7 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${amms.cors.allowed-origins:http://127.0.0.1:15173,http://localhost:15173}")
+    @Value("${amms.cors.allowed-origins}")
     private String allowedOrigins;
 
     @Bean
@@ -60,7 +60,8 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
-        config.setAllowedOrigins(origins);
+        // Patterns (not allowedOrigins) so "*" works with allowCredentials=true
+        config.setAllowedOriginPatterns(origins.isEmpty() ? List.of("*") : origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization", "Content-Disposition"));

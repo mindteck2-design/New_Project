@@ -14,8 +14,8 @@ fi
 
 mkdir -p "$ROOT/.data/attachments" "$PID_DIR"
 export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-local}"
-export SERVER_PORT="${SERVER_PORT:-18080}"
-export UI_PORT="${UI_PORT:-15173}"
+export SERVER_PORT="${SERVER_PORT:-8080}"
+export UI_PORT="${UI_PORT:-5173}"
 export AMMS_WORKFLOWS_DIR="$ROOT/docs/workflows"
 export AMMS_ATTACHMENTS_DIR="$ROOT/.data/attachments"
 export AMMS_ATTACHMENTS_STORE="${AMMS_ATTACHMENTS_STORE:-filesystem}"
@@ -98,7 +98,7 @@ echo "==> Starting API on :${SERVER_PORT} (Flyway + SeedDataRunner on boot)"
   --setenv=JWT_SECRET="${JWT_SECRET:-change-me-to-a-long-random-dev-secret-at-least-32-chars}" \
   --setenv=JWT_EXPIRATION_MS="${JWT_EXPIRATION_MS:-86400000}" \
   --setenv=SEED_PASSWORD="${SEED_PASSWORD:-Passw0rd!}" \
-  --setenv=AMMS_CORS_ALLOWED_ORIGINS="${AMMS_CORS_ALLOWED_ORIGINS:-http://127.0.0.1:15173,http://localhost:15173}" \
+  --setenv=AMMS_CORS_ALLOWED_ORIGINS="${AMMS_CORS_ALLOWED_ORIGINS:-http://127.0.0.1:5173,http://localhost:5173}" \
   --property=StandardOutput=append:"$ROOT/.data/server.log" \
   --property=StandardError=append:"$ROOT/.data/server.log" \
   /bin/bash -lc "mvn -q spring-boot:run -Dspring-boot.run.jvmArguments='-Dserver.port=${SERVER_PORT}'"

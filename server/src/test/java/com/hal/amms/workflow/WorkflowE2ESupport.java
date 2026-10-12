@@ -1,7 +1,7 @@
 package com.hal.amms.workflow;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,9 +22,9 @@ final class WorkflowE2ESupport {
     static final String PASSWORD = "Passw0rd!";
 
     private final MockMvc mockMvc;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
 
-    WorkflowE2ESupport(MockMvc mockMvc, ObjectMapper mapper) {
+    WorkflowE2ESupport(MockMvc mockMvc, JsonMapper mapper) {
         this.mockMvc = mockMvc;
         this.mapper = mapper;
     }

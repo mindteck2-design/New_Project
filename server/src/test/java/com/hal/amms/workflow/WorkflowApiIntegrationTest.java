@@ -1,7 +1,7 @@
 package com.hal.amms.workflow;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class WorkflowApiIntegrationTest {
 
     @Autowired MockMvc mockMvc;
-    @Autowired ObjectMapper mapper;
+    @Autowired JsonMapper mapper;
 
     @BeforeEach
     void assumeDb() throws Exception {

@@ -4,12 +4,12 @@ source "$(cd "$(dirname "$0")" && pwd)/common.sh"
 load_env
 
 # Prefer config/ui Vite env (enterprise). Fall back to root config/.env / defaults.
-export UI_PORT="${UI_PORT:-15173}"
+export UI_PORT="${UI_PORT:-5173}"
 # Do not override VITE_API_URL here when config/ui/.env.development sets same-origin /api/v1
 if [[ -z "${VITE_API_URL:-}" ]]; then
   export VITE_API_URL="/api/v1"
 fi
-export VITE_API_PROXY_TARGET="${VITE_API_PROXY_TARGET:-http://127.0.0.1:${SERVER_PORT:-18080}}"
+export VITE_API_PROXY_TARGET="${VITE_API_PROXY_TARGET:-http://127.0.0.1:${SERVER_PORT:-8080}}"
 
 mkdir -p "$ROOT/.data"
 cd "$ROOT/ui"

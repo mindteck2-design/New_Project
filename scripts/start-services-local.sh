@@ -5,7 +5,7 @@ load_env
 
 mkdir -p "$ROOT/.data/attachments" "$ROOT/.data/mongo"
 export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-local}"
-export SERVER_PORT="${SERVER_PORT:-18080}"
+export SERVER_PORT="${SERVER_PORT:-8080}"
 export AMMS_WORKFLOWS_DIR="$ROOT/docs/workflows"
 export AMMS_ATTACHMENTS_DIR="$ROOT/.data/attachments"
 export MONGODB_URI="${MONGODB_URI:-mongodb://127.0.0.1:27017/amms}"

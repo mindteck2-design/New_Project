@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:18080}
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
@@ -38,7 +38,7 @@ management:
 
 amms:
   cors:
-    allowed-origins: ${AMMS_CORS_ALLOWED_ORIGINS:http://127.0.0.1:15173,http://localhost:15173}
+    allowed-origins: ${AMMS_CORS_ALLOWED_ORIGINS:*}
   jwt:
     secret: ${JWT_SECRET:change-me-to-a-long-random-dev-secret-at-least-32-chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}

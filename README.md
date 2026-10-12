@@ -39,8 +39,8 @@ cp .env.example .env
 ./scripts/healthcheck.sh
 ```
 
-- UI: http://127.0.0.1:15173  
-- API: http://127.0.0.1:18080/api/v1 (dev UI uses same-origin `/api` Vite proxy)  
+- UI: http://127.0.0.1:5173  
+- API: http://127.0.0.1:8080/api/v1 (dev UI uses same-origin `/api` Vite proxy)  
 - Seeded password: `Passw0rd!` (`admin`, `inspection.user`, `progress.user`, …)
 
 ## Docker
