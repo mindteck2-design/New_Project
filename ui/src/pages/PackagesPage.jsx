@@ -682,7 +682,7 @@ function PackageReport() {
                   {parts.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        No parts on this package yet.
+                        No parts on this work order yet.
                       </TableCell>
                     </TableRow>
                   )}
