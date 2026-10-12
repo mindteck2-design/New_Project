@@ -12,9 +12,9 @@ This sits above the existing engine (definitions / instances / Mongo forms / aud
 |-------|------------|-------------|
 | Master forms | Reusable Mongo schemas | Admin |
 | Master workflows | Charts (nodes + role + formKey) | Admin |
-| Work package | PO/SO + aircraft + testing type + chosen master workflow | Progress / planning |
-| Part line | One serialised / tracked part on the package | Progress / Inspection |
-| Workflow instance | Runtime execution for **one part** | Role-gated shop users |
+| Work package | PO/SO + aircraft + testing type (+ optional default workflow) | Progress / planning |
+| Part line | One serialised / tracked part **with its attached master workflow** | Progress / Inspection |
+| Workflow instance | Runtime execution for **one part** (uses that part’s chart) | Role-gated shop users |
 | Test report | Roll-up of part results + attachments | QA / Inspection / Customer view |
 
 ## Testing types
@@ -29,9 +29,9 @@ Selecting the type on the package picks the **default master workflow**. Advance
 ## Operator journey
 
 1. **Admin** builds master forms + master workflows (already in app).
-2. **Progress** creates **Work package**: aircraft id, PO#, SO#, testing type ROUTINE|REPAIR, master workflow.
-3. **Progress** adds **parts** (part no, serial, sequence, description).
-4. For each part, user **Open part** → system starts a **workflow instance** with:
+2. **Progress** creates **Work package**: aircraft id, PO#, SO#, testing type ROUTINE|REPAIR (optional default workflow for pre-fill only).
+3. **Progress** adds **parts** (part no, serial, sequence, description) and **attaches a master workflow to each part** (not to the work order as a whole).
+4. For each part, user **Open part** → system starts a **workflow instance** of that part’s chart with:
    - `businessKey` = `{PO}-{partNo}-{serial}`
    - context: `{ workPackageId, partId, poNumber, soNumber, testingType, aircraftId }`
 5. Instance steps (from master chart) typically:
@@ -47,12 +47,13 @@ Selecting the type on the package picks the **default master workflow**. Advance
 ```text
 work_packages
   id, package_no, aircraft_id, po_number, so_number,
-  testing_type (ROUTINE|REPAIR), workflow_definition_id,
+  testing_type (ROUTINE|REPAIR), workflow_definition_id NULL (optional default),
   status (DRAFT|READY|IN_PROGRESS|COMPLETED|CANCELLED),
   notes, created_by, created_at, updated_at
 
 work_package_parts
   id, package_id, sequence_no, part_no, serial_no, description,
+  workflow_definition_id NOT NULL  -- master chart attached per aircraft part
   status (PENDING|IN_TEST|REASSEMBLED|PASSED|FAILED|SKIPPED),
   instance_id NULL, opened_at, closed_at
 
@@ -75,8 +76,8 @@ Shop label is **Work orders**; API path remains `/api/v1/packages`.
 | Route | Purpose |
 |-------|---------|
 | `/packages` | List work orders (filter by PO/SO, type, status) |
-| `/packages/new` | Create work order: PO/SO, aircraft, ROUTINE\|REPAIR, optional aircraft-type filter, master workflow |
-| `/packages/:id` | Parts board — open part, status, link to instance |
+| `/packages/new` | Create work order: PO/SO, aircraft, ROUTINE\|REPAIR, optional default workflow |
+| `/packages/:id` | Parts board — add part + attach workflow, open part, status, link to instance |
 | `/packages/:id/report` | Consolidated test report |
 | Existing `/instances/:id` | Stage execution (forms, decisions, attachments) |
 
@@ -96,6 +97,7 @@ Shop label is **Work orders**; API path remains `/api/v1/packages`.
 - **UI never picks next node** — still server-driven per part instance.
 - **Master forms** stay reusable across ROUTINE and REPAIR charts.
 - **One instance per part** keeps audit/form/attachment trails clean.
+- **Workflow attaches per part** — different aircraft parts on the same PO/SO can run different master charts.
 - **PO/SO** live on the package, not hard-coded into workflow JSON.
 - Aircraft A-1/A-2 charts from inventory can become additional master workflows later without changing the package model.
 

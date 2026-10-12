@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Aircraft / accessory work packages: PO/SO header + part-by-part testing
- * against a master workflow (ROUTINE or REPAIR).
+ * Aircraft / accessory work packages: PO/SO header + part-by-part testing.
+ * Master workflows attach to each aircraft part (not the work-order header).
  */
 @RestController
 @RequestMapping("/api/v1/packages")

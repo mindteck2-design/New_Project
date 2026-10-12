@@ -62,7 +62,7 @@ function PackageList() {
       <PageFrame>
         <PageHeader
           title={NAV_LABELS.packages}
-          description="Create an aircraft work order from PO/SO. Choose ROUTINE or REPAIR, open parts, complete each stage form, and consolidate the report."
+          description="Create an aircraft work order from PO/SO. Attach a master workflow to each aircraft part, run the stage forms, and consolidate the report."
           backTo="/"
           backLabel={NAV_LABELS.dashboard}
           breadcrumbs={[
@@ -96,7 +96,11 @@ function PackageList() {
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="font-medium">{p.packageNo}</div>
-                    <div className="text-xs text-muted-foreground">{p.workflowName || p.workflowKey}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {p.defaultWorkflowName || p.defaultWorkflowKey
+                        ? `Default: ${p.defaultWorkflowName || p.defaultWorkflowKey}`
+                        : 'Workflows attach per part'}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell font-mono text-xs">
                     {p.aircraftId}
@@ -187,11 +191,13 @@ function PackageCreate() {
 
   const create = useMutation({
     mutationFn: () => {
-      const { aircraftType, ...body } = form
+      const { aircraftType, workflowKey, ...rest } = form
+      const body = { ...rest }
+      if (workflowKey) body.workflowKey = workflowKey
       return createPackage(body)
     },
     onSuccess: (data) => {
-      toast.success('Work order created')
+      toast.success('Work order created — attach workflows when adding parts')
       navigate(`/packages/${data.id}`)
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not create work order'),
@@ -204,7 +210,7 @@ function PackageCreate() {
       <PageFrame>
         <PageHeader
           title="New work order"
-          description="Tie a master workflow to an aircraft PO/SO. Choose ROUTINE for scheduled checks or REPAIR for finding-driven retest."
+          description="Create a PO/SO header for the aircraft. Master workflows attach to each part on the next screen — not to the whole work order."
           backTo="/packages"
           backLabel={NAV_LABELS.packages}
           breadcrumbs={[
@@ -218,8 +224,8 @@ function PackageCreate() {
           className="mx-auto max-w-xl space-y-4 rounded-lg border bg-card p-5"
           onSubmit={(e) => {
             e.preventDefault()
-            if (!form.aircraftId.trim() || !form.poNumber.trim() || !form.workflowKey) {
-              toast.error('Aircraft, PO number, and master workflow are required')
+            if (!form.aircraftId.trim() || !form.poNumber.trim()) {
+              toast.error('Aircraft and PO number are required')
               return
             }
             create.mutate()
@@ -291,7 +297,7 @@ function PackageCreate() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Master workflow</Label>
+            <Label>Default master workflow (optional)</Label>
             <Select
               value={form.workflowKey || undefined}
               onValueChange={(v) => setForm((f) => ({ ...f, workflowKey: v }))}
@@ -302,7 +308,7 @@ function PackageCreate() {
                     workflows.isLoading
                       ? 'Loading…'
                       : workflowOptions.length
-                        ? 'Select workflow'
+                        ? 'Pre-fill when adding parts (optional)'
                         : 'No matching active workflows'
                   }
                 />
@@ -317,8 +323,7 @@ function PackageCreate() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Active Workflow Master charts filtered by testing type / aircraft. Each part you open
-              runs an instance of this chart.
+              Optional default only. You still attach (or override) a workflow on each aircraft part.
             </p>
           </div>
           <div className="space-y-2">
@@ -356,13 +361,50 @@ function PackageDetail() {
     enabled: !!id,
   })
 
-  const [partForm, setPartForm] = useState({ partNo: '', serialNo: '', description: '' })
+  const data = pkg.data
+  const defaultWorkflowKey = data?.defaultWorkflowKey || data?.workflowKey || ''
+
+  const [partForm, setPartForm] = useState({
+    partNo: '',
+    serialNo: '',
+    description: '',
+    workflowKey: '',
+  })
+
+  // Prefill part workflow from package default when detail loads / changes.
+  const effectivePartWorkflow =
+    partForm.workflowKey || defaultWorkflowKey || ''
+
+  const workflowFilters = useMemo(
+    () => ({
+      includeInactive: false,
+      workType: data?.testingType || undefined,
+    }),
+    [data?.testingType],
+  )
+  const workflows = useQuery({
+    queryKey: queryKeys.workflows.list(workflowFilters),
+    queryFn: () => fetchWorkflows(workflowFilters),
+    enabled: !!data?.testingType,
+  })
+  const workflowOptions = workflows.data || []
 
   const addPart = useMutation({
-    mutationFn: () => addPackagePart(id, partForm),
+    mutationFn: () =>
+      addPackagePart(id, {
+        partNo: partForm.partNo,
+        serialNo: partForm.serialNo,
+        description: partForm.description,
+        workflowKey: effectivePartWorkflow,
+      }),
     onSuccess: () => {
-      toast.success('Part added')
-      setPartForm({ partNo: '', serialNo: '', description: '' })
+      toast.success('Part added with attached workflow')
+      setPartForm({
+        partNo: '',
+        serialNo: '',
+        description: '',
+        workflowKey: defaultWorkflowKey || '',
+      })
       qc.invalidateQueries({ queryKey: queryKeys.packages.detail(id) })
       qc.invalidateQueries({ queryKey: queryKeys.packages.all })
     },
@@ -382,7 +424,6 @@ function PackageDetail() {
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not open part'),
   })
 
-  const data = pkg.data
   const parts = data?.parts || []
   const closed = data?.status === 'COMPLETED' || data?.status === 'CANCELLED'
 
@@ -393,7 +434,7 @@ function PackageDetail() {
           title={data?.packageNo || 'Work order'}
           description={
             data
-              ? `${data.aircraftId} · PO ${data.poNumber}${data.soNumber ? ` · SO ${data.soNumber}` : ''} · ${data.testingType} · ${data.workflowName || data.workflowKey}`
+              ? `${data.aircraftId} · PO ${data.poNumber}${data.soNumber ? ` · SO ${data.soNumber}` : ''} · ${data.testingType}`
               : 'Loading work order…'
           }
           backTo="/packages"
@@ -427,17 +468,21 @@ function PackageDetail() {
           <>
             {!closed && (
               <form
-                className="mb-6 grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-4"
+                className="mb-6 grid gap-3 rounded-lg border bg-card p-4 sm:grid-cols-2 lg:grid-cols-5"
                 onSubmit={(e) => {
                   e.preventDefault()
                   if (!partForm.partNo.trim()) {
                     toast.error('Part number is required')
                     return
                   }
+                  if (!effectivePartWorkflow) {
+                    toast.error('Attach a master workflow to this aircraft part')
+                    return
+                  }
                   addPart.mutate()
                 }}
               >
-                <div className="space-y-1.5 sm:col-span-1">
+                <div className="space-y-1.5">
                   <Label htmlFor="partNo">Part no.</Label>
                   <Input
                     id="partNo"
@@ -447,7 +492,7 @@ function PackageDetail() {
                     required
                   />
                 </div>
-                <div className="space-y-1.5 sm:col-span-1">
+                <div className="space-y-1.5">
                   <Label htmlFor="serialNo">Serial</Label>
                   <Input
                     id="serialNo"
@@ -456,7 +501,7 @@ function PackageDetail() {
                     placeholder="S/N"
                   />
                 </div>
-                <div className="space-y-1.5 sm:col-span-1">
+                <div className="space-y-1.5">
                   <Label htmlFor="description">Description</Label>
                   <Input
                     id="description"
@@ -465,12 +510,39 @@ function PackageDetail() {
                     placeholder="Optional"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <Label>Master workflow</Label>
+                  <Select
+                    value={effectivePartWorkflow || undefined}
+                    onValueChange={(v) => setPartForm((f) => ({ ...f, workflowKey: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          workflows.isLoading ? 'Loading…' : 'Attach workflow to this part'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workflowOptions.map((w) => (
+                        <SelectItem key={w.key} value={w.key}>
+                          {w.name}
+                          {w.workType ? ` · ${w.workType}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-end">
                   <Button type="submit" className="w-full" disabled={addPart.isPending}>
                     <Plus className="h-3.5 w-3.5" />
                     Add part
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-5">
+                  Workflow attaches to this aircraft part. Opening the part starts a maintenance
+                  run for that chart only.
+                </p>
               </form>
             )}
 
@@ -481,6 +553,7 @@ function PackageDetail() {
                     <TableHead className="w-14">#</TableHead>
                     <TableHead>Part</TableHead>
                     <TableHead className="hidden sm:table-cell">Serial</TableHead>
+                    <TableHead className="hidden lg:table-cell">Workflow</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Step</TableHead>
                     <TableHead className="text-right">Action</TableHead>
@@ -501,6 +574,14 @@ function PackageDetail() {
                       <TableCell className="hidden font-mono text-xs sm:table-cell">
                         {part.serialNo || '—'}
                       </TableCell>
+                      <TableCell className="hidden text-xs lg:table-cell">
+                        <div className="font-medium">
+                          {part.workflowName || part.workflowKey || '—'}
+                        </div>
+                        {part.workflowName && part.workflowKey ? (
+                          <div className="text-muted-foreground">{part.workflowKey}</div>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={statusVariant(part.status)}>{part.status}</Badge>
                       </TableCell>
@@ -513,7 +594,7 @@ function PackageDetail() {
                             <Button
                               size="sm"
                               className="h-8"
-                              disabled={openPart.isPending}
+                              disabled={openPart.isPending || !part.workflowKey}
                               onClick={() => openPart.mutate(part.id)}
                             >
                               <Play className="h-3.5 w-3.5" />
@@ -533,9 +614,9 @@ function PackageDetail() {
                   ))}
                   {parts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        Add parts to this work order, then open them one by one to run the master
-                        workflow (open → test → reassemble → report).
+                      <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                        Add aircraft parts and attach a master workflow to each, then open them one
+                        by one (open → test → reassemble → report).
                       </TableCell>
                     </TableRow>
                   )}
@@ -644,6 +725,7 @@ function PackageReport() {
                     <TableHead>#</TableHead>
                     <TableHead>Part</TableHead>
                     <TableHead className="hidden sm:table-cell">Serial</TableHead>
+                    <TableHead className="hidden lg:table-cell">Workflow</TableHead>
                     <TableHead>Result</TableHead>
                     <TableHead className="hidden md:table-cell">Instance</TableHead>
                     <TableHead className="text-right">Evidence</TableHead>
@@ -661,6 +743,9 @@ function PackageReport() {
                       </TableCell>
                       <TableCell className="hidden font-mono text-xs sm:table-cell">
                         {part.serialNo || '—'}
+                      </TableCell>
+                      <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
+                        {part.workflowName || part.workflowKey || '—'}
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusVariant(part.status)}>{part.status}</Badge>
@@ -681,7 +766,7 @@ function PackageReport() {
                   ))}
                   {parts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                         No parts on this work order yet.
                       </TableCell>
                     </TableRow>

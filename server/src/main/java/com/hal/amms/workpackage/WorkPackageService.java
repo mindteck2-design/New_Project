@@ -60,8 +60,8 @@ public class WorkPackageService {
         String testingType = str(body, "testingType");
         String workflowKey = str(body, "workflowKey");
         String notes = str(body, "notes");
-        if (aircraftId == null || po == null || testingType == null || workflowKey == null) {
-            throw ApiException.badRequest("aircraftId, poNumber, testingType, workflowKey are required");
+        if (aircraftId == null || po == null || testingType == null) {
+            throw ApiException.badRequest("aircraftId, poNumber, testingType are required");
         }
         TestingType testing;
         try {
@@ -69,8 +69,13 @@ public class WorkPackageService {
         } catch (IllegalArgumentException ex) {
             throw ApiException.badRequest("testingType must be ROUTINE or REPAIR");
         }
-        WorkflowDefinition def = workflows.findDefinitionByKey(workflowKey)
-                .orElseThrow(() -> ApiException.notFound("Master workflow not found: " + workflowKey));
+        // Optional package-level default only — master charts attach per aircraft part.
+        UUID defaultWorkflowId = null;
+        if (workflowKey != null) {
+            WorkflowDefinition def = workflows.findDefinitionByKey(workflowKey)
+                    .orElseThrow(() -> ApiException.notFound("Master workflow not found: " + workflowKey));
+            defaultWorkflowId = def.id();
+        }
 
         Instant now = AmmsDateTimes.now();
         String packageNo = "WP-" + po.trim() + "-" + now.getEpochSecond();
@@ -81,7 +86,7 @@ public class WorkPackageService {
         packages.insertPackage(new WorkPackageRow(
                 id, packageNo, aircraftId.trim(), po.trim(),
                 so == null || so.isBlank() ? null : so.trim(),
-                testing, def.id(), PackageStatus.READY,
+                testing, defaultWorkflowId, PackageStatus.READY,
                 notes == null || notes.isBlank() ? null : notes.trim(),
                 user.getId(), now, now
         ));
@@ -99,6 +104,8 @@ public class WorkPackageService {
         if (partNo == null) {
             throw ApiException.badRequest("partNo is required");
         }
+        String workflowKey = str(body, "workflowKey");
+        UUID workflowDefId = resolvePartWorkflowId(pkg, workflowKey);
         String serial = str(body, "serialNo");
         String description = str(body, "description");
         int seq = packages.nextSequence(packageId);
@@ -107,7 +114,7 @@ public class WorkPackageService {
                 partId, packageId, seq, partNo.trim(),
                 serial == null || serial.isBlank() ? null : serial.trim(),
                 description == null || description.isBlank() ? null : description.trim(),
-                PartStatus.PENDING, null, null, null
+                PartStatus.PENDING, workflowDefId, null, null, null
         ));
         if (pkg.status() == PackageStatus.READY || pkg.status() == PackageStatus.DRAFT) {
             packages.updatePackageStatus(packageId, PackageStatus.READY);
@@ -116,7 +123,7 @@ public class WorkPackageService {
     }
 
     /**
-     * Open a part for testing: start master workflow instance and bind it to the part.
+     * Open a part for testing: start the part's attached master workflow instance.
      */
     @Transactional
     public Map<String, Object> openPart(UUID packageId, UUID partId, UserPrincipal user) {
@@ -130,8 +137,14 @@ public class WorkPackageService {
         if (part.instanceId() != null) {
             throw ApiException.conflict("Part already opened — continue the existing instance");
         }
-        WorkflowDefinition def = workflows.findDefinitionById(pkg.workflowDefinitionId())
-                .orElseThrow(() -> ApiException.conflict("Master workflow missing"));
+        UUID workflowDefId = part.workflowDefinitionId() != null
+                ? part.workflowDefinitionId()
+                : pkg.workflowDefinitionId();
+        if (workflowDefId == null) {
+            throw ApiException.conflict("Part has no master workflow attached — edit the part or add workflowKey");
+        }
+        WorkflowDefinition def = workflows.findDefinitionById(workflowDefId)
+                .orElseThrow(() -> ApiException.conflict("Master workflow missing for this part"));
 
         String businessKey = pkg.poNumber() + "-" + part.partNo()
                 + (part.serialNo() != null ? "-" + part.serialNo() : "")
@@ -146,6 +159,7 @@ public class WorkPackageService {
         context.put("testingType", EnumCodes.code(pkg.testingType()));
         context.put("partNo", part.partNo());
         context.put("serialNo", part.serialNo());
+        context.put("workflowKey", def.key());
 
         InstanceView started = workflowService.start(
                 def.key(),
@@ -159,6 +173,21 @@ public class WorkPackageService {
         out.put("openedInstanceId", started.instanceId().toString());
         out.put("openedPartId", partId.toString());
         return out;
+    }
+
+    /** Resolve the workflow chart to attach to a part (explicit key, else package default). */
+    private UUID resolvePartWorkflowId(WorkPackageRow pkg, String workflowKey) {
+        if (workflowKey != null) {
+            WorkflowDefinition def = workflows.findDefinitionByKey(workflowKey)
+                    .orElseThrow(() -> ApiException.notFound("Master workflow not found: " + workflowKey));
+            return def.id();
+        }
+        if (pkg.workflowDefinitionId() != null) {
+            return pkg.workflowDefinitionId();
+        }
+        throw ApiException.badRequest(
+                "workflowKey is required — attach a master workflow to this aircraft part"
+        );
     }
 
     /** Sync part status from a completed/failed instance (called after transitions). */
@@ -213,7 +242,9 @@ public class WorkPackageService {
     }
 
     private Map<String, Object> toPackageView(WorkPackageRow row) {
-        WorkflowDefinition def = workflows.findDefinitionById(row.workflowDefinitionId()).orElse(null);
+        WorkflowDefinition def = row.workflowDefinitionId() == null
+                ? null
+                : workflows.findDefinitionById(row.workflowDefinitionId()).orElse(null);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", row.id().toString());
         m.put("packageNo", row.packageNo());
@@ -223,6 +254,9 @@ public class WorkPackageService {
         m.put("testingType", EnumCodes.code(row.testingType()));
         m.put("status", EnumCodes.code(row.status()));
         m.put("notes", row.notes());
+        // Optional default only — real attachment is on each part.
+        m.put("defaultWorkflowKey", def == null ? null : def.key());
+        m.put("defaultWorkflowName", def == null ? null : def.name());
         m.put("workflowKey", def == null ? null : def.key());
         m.put("workflowName", def == null ? null : def.name());
         m.put("createdAt", row.createdAt() == null ? null : row.createdAt().toString());
@@ -241,6 +275,15 @@ public class WorkPackageService {
         m.put("instanceId", p.instanceId() == null ? null : p.instanceId().toString());
         m.put("openedAt", p.openedAt() == null ? null : p.openedAt().toString());
         m.put("closedAt", p.closedAt() == null ? null : p.closedAt().toString());
+        UUID workflowId = p.workflowDefinitionId() != null
+                ? p.workflowDefinitionId()
+                : pkg.workflowDefinitionId();
+        if (workflowId != null) {
+            workflows.findDefinitionById(workflowId).ifPresent(def -> {
+                m.put("workflowKey", def.key());
+                m.put("workflowName", def.name());
+            });
+        }
         if (p.instanceId() != null) {
             workflows.findInstance(p.instanceId()).ifPresent(inst -> {
                 m.put("instanceStatus", EnumCodes.code(inst.status()));
