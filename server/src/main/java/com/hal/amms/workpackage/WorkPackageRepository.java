@@ -40,6 +40,7 @@ public class WorkPackageRepository {
             String serialNo,
             String description,
             PartStatus status,
+            UUID workflowDefinitionId,
             UUID instanceId,
             Instant openedAt,
             Instant closedAt
@@ -91,11 +92,11 @@ public class WorkPackageRepository {
         dsl.insertInto(WORK_PACKAGE_PARTS)
                 .columns(
                         WORK_PACKAGE_PARTS.ID, WORK_PACKAGE_PARTS.PACKAGE_ID, WORK_PACKAGE_PARTS.SEQUENCE_NO, WORK_PACKAGE_PARTS.PART_NO, WORK_PACKAGE_PARTS.SERIAL_NO, WORK_PACKAGE_PARTS.DESCRIPTION,
-                        WORK_PACKAGE_PARTS.STATUS, WORK_PACKAGE_PARTS.INSTANCE_ID, WORK_PACKAGE_PARTS.OPENED_AT, WORK_PACKAGE_PARTS.CLOSED_AT
+                        WORK_PACKAGE_PARTS.STATUS, WORK_PACKAGE_PARTS.WORKFLOW_DEFINITION_ID, WORK_PACKAGE_PARTS.INSTANCE_ID, WORK_PACKAGE_PARTS.OPENED_AT, WORK_PACKAGE_PARTS.CLOSED_AT
                 )
                 .values(
                         row.id(), row.packageId(), row.sequenceNo(), row.partNo(), row.serialNo(),
-                        row.description(), EnumCodes.code(row.status()), row.instanceId(),
+                        row.description(), EnumCodes.code(row.status()), row.workflowDefinitionId(), row.instanceId(),
                         odt(row.openedAt()), odt(row.closedAt())
                 )
                 .execute();
@@ -158,7 +159,8 @@ public class WorkPackageRepository {
     private PartRow mapPart(Record r) {
         return new PartRow(
                 r.get(WORK_PACKAGE_PARTS.ID), r.get(WORK_PACKAGE_PARTS.PACKAGE_ID), r.get(WORK_PACKAGE_PARTS.SEQUENCE_NO), r.get(WORK_PACKAGE_PARTS.PART_NO), r.get(WORK_PACKAGE_PARTS.SERIAL_NO),
-                r.get(WORK_PACKAGE_PARTS.DESCRIPTION), PartStatus.parse(r.get(WORK_PACKAGE_PARTS.STATUS)), r.get(WORK_PACKAGE_PARTS.INSTANCE_ID),
+                r.get(WORK_PACKAGE_PARTS.DESCRIPTION), PartStatus.parse(r.get(WORK_PACKAGE_PARTS.STATUS)),
+                r.get(WORK_PACKAGE_PARTS.WORKFLOW_DEFINITION_ID), r.get(WORK_PACKAGE_PARTS.INSTANCE_ID),
                 toInstant(r.get(WORK_PACKAGE_PARTS.OPENED_AT)), toInstant(r.get(WORK_PACKAGE_PARTS.CLOSED_AT))
         );
     }
