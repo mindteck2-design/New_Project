@@ -4,12 +4,14 @@ import {
   ChevronUp,
   GripVertical,
   Plus,
+  Table2,
   Trash2,
   Type,
 } from 'lucide-react'
 import {
   ALL_BLOCK_TYPES,
   CONTENT_BLOCK_TYPES,
+  DATA_BLOCK_TYPES,
   INPUT_BLOCK_TYPES,
   defaultTableColumns,
   emptyFormField,
@@ -53,7 +55,7 @@ function InsertMenu({ onPick, children }) {
   const [q, setQ] = useState('')
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    const all = [...CONTENT_BLOCK_TYPES, ...INPUT_BLOCK_TYPES]
+    const all = [...CONTENT_BLOCK_TYPES, ...DATA_BLOCK_TYPES, ...INPUT_BLOCK_TYPES]
     if (!needle) return all
     return all.filter(
       (t) =>
@@ -64,6 +66,7 @@ function InsertMenu({ onPick, children }) {
   }, [q])
 
   const basic = filtered.filter((t) => t.group === 'Basic')
+  const data = filtered.filter((t) => t.group === 'Data')
   const inputs = filtered.filter((t) => t.group === 'Input')
 
   return (
@@ -73,18 +76,18 @@ function InsertMenu({ onPick, children }) {
       }}
     >
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent className="w-72 p-0" align="start">
+      <DropdownMenuContent className="w-80 p-0" align="start">
         <div className="border-b p-2">
           <Input
             autoFocus
             value={q}
-            placeholder="Filter blocks… (or type / in a block)"
+            placeholder="Filter blocks… try “table”"
             className="h-8"
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
           />
         </div>
-        <div className="max-h-72 overflow-y-auto p-1">
+        <div className="max-h-80 overflow-y-auto p-1">
           {basic.length > 0 && (
             <>
               <DropdownMenuLabel>Basic — notes & docs</DropdownMenuLabel>
@@ -95,6 +98,25 @@ function InsertMenu({ onPick, children }) {
                   onSelect={() => onPick(t.value)}
                 >
                   <span className="font-medium">{t.label}</span>
+                  <span className="text-[11px] text-muted-foreground">{t.hint}</span>
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
+          {data.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Data — grids</DropdownMenuLabel>
+              {data.map((t) => (
+                <DropdownMenuItem
+                  key={t.value}
+                  className="flex flex-col items-start gap-0.5"
+                  onSelect={() => onPick(t.value)}
+                >
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Table2 className="h-3.5 w-3.5" />
+                    {t.label}
+                  </span>
                   <span className="text-[11px] text-muted-foreground">{t.hint}</span>
                 </DropdownMenuItem>
               ))}
@@ -230,6 +252,14 @@ function BlockRow({
                     — Basic —
                   </SelectItem>
                   {CONTENT_BLOCK_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem disabled value="__data">
+                    — Data —
+                  </SelectItem>
+                  {DATA_BLOCK_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>
@@ -520,12 +550,23 @@ export default function NotionFormBuilder({ fields, onChange }) {
             Operators see the same layout when completing the stage.
           </p>
         </div>
-        <InsertMenu onPick={(type) => onChange([...fields, emptyFormField(type)])}>
-          <Button type="button" size="sm">
-            <Plus className="h-3.5 w-3.5" />
-            Add block
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onChange([...fields, emptyFormField('table')])}
+          >
+            <Table2 className="h-3.5 w-3.5" />
+            Add table
           </Button>
-        </InsertMenu>
+          <InsertMenu onPick={(type) => onChange([...fields, emptyFormField(type)])}>
+            <Button type="button" size="sm">
+              <Plus className="h-3.5 w-3.5" />
+              Add block
+            </Button>
+          </InsertMenu>
+        </div>
       </div>
 
       <div className="space-y-2">

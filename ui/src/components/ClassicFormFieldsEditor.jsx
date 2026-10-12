@@ -1,6 +1,8 @@
-import { Plus, Trash2, Paperclip } from 'lucide-react'
+import { Plus, Trash2, Paperclip, Table2 } from 'lucide-react'
 import {
-  FORM_FIELD_TYPES,
+  CONTENT_BLOCK_TYPES,
+  DATA_BLOCK_TYPES,
+  INPUT_BLOCK_TYPES,
   defaultTableColumns,
   emptyFormField,
   fieldNeedsOptions,
@@ -41,15 +43,26 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
             per line. Use the Notion tab for Markdown document blocks.
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => onChange([...fields, emptyFormField('text')])}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add field
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onChange([...fields, emptyFormField('table')])}
+          >
+            <Table2 className="h-3.5 w-3.5" />
+            Add table
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onChange([...fields, emptyFormField('text')])}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add field
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -130,7 +143,26 @@ export default function ClassicFormFieldsEditor({ fields, onChange }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {FORM_FIELD_TYPES.map((t) => (
+                        <SelectItem disabled value="__basic">
+                          — Basic —
+                        </SelectItem>
+                        {CONTENT_BLOCK_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem disabled value="__data">
+                          — Data —
+                        </SelectItem>
+                        {DATA_BLOCK_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem disabled value="__input">
+                          — Input —
+                        </SelectItem>
+                        {INPUT_BLOCK_TYPES.map((t) => (
                           <SelectItem key={t.value} value={t.value}>
                             {t.label}
                           </SelectItem>

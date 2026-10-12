@@ -13,6 +13,16 @@ export const CONTENT_BLOCK_TYPES = [
   { value: 'bullets', label: 'Bullet list', group: 'Basic', hint: 'One item per line' },
 ]
 
+/** Structured data blocks (shown as their own Insert menu section). */
+export const DATA_BLOCK_TYPES = [
+  {
+    value: 'table',
+    label: 'Table',
+    group: 'Data',
+    hint: 'Spreadsheet-style grid — add/remove columns and rows',
+  },
+]
+
 export const INPUT_BLOCK_TYPES = [
   { value: 'text', label: 'Short text', group: 'Input', hint: 'Single-line answer' },
   { value: 'textarea', label: 'Long text', group: 'Input', hint: 'Multi-line answer' },
@@ -28,13 +38,16 @@ export const INPUT_BLOCK_TYPES = [
   { value: 'radio', label: 'Radio', group: 'Input', hint: 'Single choice buttons' },
   { value: 'checkbox', label: 'Checkbox', group: 'Input', hint: 'Yes / no confirm' },
   { value: 'multiselect', label: 'Multi-select', group: 'Input', hint: 'Pick many options' },
-  { value: 'table', label: 'Table', group: 'Input', hint: 'Rows with add/remove columns' },
   { value: 'attachment', label: 'Attachment', group: 'Input', hint: 'File upload' },
   { value: 'signature', label: 'Signature', group: 'Input', hint: 'Typed endorsement' },
 ]
 
-/** @deprecated use CONTENT + INPUT — kept for FormsPage type dropdowns */
-export const FORM_FIELD_TYPES = [...CONTENT_BLOCK_TYPES, ...INPUT_BLOCK_TYPES]
+/** @deprecated use CONTENT + DATA + INPUT — kept for FormsPage type dropdowns */
+export const FORM_FIELD_TYPES = [
+  ...CONTENT_BLOCK_TYPES,
+  ...DATA_BLOCK_TYPES,
+  ...INPUT_BLOCK_TYPES,
+]
 
 export const ALL_BLOCK_TYPES = FORM_FIELD_TYPES
 
