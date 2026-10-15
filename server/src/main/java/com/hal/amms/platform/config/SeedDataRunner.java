@@ -3,6 +3,7 @@ package com.hal.amms.platform.config;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
+import com.hal.amms.identity.UserRecord;
 import com.hal.amms.identity.UserRepository;
 import com.hal.amms.workflow.WorkflowRepository;
 import com.hal.amms.workflow.domain.NodeType;
@@ -17,6 +18,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 @Component
+@Profile("!prod & (local | dev | test)")
 @ConditionalOnProperty(name = "amms.seed.enabled", havingValue = "true", matchIfMissing = true)
 public class SeedDataRunner implements ApplicationRunner {
 
@@ -71,11 +74,22 @@ public class SeedDataRunner implements ApplicationRunner {
         if (!userRepository.existsByUsername("admin")) {
             UUID id = UUID.randomUUID();
             userRepository.insertUser(id, "admin", passwordEncoder.encode(seedPassword), "AMMS Admin");
-            for (String role : new String[]{"PROGRESS", "INSPECTION", "QA", "STORES", "CUSTOMER", "SHOP_MANAGER"}) {
-                userRepository.linkRole(id, role);
-            }
             log.info("Seeded admin user");
         }
+        UUID adminId = userRepository.findByUsername("admin")
+                .orElseThrow(() -> new IllegalStateException("Seeded admin user could not be loaded"))
+                .id();
+        for (String role : new String[]{
+                "PROGRESS", "INSPECTION", "QA", "STORES", "CUSTOMER", "SHOP_MANAGER", "ADMIN"
+        }) {
+            userRepository.linkRole(adminId, role);
+        }
+        UserRecord admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new IllegalStateException("Seeded admin user could not be loaded"));
+        if (!admin.roles().contains("ADMIN")) {
+            throw new IllegalStateException("Local seeded admin account is missing the ADMIN role");
+        }
+        log.info("Verified local seeded admin account has the ADMIN role");
     }
 
     private void seedUser(String username, String displayName, String role) {

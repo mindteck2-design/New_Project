@@ -24,7 +24,8 @@ public class AmmsUserDetailsService implements UserDetailsService {
                         u.passwordHash(),
                         u.displayName(),
                         u.roles(),
-                        u.active()
+                        u.active(),
+                        u.mustChangePassword()
                 ))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }

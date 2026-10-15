@@ -9,5 +9,6 @@ public record UserRecord(
         String passwordHash,
         String displayName,
         boolean active,
+        boolean mustChangePassword,
         List<String> roles
 ) {}

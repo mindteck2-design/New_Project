@@ -9,6 +9,7 @@
 | 4 | Accessories Bench Check vertical slice (API + UI + audit) | **Complete** |
 | 5 | NDT Radiography second workflow | **Complete** |
 | 6 | Hardening: RBAC on instances/docs, attachment ACL download, integration tests, verify script | **Complete** |
+| 7 | User management v1: admin identity, user lifecycle API/UI, temporary credentials, audit and production bootstrap | **Implemented; PostgreSQL-backed verification pending** |
 
 ## Phase 6 deliverables
 
@@ -37,6 +38,12 @@
 - PKI digital signatures, SSO, IFS/AMMS integrations
 - Stores / plating / metrology chart imports
 - Partitioned audit archive, server PDF reports, Vault secrets
+
+## Phase 7 — user management
+
+Implemented in [`docs/USER_MANAGEMENT_PLAN.md`](USER_MANAGEMENT_PLAN.md): admin-only user management at `/users`; role/status changes and password resets are audited; temporary passwords are changed before normal API access; inactive JWTs are rejected; production bootstrap is operator-controlled. Seeded demo accounts and role switching are restricted to non-production profiles/builds.
+
+**Verification pending:** this environment's configured PostgreSQL test credentials are rejected. Run Flyway and database-backed API integration tests against approved empty and existing test databases before rollout.
 
 ## Agent review checklist (Phase 6 dry-run)
 

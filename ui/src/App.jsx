@@ -1,5 +1,8 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useAuth } from '@/stores/authStore'
+import { getUserRoles, hasRole } from '@/lib/roles'
 import LoginPage from '@/pages/LoginPage'
 import WorkflowDashboard from '@/pages/WorkflowDashboard'
 import AnalyticsPage from '@/pages/AnalyticsPage'
@@ -11,6 +14,8 @@ import FormsPage from '@/pages/FormsPage'
 import WorkflowDetailPage from '@/pages/WorkflowDetailPage'
 import WorkflowBuilderPage from '@/pages/WorkflowBuilderPage'
 import PackagesPage from '@/pages/PackagesPage'
+import UsersPage from '@/pages/UsersPage'
+import ChangePasswordPage from '@/pages/ChangePasswordPage'
 
 /** Legacy /process routes → Workflow Master (chart lives on definition detail). */
 function ProcessMapRedirect() {
@@ -19,17 +24,47 @@ function ProcessMapRedirect() {
 }
 
 function RequireAuth({ children }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const location = useLocation()
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+  if (user?.mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />
+  }
+  return children
+}
+
+function RequireAdmin({ children }) {
+  const { user } = useAuth()
+  if (!hasRole(getUserRoles(user), 'ADMIN')) {
+    return <Navigate to="/" replace />
   }
   return children
 }
 
 export default function App() {
+  const { token, refreshUser } = useAuth()
+
+  useEffect(() => {
+    if (!token) return
+
+    refreshUser().catch(() => {
+      toast.error('Could not refresh account permissions. Please retry or sign in again.')
+    })
+  }, [refreshUser, token])
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/change-password"
+        element={
+          <RequireAuth>
+            <ChangePasswordPage />
+          </RequireAuth>
+        }
+      />
 
       <Route
         path="/"
@@ -132,6 +167,16 @@ export default function App() {
         element={
           <RequireAuth>
             <FormsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <RequireAuth>
+            <RequireAdmin>
+              <UsersPage />
+            </RequireAdmin>
           </RequireAuth>
         }
       />

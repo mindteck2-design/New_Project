@@ -19,7 +19,8 @@ public class UserRepository {
     }
 
     public Optional<UserRecord> findByUsername(String username) {
-        return dsl.select(USERS.ID, USERS.USERNAME, USERS.PASSWORD_HASH, USERS.DISPLAY_NAME, USERS.ACTIVE)
+        return dsl.select(USERS.ID, USERS.USERNAME, USERS.PASSWORD_HASH, USERS.DISPLAY_NAME,
+                        USERS.ACTIVE, USERS.MUST_CHANGE_PASSWORD)
                 .from(USERS)
                 .where(USERS.USERNAME.eq(username))
                 .fetchOptional()
@@ -29,12 +30,14 @@ public class UserRepository {
                         r.get(USERS.PASSWORD_HASH),
                         r.get(USERS.DISPLAY_NAME),
                         Boolean.TRUE.equals(r.get(USERS.ACTIVE)),
+                        Boolean.TRUE.equals(r.get(USERS.MUST_CHANGE_PASSWORD)),
                         roleCodes(r.get(USERS.ID))
                 ));
     }
 
     public Optional<UserRecord> findById(UUID id) {
-        return dsl.select(USERS.ID, USERS.USERNAME, USERS.PASSWORD_HASH, USERS.DISPLAY_NAME, USERS.ACTIVE)
+        return dsl.select(USERS.ID, USERS.USERNAME, USERS.PASSWORD_HASH, USERS.DISPLAY_NAME,
+                        USERS.ACTIVE, USERS.MUST_CHANGE_PASSWORD)
                 .from(USERS)
                 .where(USERS.ID.eq(id))
                 .fetchOptional()
@@ -44,6 +47,7 @@ public class UserRepository {
                         r.get(USERS.PASSWORD_HASH),
                         r.get(USERS.DISPLAY_NAME),
                         Boolean.TRUE.equals(r.get(USERS.ACTIVE)),
+                        Boolean.TRUE.equals(r.get(USERS.MUST_CHANGE_PASSWORD)),
                         roleCodes(r.get(USERS.ID))
                 ));
     }
@@ -57,6 +61,40 @@ public class UserRepository {
                 .columns(USERS.ID, USERS.USERNAME, USERS.PASSWORD_HASH, USERS.DISPLAY_NAME, USERS.ACTIVE)
                 .values(id, username, passwordHash, displayName, true)
                 .execute();
+    }
+
+    public void insertUser(UUID id, String username, String passwordHash, String displayName,
+                           boolean mustChangePassword) {
+        dsl.insertInto(USERS)
+                .columns(USERS.ID, USERS.USERNAME, USERS.PASSWORD_HASH, USERS.DISPLAY_NAME,
+                        USERS.ACTIVE, USERS.MUST_CHANGE_PASSWORD)
+                .values(id, username, passwordHash, displayName, true, mustChangePassword)
+                .execute();
+    }
+
+    public void updateAccount(UUID id, String displayName, boolean active) {
+        dsl.update(USERS)
+                .set(USERS.DISPLAY_NAME, displayName)
+                .set(USERS.ACTIVE, active)
+                .where(USERS.ID.eq(id))
+                .execute();
+    }
+
+    public void updatePassword(UUID id, String passwordHash, boolean mustChangePassword) {
+        dsl.update(USERS)
+                .set(USERS.PASSWORD_HASH, passwordHash)
+                .set(USERS.MUST_CHANGE_PASSWORD, mustChangePassword)
+                .where(USERS.ID.eq(id))
+                .execute();
+    }
+
+    public void updatePasswordHash(UUID id, String passwordHash, boolean mustChangePassword) {
+        updatePassword(id, passwordHash, mustChangePassword);
+    }
+
+    public void replaceRoles(UUID userId, List<String> roleCodes) {
+        dsl.deleteFrom(USER_ROLES).where(USER_ROLES.USER_ID.eq(userId)).execute();
+        roleCodes.forEach(role -> linkRole(userId, role));
     }
 
     public void linkRole(UUID userId, String roleCode) {

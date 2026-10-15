@@ -16,7 +16,7 @@ These practices support quality-management expectations; they do **not** claim f
 | Control | Implementation |
 |---------|----------------|
 | Authn | JWT + BCrypt |
-| Authz | Role on node + method security |
+| Authz | Role on node + method security; `/api/v1/users/**` requires `ADMIN` |
 | Audit | `audit_logs` append-only from service layer |
 | Transport | TLS in prod (compose/reverse proxy) |
 | Secrets | `config/.env` gitignored |
@@ -28,3 +28,13 @@ These practices support quality-management expectations; they do **not** claim f
 - Soft-deleting audit rows
 - Storing plaintext passwords
 - Exposing MinIO credentials to the browser
+- Using inactive accounts' unexpired JWTs
+- Shipping demo-account selection or default credentials in production
+
+## User lifecycle controls
+
+- Account state and roles are reloaded from PostgreSQL when each JWT is authenticated; deactivation therefore rejects existing tokens.
+- Administrator-created and reset credentials are temporary and must be changed before any other protected API route is available.
+- Usernames are immutable. User records are disabled instead of deleted so workflow attribution remains intact.
+- User create/update/role/status/password-reset events are recorded in `user_admin_audit_logs` in the same transaction. Audit payloads exclude passwords and tokens.
+- The seeded `admin` and demo accounts are limited to `local`, `dev`, and `test` profiles. Production first-admin setup is operator-controlled via `AMMS_ADMIN_BOOTSTRAP_USERNAME` and `AMMS_ADMIN_BOOTSTRAP_PASSWORD`; remove both after successful startup before restarting.

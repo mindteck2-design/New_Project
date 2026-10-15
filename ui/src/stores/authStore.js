@@ -20,11 +20,31 @@ export const useAuthStore = create(
         return data
       },
 
+      async refreshUser() {
+        const token = get().token
+        if (!token) return null
+
+        const { data } = await api.get('/auth/me')
+        if (get().token !== token) return null
+
+        set({ user: data })
+        return data
+      },
+
+      async changePassword(currentPassword, newPassword) {
+        const { data } = await api.post('/auth/password', { currentPassword, newPassword })
+        set({ user: data })
+        return data
+      },
+
       logout() {
         set({ token: null, user: null, switching: false })
       },
 
       async switchUser(username) {
+        if (!import.meta.env.DEV) {
+          throw new Error('Demo user switching is available only in development')
+        }
         set({ switching: true })
         try {
           const { data } = await api.post('/auth/login', {
@@ -60,15 +80,19 @@ export function useAuth() {
   const user = useAuthStore((s) => s.user)
   const switching = useAuthStore((s) => s.switching)
   const login = useAuthStore((s) => s.login)
+  const refreshUser = useAuthStore((s) => s.refreshUser)
   const logout = useAuthStore((s) => s.logout)
   const switchUser = useAuthStore((s) => s.switchUser)
+  const changePassword = useAuthStore((s) => s.changePassword)
   return {
     token,
     user,
     switching,
     login,
+    refreshUser,
     logout,
     switchUser,
+    changePassword,
     isAuthenticated: Boolean(token && user),
   }
 }

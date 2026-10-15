@@ -14,11 +14,15 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -120,6 +124,69 @@ class WorkflowApiIntegrationTest {
     }
 
     @Test
+    void userAdministrationEnforcesAdminAndTemporaryPasswordLifecycle() throws Exception {
+        String adminToken = login("admin");
+        String progressToken = login("progress.user");
+        mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + progressToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        String username = "user-mgmt-" + UUID.randomUUID();
+        String temporaryPassword = "AMMS-Temporary-123!";
+        MvcResult created = mockMvc.perform(post("/api/v1/users")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"%s","displayName":"Temporary Operator","roles":["PROGRESS"],"temporaryPassword":"%s"}
+                                """.formatted(username, temporaryPassword)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode createdUser = mapper.readTree(created.getResponse().getContentAsString());
+        assertEquals(username, createdUser.path("username").asText());
+        assertEquals(true, createdUser.path("mustChangePassword").asBoolean());
+        assertFalse(created.getResponse().getContentAsString().contains("passwordHash"));
+        assertFalse(created.getResponse().getContentAsString().contains("temporaryPassword"));
+
+        String temporaryToken = login(username, temporaryPassword);
+        MvcResult blocked = mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + temporaryToken))
+                .andExpect(status().isForbidden())
+                .andReturn();
+        assertTrue(blocked.getResponse().getContentAsString().contains("PASSWORD_CHANGE_REQUIRED"));
+
+        mockMvc.perform(post("/api/v1/auth/password")
+                        .header("Authorization", "Bearer " + temporaryToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword":"%s","newPassword":"AMMS-Permanent-456!"}
+                                """.formatted(temporaryPassword)))
+                .andExpect(status().isOk());
+        MvcResult currentUser = mockMvc.perform(get("/api/v1/auth/me")
+                        .header("Authorization", "Bearer " + temporaryToken))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertFalse(mapper.readTree(currentUser.getResponse().getContentAsString())
+                .path("mustChangePassword").asBoolean());
+        mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + temporaryToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(patch("/api/v1/users/" + createdUser.path("id").asText())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"displayName":"Disabled Operator","roles":["PROGRESS"],"active":false}
+                                """))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/auth/me")
+                        .header("Authorization", "Bearer " + temporaryToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void ndtRadiographyAcceptPathCompletes() throws Exception {
         String token = login("admin");
         String instanceId = startWorkflow(token, "ndt-radiography");
@@ -176,9 +243,13 @@ class WorkflowApiIntegrationTest {
     }
 
     private String login(String username) throws Exception {
+        return login(username, "Passw0rd!");
+    }
+
+    private String login(String username, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"Passw0rd!\"}"))
+                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
         return mapper.readTree(result.getResponse().getContentAsString()).path("token").asText();

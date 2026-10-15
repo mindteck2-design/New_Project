@@ -22,6 +22,7 @@ Digitizes HAL Overhaul Division process charts as a **DB-driven workflow engine*
 - **Frontend:** React (JS), Tailwind, **shadcn**, React Hook Form, Zod, TanStack Query, TanStack Table, Axios, ExcelJS, Recharts, Sonner, Lucide
 - **Data:** PostgreSQL (workflow state), MongoDB (dynamic forms), MinIO (attachments)
 - **Workflow:** Custom state machine — UI never chooses the next node
+- **Identity:** Admin-managed accounts and explicit role assignments (`/users`)
 
 ## Required UI building blocks
 
@@ -42,6 +43,7 @@ cp .env.example .env
 - UI: http://127.0.0.1:5173  
 - API: http://127.0.0.1:8080/api/v1 (dev UI uses same-origin `/api` Vite proxy)  
 - Seeded password: `Passw0rd!` (`admin`, `inspection.user`, `progress.user`, …)
+- User-management design and rollout: [`docs/USER_MANAGEMENT_PLAN.md`](docs/USER_MANAGEMENT_PLAN.md)
 
 ## Docker
 

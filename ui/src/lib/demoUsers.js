@@ -2,7 +2,7 @@
 export const DEMO_PASSWORD = 'Passw0rd!'
 
 export const DEMO_USERS = [
-  { username: 'admin', displayName: 'AMMS Admin', roles: ['PROGRESS', 'INSPECTION', 'QA', 'STORES', 'CUSTOMER', 'SHOP_MANAGER'] },
+  { username: 'admin', displayName: 'AMMS Admin', roles: ['ADMIN', 'PROGRESS', 'INSPECTION', 'QA', 'STORES', 'CUSTOMER', 'SHOP_MANAGER'] },
   { username: 'progress.user', displayName: 'Progress Officer', roles: ['PROGRESS'] },
   { username: 'inspection.user', displayName: 'Inspector', roles: ['INSPECTION'] },
   { username: 'qa.user', displayName: 'QA Officer', roles: ['QA'] },
@@ -18,4 +18,5 @@ export const ROLE_LABELS = {
   STORES: 'Stores',
   CUSTOMER: 'Customer',
   SHOP_MANAGER: 'Shop Manager',
+  ADMIN: 'System Administrator',
 }

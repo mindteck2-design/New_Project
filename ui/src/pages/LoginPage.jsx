@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,6 +10,7 @@ import { DEMO_USERS, ROLE_LABELS } from '@/lib/demoUsers'
 import { primaryRoleGuidance } from '@/lib/roleGuidance'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -34,12 +36,15 @@ const loginSchema = z.object({
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const [selectedDemoUser, setSelectedDemoUser] = useState(
+    import.meta.env.DEV ? 'admin' : '',
+  )
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: 'admin',
-      password: 'Passw0rd!',
+      username: import.meta.env.DEV ? 'admin' : '',
+      password: import.meta.env.DEV ? 'Passw0rd!' : '',
     },
   })
 
@@ -55,7 +60,7 @@ export default function LoginPage() {
           : roleLine || 'Open your briefing on the dashboard.',
         duration: 5500,
       })
-      navigate('/')
+      navigate(session?.user?.mustChangePassword ? '/change-password' : '/')
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Login failed')
     }
@@ -89,41 +94,41 @@ export default function LoginPage() {
         <Card className="mx-auto w-full max-w-md border-border/70">
           <CardHeader>
             <CardTitle>Sign in</CardTitle>
-            <CardDescription>Select a demo role/user or enter credentials.</CardDescription>
+            <CardDescription>
+              {import.meta.env.DEV
+                ? 'Sign in with an account or select a development demo user.'
+                : 'Enter your account credentials to continue.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quick select user</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={(v) => {
-                          field.onChange(v)
-                          form.setValue('password', 'Passw0rd!')
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose user" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {DEMO_USERS.map((u) => (
-                            <SelectItem key={u.username} value={u.username}>
-                              {u.displayName} · {u.roles.join(', ')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {import.meta.env.DEV && (
+                  <div className="space-y-2">
+                    <Label htmlFor="demo-user">Quick select user</Label>
+                    <Select
+                      value={selectedDemoUser}
+                      onValueChange={(username) => {
+                        const demoUser = DEMO_USERS.find((candidate) => candidate.username === username)
+                        if (!demoUser) return
+                        setSelectedDemoUser(username)
+                        form.setValue('username', username, { shouldValidate: true })
+                        form.setValue('password', 'Passw0rd!')
+                      }}
+                    >
+                      <SelectTrigger id="demo-user">
+                        <SelectValue placeholder="Choose user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEMO_USERS.map((u) => (
+                          <SelectItem key={u.username} value={u.username}>
+                            {u.displayName} · {u.roles.join(', ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <FormField
                   control={form.control}
                   name="username"
@@ -131,7 +136,14 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Username</FormLabel>
                       <FormControl>
-                        <Input autoComplete="username" {...field} />
+                        <Input
+                          autoComplete="username"
+                          {...field}
+                          onChange={(event) => {
+                            field.onChange(event)
+                            setSelectedDemoUser('')
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

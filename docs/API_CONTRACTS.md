@@ -9,7 +9,24 @@ Errors: `{ "code": string, "message": string, "details": object|null }`
 | Method | Path | Body | Response |
 |--------|------|------|----------|
 | POST | `/auth/login` | `{ username, password }` | `{ token, user: { id, username, displayName, roles[] } }` |
-| GET | `/auth/me` | — | current user |
+| GET | `/auth/me` | — | current user `{ id, username, displayName, roles[], mustChangePassword }` |
+| POST | `/auth/password` | `{ currentPassword, newPassword }` | current user; clears forced-change state |
+
+## User administration
+
+All `/users` endpoints require the `ADMIN` role. User records never include password hashes or submitted passwords. Usernames are immutable after creation; accounts are deactivated rather than deleted.
+
+| Method | Path | Body / query | Description |
+|--------|------|--------------|-------------|
+| GET | `/users?page=0&size=25&active=true&role=PROGRESS&q=...` | — | Paginated user search; filters are optional, `size` is 1–100 |
+| GET | `/users/{id}` | — | Read one managed user |
+| POST | `/users` | `{ username, displayName, roles[], temporaryPassword }` | Create active account; temporary password must be changed at first sign-in |
+| PATCH | `/users/{id}` | `{ displayName, roles[], active }` | Update display name, supported role assignments, and active state |
+| POST | `/users/{id}/password-reset` | `{ temporaryPassword }` | Set a temporary password; next sign-in requires a password change |
+
+The password-change gate permits only `GET /auth/me` and `POST /auth/password` until the temporary password is changed. Passwords must be at least 12 characters and no more than 72 UTF-8 bytes. A request that would demote or deactivate the last administrator returns `409`. Management operations and their safe before/after state are written atomically to `user_admin_audit_logs`; credentials are never included in audit payloads.
+
+In the `prod` profile, the first administrator is bootstrapped only when both `AMMS_ADMIN_BOOTSTRAP_USERNAME` and `AMMS_ADMIN_BOOTSTRAP_PASSWORD` are supplied. The bootstrap account receives only `ADMIN` and must change its temporary password. Remove both variables before restarting after successful bootstrap; if an administrator already exists while bootstrap credentials remain configured, startup fails closed.
 
 ## Workflows
 

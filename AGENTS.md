@@ -91,6 +91,7 @@ Project skills live in [`.cursor/skills/`](.cursor/skills/) — see [SOURCES.md]
 | `/instances/:id` | Stage execution (forms / decisions) |
 | `/forms` | Form Master (Configure) |
 | `/workflows` | Workflow Master (Configure) |
+| `/users` | User management (Administration; `ADMIN` only) |
 | `/process`, `/process/:key` | Legacy — redirects to Workflow Master |
 | `/login` | Auth |
 
@@ -138,7 +139,7 @@ scripts/     start/stop/seed/healthcheck/verify
 - REST: `/api/v1/...`
 - Tables: `snake_case` plural
 - Workflow keys: `domain-action` (e.g. `accessories-bench-check`)
-- Roles: `PROGRESS`, `INSPECTION`, `QA`, `STORES`, `CUSTOMER`, `SHOP_MANAGER`
+- Roles: `PROGRESS`, `INSPECTION`, `QA`, `STORES`, `CUSTOMER`, `SHOP_MANAGER`, `ADMIN`
 
 ## Errors & audit
 

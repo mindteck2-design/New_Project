@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { ChevronsLeft, ChevronsRight, LogOut, Workflow } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
 import { APP_BRAND, NAV_GROUPS } from '@/lib/navConfig'
+import { getUserRoles, hasRole, normalizeRoleCode } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -78,7 +79,13 @@ export default function AppSidebar({
 }) {
   const location = useLocation()
   const { user, logout } = useAuth()
-  const roles = user?.roles || []
+  const roles = getUserRoles(user)
+  const visibleGroups = NAV_GROUPS
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.adminOnly || hasRole(roles, 'ADMIN')),
+    }))
+    .filter((group) => group.items.length > 0)
 
   const [internalCollapsed, setInternalCollapsed] = useState(() => {
     try {
@@ -151,7 +158,7 @@ export default function AppSidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Primary">
-          {NAV_GROUPS.map((group, gi) => (
+          {visibleGroups.map((group, gi) => (
             <div key={group.id} className={cn(gi > 0 && 'mt-4')}>
               {!collapsed ? (
                 <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -185,7 +192,7 @@ export default function AppSidebar({
               <div className="flex flex-wrap gap-1">
                 {roles.slice(0, 4).map((r) => (
                   <Badge key={r} variant="outline" className="text-[10px] font-normal">
-                    {ROLE_LABELS[r] || r}
+                    {ROLE_LABELS[normalizeRoleCode(r)] || r}
                   </Badge>
                 ))}
                 {roles.length > 4 && (

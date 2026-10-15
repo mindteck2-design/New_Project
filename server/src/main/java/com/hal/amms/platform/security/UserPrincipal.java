@@ -17,19 +17,23 @@ public class UserPrincipal implements UserDetails {
     private final String displayName;
     private final List<String> roles;
     private final boolean active;
+    private final boolean mustChangePassword;
 
-    public UserPrincipal(UUID id, String username, String passwordHash, String displayName, List<String> roles, boolean active) {
+    public UserPrincipal(UUID id, String username, String passwordHash, String displayName, List<String> roles,
+                         boolean active, boolean mustChangePassword) {
         this.id = id;
         this.username = username;
         this.passwordHash = passwordHash;
         this.displayName = displayName;
         this.roles = roles;
         this.active = active;
+        this.mustChangePassword = mustChangePassword;
     }
 
     public UUID getId() { return id; }
     public String getDisplayName() { return displayName; }
     public List<String> getRoles() { return roles; }
+    public boolean mustChangePassword() { return mustChangePassword; }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

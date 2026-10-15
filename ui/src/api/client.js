@@ -43,6 +43,38 @@ export async function fetchRoles() {
   return data
 }
 
+export async function fetchUsers(params = {}) {
+  const { data } = await api.get('/users', { params })
+  return data
+}
+
+export async function fetchUser(id) {
+  const { data } = await api.get(`/users/${encodeURIComponent(id)}`)
+  return data
+}
+
+export async function createUser(body) {
+  const { data } = await api.post('/users', body)
+  return data
+}
+
+export async function updateUser(id, body) {
+  const { data } = await api.patch(`/users/${encodeURIComponent(id)}`, body)
+  return data
+}
+
+export async function resetUserPassword(id, temporaryPassword) {
+  const { data } = await api.post(`/users/${encodeURIComponent(id)}/password-reset`, {
+    temporaryPassword,
+  })
+  return data
+}
+
+export async function changeOwnPassword(currentPassword, newPassword) {
+  const { data } = await api.post('/auth/password', { currentPassword, newPassword })
+  return data
+}
+
 export async function createWorkflow(body) {
   const { data } = await api.post('/workflows', body)
   return data

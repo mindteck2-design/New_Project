@@ -28,6 +28,9 @@ Digitize HAL Overhaul Division maintenance procedures as a **Dynamic Workflow En
    - NDT Radiography
 8. JWT auth with seeded users per role
 9. Monorepo ops: `ui/`, `server/`, `config/`, `docker/`, `scripts/`
+10. Admin-managed user lifecycle: create, search, update display name, assign supported roles, activate/deactivate, and reset temporary passwords
+11. Temporary passwords require change before protected API access; inactive accounts cannot use existing JWTs
+12. User administration changes are transactionally audited; accounts are retained rather than deleted
 
 ## Out of scope (MVP)
 
@@ -35,6 +38,7 @@ Digitize HAL Overhaul Division maintenance procedures as a **Dynamic Workflow En
 - Stores RR matrix, plating chemistry, metrology calibration runtime
 - Live IFS / AMMS / MUMS integrations
 - PKI digital signatures / SSO
+- Email invitations or email-based password recovery (no delivery service is configured)
 - Heavy BPMN engines (Camunda/Flowable)
 
 ## Functional requirements
@@ -43,6 +47,11 @@ Digitize HAL Overhaul Division maintenance procedures as a **Dynamic Workflow En
 - FR2: Users see only steps/forms allowed for their role on the current node
 - FR3: UI never computes next node; server returns `currentNode` + actions
 - FR4: Every Pass/Fail/Reject/Approve writes an audit row
+- FR5: Administrators can search, create, update, activate/deactivate, and assign supported roles to user accounts
+- FR6: Temporary passwords require a change before other protected API access; users can change their own password
+- FR7: Deactivated accounts are rejected even when presenting an unexpired JWT
+- FR8: User-administration mutations and password changes are audited without password or token contents
+- FR9: The system prevents deactivation or demotion of the last active administrator
 ## Non-functional
 
 - Profiles: `dev`, `prod`, `local` (no-Docker fallbacks)

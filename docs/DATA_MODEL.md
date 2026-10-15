@@ -12,10 +12,27 @@
 ### users / roles
 
 ```sql
-users(id UUID PK, username UNIQUE, password_hash, display_name, active, created_at)
+users(id UUID PK, username UNIQUE, password_hash, display_name, active, must_change_password, created_at)
 roles(id UUID PK, code UNIQUE, name)
 user_roles(user_id, role_id)
 ```
+
+`must_change_password` defaults to `FALSE` for existing rows. Managed accounts are deactivated, not deleted.
+
+### User administration audit
+
+```sql
+user_admin_audit_logs(
+  id UUID PK,
+  actor_user_id UUID NULL FK users,
+  target_user_id UUID NOT NULL FK users,
+  action VARCHAR(50),
+  changes_json JSONB,
+  created_at TIMESTAMPTZ
+)
+```
+
+`actor_user_id` is null only for the operator-controlled initial production bootstrap. Audit payloads contain safe account/role/status deltas and never contain passwords, reset secrets, or tokens. User administration writes and audit rows share one transaction.
 
 ### workflow definitions
 
@@ -53,6 +70,7 @@ form_documents(id UUID PK, instance_id, form_key, node_key, payload_json JSONB, 
 
 ## Migration rules
 
-1. `V1__init.sql` — base tables + seed roles
-2. Later versions for indexes/constraints only as needed
-3. Workflow seed data loaded via `scripts/seed.sh` / application runner (not hardcoded business logic in Java beyond bootstrap)
+1. `V1__init.sql` — base tables + operational roles
+2. `V5__user_management_foundation.sql` — `ADMIN`, forced-password-change flag, and user-administration audit table/indexes
+3. Later versions for additive schema changes only; never edit an applied migration
+4. Workflow and demo-user seed data is confined to non-production profiles

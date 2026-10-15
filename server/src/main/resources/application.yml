@@ -7,9 +7,9 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:127.0.0.1}:${POSTGRES_PORT:5432}/${POSTGRES_DB:amms}
-    username: ${POSTGRES_USER:amms}
-    password: ${POSTGRES_PASSWORD:amms_dev}
+    url: jdbc:postgresql://${POSTGRES_HOST:127.0.0.1}:${POSTGRES_PORT:5433}/${POSTGRES_DB:amms}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
   flyway:
     enabled: true
   jooq:

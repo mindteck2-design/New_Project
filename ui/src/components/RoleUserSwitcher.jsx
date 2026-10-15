@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 
 export default function RoleUserSwitcher({ compact = false }) {
   const { user, switchUser, switching } = useAuth()
+  if (!import.meta.env.DEV) return null
 
   async function onChange(username) {
     if (!username || username === user?.username) return

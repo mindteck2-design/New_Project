@@ -58,6 +58,12 @@ Used in constrained environments:
 - `local` — filesystem attachments + PG JSONB forms if Mongo unavailable
 - `prod` — stricter security, no seed passwords in logs
 
+### Initial production administrator
+
+Production does not seed demo users. For a first deployment with no administrator account, operators may supply `AMMS_ADMIN_BOOTSTRAP_USERNAME` and `AMMS_ADMIN_BOOTSTRAP_PASSWORD` through the deployment's protected secret mechanism. The application creates one active account with only the `ADMIN` role, forces a password change at first sign-in, and records an initial bootstrap audit event. The password must meet the same policy as temporary account credentials (at least 12 characters and no more than 72 UTF-8 bytes).
+
+Remove both bootstrap variables from the secret source immediately after successful startup. If any administrator account already exists while either variable is configured, startup fails rather than reusing or silently ignoring bootstrap credentials. Do not put actual credentials in `.env.example`, documentation, or source control.
+
 ## Health
 
 - Server: `GET /actuator/health`

@@ -19,6 +19,7 @@ Routes stay stable (`AGENTS.md`). Labels speak aircraft-maintenance language —
 | Track | Maintenance runs | `/instances` | Active/completed stage executions + history |
 | Configure | Form Master | `/forms` | Reusable checklists / stage forms (draft → publish) |
 | Configure | Workflow Master | `/workflows` | Configurable stage sequence, roles, transitions |
+| Administration | User management | `/users` | Admin-only account lifecycle and role assignment |
 
 Source of truth for labels/groups: `ui/src/lib/navConfig.js`.
 

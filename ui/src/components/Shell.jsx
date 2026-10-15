@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LogOut, Menu } from 'lucide-react'
+import { KeyRound, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
 import {
   actionableNotifications,
@@ -134,9 +134,11 @@ export default function Shell({ children }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden md:block">
-              <RoleUserSwitcher compact />
-            </div>
+            {import.meta.env.DEV && (
+              <div className="hidden md:block">
+                <RoleUserSwitcher compact />
+              </div>
+            )}
             <NotificationCenter />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -155,10 +157,21 @@ export default function Shell({ children }) {
                   <div className="text-xs font-normal text-muted-foreground">{user?.username}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <div className="px-2 py-2 md:hidden">
-                  <RoleUserSwitcher />
-                </div>
-                <DropdownMenuSeparator className="md:hidden" />
+                {import.meta.env.DEV && (
+                  <>
+                    <div className="px-2 py-2 md:hidden">
+                      <RoleUserSwitcher />
+                    </div>
+                    <DropdownMenuSeparator className="md:hidden" />
+                  </>
+                )}
+                <DropdownMenuItem asChild>
+                  <Link to="/change-password">
+                    <KeyRound className="h-4 w-4" />
+                    Change password
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => {
                     logout()

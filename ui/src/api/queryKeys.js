@@ -28,6 +28,11 @@ export const queryKeys = {
   roles: {
     all: ['roles'],
   },
+  users: {
+    all: ['users'],
+    list: (filters = {}) => ['users', 'list', filters],
+    detail: (id) => ['users', 'detail', id],
+  },
   packages: {
     all: ['packages'],
     detail: (id) => ['package', id],

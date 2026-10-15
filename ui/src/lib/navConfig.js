@@ -17,6 +17,7 @@ import {
   FileStack,
   LayoutDashboard,
   Package,
+  Shield,
   Workflow,
 } from 'lucide-react'
 
@@ -34,6 +35,7 @@ export const NAV_LABELS = {
   runs: 'Maintenance runs',
   forms: 'Form Master',
   workflows: 'Workflow Master',
+  users: 'User management',
 }
 
 export const NAV_GROUPS = [
@@ -108,6 +110,20 @@ export const NAV_GROUPS = [
         label: NAV_LABELS.workflows,
         icon: Workflow,
         match: (pathname) => pathname === '/workflows' || pathname.startsWith('/workflows/'),
+      },
+    ],
+  },
+  {
+    id: 'administration',
+    label: 'Administration',
+    items: [
+      {
+        id: 'users',
+        to: '/users',
+        label: NAV_LABELS.users,
+        icon: Shield,
+        adminOnly: true,
+        match: (pathname) => pathname === '/users' || pathname.startsWith('/users/'),
       },
     ],
   },
