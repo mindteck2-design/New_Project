@@ -129,6 +129,11 @@ export async function fetchAudit(id) {
   return data
 }
 
+export async function fetchCurrentFormValues(id) {
+  const { data } = await api.get(`/instances/${id}/forms/current`)
+  return data
+}
+
 export async function fetchDocuments(id) {
   const { data } = await api.get(`/instances/${id}/documents`)
   return data

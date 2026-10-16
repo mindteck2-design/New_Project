@@ -161,9 +161,18 @@ function defaultForField(f) {
   return ''
 }
 
-export default function DynamicForm({ formKey, instanceId, disabled, onSubmit }) {
+export default function DynamicForm({
+  formKey,
+  instanceId,
+  disabled,
+  initialValues,
+  decisionActions,
+  onSubmit,
+}) {
   const qc = useQueryClient()
   const [uploading, setUploading] = useState(null)
+  const [selectedDecision, setSelectedDecision] = useState('')
+  const hasDecision = Array.isArray(decisionActions) && decisionActions.length > 0
 
   const schemaQuery = useQuery({
     queryKey: ['form-schema', formKey],
@@ -209,9 +218,14 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
 
   const defaultValues = useMemo(() => {
     const values = { signaturePlaceholder: '' }
-    for (const f of inputFields) values[f.name] = defaultForField(f)
+    for (const f of inputFields) {
+      values[f.name] = initialValues
+        && Object.prototype.hasOwnProperty.call(initialValues, f.name)
+        ? initialValues[f.name]
+        : defaultForField(f)
+    }
     return values
-  }, [inputFields])
+  }, [inputFields, initialValues])
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -259,6 +273,7 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
     onSubmit({
       formPayload,
       signaturePlaceholder: signaturePlaceholder?.trim() || undefined,
+      decisionValue: selectedDecision || undefined,
     })
   }
 
@@ -305,6 +320,35 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
             />
           )
         })}
+        {hasDecision && (
+          <div className="space-y-2">
+            <Label>Decision outcome</Label>
+            <div className="flex flex-wrap gap-2">
+              {decisionActions.map((action) => {
+                const negative = ['FAIL', 'NO', 'REJECT'].includes(
+                  String(action.value).toUpperCase(),
+                )
+                const active = selectedDecision === action.value
+                return (
+                  <Button
+                    key={action.value}
+                    type="button"
+                    disabled={disabled || !!uploading}
+                    variant={negative ? 'destructive' : 'success'}
+                    className={active ? 'ring-2 ring-ring ring-offset-2' : undefined}
+                    aria-pressed={active}
+                    onClick={() => setSelectedDecision(action.value)}
+                  >
+                    {action.label}
+                  </Button>
+                )
+              })}
+            </div>
+            {!selectedDecision && (
+              <p className="text-sm font-medium text-destructive">Select an outcome to continue.</p>
+            )}
+          </div>
+        )}
         {inputFields.some((f) => f.type === 'signature') ? null : (
           <FormField
             control={form.control}
@@ -320,8 +364,15 @@ export default function DynamicForm({ formKey, instanceId, disabled, onSubmit })
             )}
           />
         )}
-        <Button type="submit" disabled={disabled || form.formState.isSubmitting || !!uploading}>
-          {inputFields.length ? 'Complete step' : 'Acknowledge & continue'}
+        <Button
+          type="submit"
+          disabled={disabled || form.formState.isSubmitting || !!uploading || (hasDecision && !selectedDecision)}
+        >
+          {hasDecision
+            ? 'Submit form & decision'
+            : inputFields.length
+              ? 'Complete step'
+              : 'Acknowledge & continue'}
         </Button>
       </form>
     </Form>

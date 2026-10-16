@@ -37,7 +37,7 @@ Source of truth for labels/groups: `ui/src/lib/navConfig.js`.
 ## Execution path (retain)
 
 1. **Form Master** — draft → publish reusable forms (clone preserves a new draft key).
-2. **Workflow Master** — stages + role + form + transitions; filter by work type / aircraft; activate or clone charts.
+2. **Workflow Master** — stages + role + form + transitions; configure each step as a task or decision, and set decision outcomes to route to another step or completion; filter by work type / aircraft; activate or clone charts.
 3. **Work order** — aircraft + PO/SO + ROUTINE|REPAIR (optional default workflow).
 4. **Add part** — attach a master workflow to that aircraft part (not the whole work order).
 5. **Open part** → starts a **maintenance run** (`/instances/:id`) for the part’s chart.

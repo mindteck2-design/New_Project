@@ -12,6 +12,7 @@ export const queryKeys = {
     all: (userId) => ['instances', userId],
     detail: (id) => ['instance', id],
     audit: (id) => ['audit', id],
+    formValues: (id, nodeKey, formKey) => ['instance-form-values', id, nodeKey, formKey],
     documents: (id) => ['documents', id],
   },
   notifications: {

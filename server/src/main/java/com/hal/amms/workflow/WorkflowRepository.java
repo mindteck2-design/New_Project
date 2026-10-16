@@ -284,15 +284,24 @@ public class WorkflowRepository {
     }
 
     public List<AuditEntry> auditsFor(UUID instanceId) {
-        return dsl.select(AUDIT_LOGS.ID, AUDIT_LOGS.INSTANCE_ID, AUDIT_LOGS.USER_ID, AUDIT_LOGS.ACTION, AUDIT_LOGS.FROM_NODE, AUDIT_LOGS.TO_NODE, AUDIT_LOGS.PAYLOAD_JSON, AUDIT_LOGS.SIGNATURE_PLACEHOLDER, AUDIT_LOGS.CREATED_AT)
+        return dsl.select(AUDIT_LOGS.ID, AUDIT_LOGS.INSTANCE_ID, AUDIT_LOGS.USER_ID, AUDIT_LOGS.ACTION,
+                        AUDIT_LOGS.FROM_NODE, AUDIT_LOGS.TO_NODE, AUDIT_LOGS.PAYLOAD_JSON,
+                        AUDIT_LOGS.SIGNATURE_PLACEHOLDER, AUDIT_LOGS.CREATED_AT,
+                        USERS.DISPLAY_NAME, USERS.USERNAME)
                 .from(AUDIT_LOGS)
+                .leftJoin(USERS).on(USERS.ID.eq(AUDIT_LOGS.USER_ID))
                 .where(AUDIT_LOGS.INSTANCE_ID.eq(instanceId))
                 .orderBy(AUDIT_LOGS.CREATED_AT.asc())
-                .fetch(r -> new AuditEntry(
-                        r.get(AUDIT_LOGS.ID), r.get(AUDIT_LOGS.INSTANCE_ID), r.get(AUDIT_LOGS.USER_ID), r.get(AUDIT_LOGS.ACTION),
-                        r.get(AUDIT_LOGS.FROM_NODE), r.get(AUDIT_LOGS.TO_NODE), jsonb(r.get(AUDIT_LOGS.PAYLOAD_JSON)), r.get(AUDIT_LOGS.SIGNATURE_PLACEHOLDER),
-                        toInstant(r.get(AUDIT_LOGS.CREATED_AT))
-                ));
+                .fetch(this::mapAuditEntry);
+    }
+
+    private AuditEntry mapAuditEntry(org.jooq.Record r) {
+        return new AuditEntry(
+                r.get(AUDIT_LOGS.ID), r.get(AUDIT_LOGS.INSTANCE_ID), r.get(AUDIT_LOGS.USER_ID), r.get(AUDIT_LOGS.ACTION),
+                r.get(AUDIT_LOGS.FROM_NODE), r.get(AUDIT_LOGS.TO_NODE), jsonb(r.get(AUDIT_LOGS.PAYLOAD_JSON)),
+                r.get(AUDIT_LOGS.SIGNATURE_PLACEHOLDER), toInstant(r.get(AUDIT_LOGS.CREATED_AT)),
+                r.get(USERS.DISPLAY_NAME), r.get(USERS.USERNAME)
+        );
     }
 
     public void insertForm(UUID id, UUID instanceId, String formKey, String nodeKey, String payloadJson, UUID createdBy) {
@@ -300,6 +309,17 @@ public class WorkflowRepository {
                 .columns(FORM_DOCUMENTS.ID, FORM_DOCUMENTS.INSTANCE_ID, FORM_DOCUMENTS.FORM_KEY, FORM_DOCUMENTS.NODE_KEY, FORM_DOCUMENTS.PAYLOAD_JSON, FORM_DOCUMENTS.CREATED_BY)
                 .values(id, instanceId, formKey, nodeKey, JSONB.valueOf(payloadJson), createdBy)
                 .execute();
+    }
+
+    public Optional<String> latestFormPayload(UUID instanceId, String nodeKey, String formKey) {
+        return dsl.select(FORM_DOCUMENTS.PAYLOAD_JSON)
+                .from(FORM_DOCUMENTS)
+                .where(FORM_DOCUMENTS.INSTANCE_ID.eq(instanceId)
+                        .and(FORM_DOCUMENTS.NODE_KEY.eq(nodeKey))
+                        .and(FORM_DOCUMENTS.FORM_KEY.eq(formKey)))
+                .orderBy(FORM_DOCUMENTS.CREATED_AT.desc(), FORM_DOCUMENTS.ID.desc())
+                .limit(1)
+                .fetchOptional(r -> jsonb(r.get(FORM_DOCUMENTS.PAYLOAD_JSON)));
     }
 
     public void insertInspection(UUID id, UUID instanceId, String nodeKey, String result, String notes, UUID recordedBy) {

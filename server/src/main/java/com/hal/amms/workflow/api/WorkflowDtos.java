@@ -43,6 +43,12 @@ public final class WorkflowDtos {
             Instant updatedAt
     ) {}
 
+    public record FormPrefillView(
+            String nodeKey,
+            String formKey,
+            Map<String, Object> values
+    ) {}
+
     public record StartInstanceRequest(String businessKey, Map<String, Object> context) {}
 
     public record TransitionRequest(
@@ -94,8 +100,11 @@ public final class WorkflowDtos {
             String fromNode,
             String toNode,
             UUID userId,
+            String actorDisplayName,
+            String actorUsername,
             String signaturePlaceholder,
-            Instant createdAt
+            Instant createdAt,
+            Map<String, Object> payload
     ) {}
 
     public record DocumentView(

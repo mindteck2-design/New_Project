@@ -29,8 +29,7 @@ import {
 } from '@/components/ui/select'
 
 const MAIN_X = 80
-const FAIL_X = 420
-const ROW_H = 210
+const ROW_H = 310
 const TERMINAL_H = 72
 
 function roleLabel(code) {
@@ -77,34 +76,32 @@ function TerminalNode({ data }) {
       {data.kind !== 'END' && (
         <Handle type="source" position={Position.Bottom} className="!h-2.5 !w-2.5 !bg-primary" />
       )}
-      {data.kind === 'END' && data.acceptFail && (
-        <Handle
-          type="target"
-          id="fail"
-          position={Position.Left}
-          className="!h-2.5 !w-2.5 !bg-amber-500"
-        />
-      )}
     </div>
   )
 }
 
-function TaskNode({ data, selected }) {
+function WorkflowStepNode({ data, selected }) {
+  const isDecision = data.nodeType === 'DECISION'
   return (
     <div
       className={cn(
-        'w-[300px] rounded-xl border bg-card p-3 shadow-sm transition-shadow',
-        selected && 'ring-2 ring-primary shadow-md',
+        'w-[320px] rounded-xl border p-3 shadow-sm transition-shadow',
+        isDecision ? 'border-amber-300/70 bg-amber-50/60' : 'bg-card',
+        selected && (isDecision ? 'ring-2 ring-amber-500 shadow-md' : 'ring-2 ring-primary shadow-md'),
       )}
     >
-      <Handle type="target" position={Position.Top} className="!h-2.5 !w-2.5 !bg-primary" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className={cn('!h-2.5 !w-2.5', isDecision ? '!bg-amber-600' : '!bg-primary')}
+      />
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Badge variant="secondary" className="text-[10px]">
             Step {data.stepIndex}
           </Badge>
-          <Badge variant="outline" className="text-[10px]">
-            TASK
+          <Badge variant={isDecision ? 'warning' : 'outline'} className="text-[10px]">
+            {data.nodeType}
           </Badge>
         </div>
         <Button
@@ -134,6 +131,21 @@ function TaskNode({ data, selected }) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
+            <Label className="text-[11px]">Step type</Label>
+            <Select
+              value={data.nodeType}
+              onValueChange={(value) => data.onUpdate?.({ nodeType: value })}
+            >
+              <SelectTrigger className="nodrag nopan h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TASK">Task</SelectItem>
+                <SelectItem value="DECISION">Decision</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label className="text-[11px]">Role</Label>
             <RoleSelect
               value={data.roleCode}
@@ -141,124 +153,66 @@ function TaskNode({ data, selected }) {
               onChange={(v) => data.onUpdate?.({ roleCode: v })}
             />
           </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px]">Master form</Label>
+          <Select
+            value={data.formKey || undefined}
+            onValueChange={(v) => data.onUpdate?.({ formKey: v })}
+          >
+            <SelectTrigger className="nodrag nopan h-8">
+              <SelectValue placeholder="Select form" />
+            </SelectTrigger>
+            <SelectContent>
+              {(data.masterForms || []).map((f) => (
+                <SelectItem key={f.formKey} value={f.formKey}>
+                  {f.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {isDecision && (
           <div className="space-y-1">
-            <Label className="text-[11px]">Master form</Label>
+            <Label className="text-[11px]">FAIL destination</Label>
             <Select
-              value={data.formKey || undefined}
-              onValueChange={(v) => data.onUpdate?.({ formKey: v })}
+              value={data.failureTarget}
+              onValueChange={(value) => data.onUpdate?.({ failureTarget: value })}
             >
               <SelectTrigger className="nodrag nopan h-8">
-                <SelectValue placeholder="Select form" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(data.masterForms || []).map((f) => (
-                  <SelectItem key={f.formKey} value={f.formKey}>
-                    {f.name}
+                {data.failureTargets.map((target) => (
+                  <SelectItem key={target.value} value={target.value}>
+                    {target.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        </div>
+        )}
+        {isDecision && (
+          <p className="rounded-md border border-amber-200 bg-white/70 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+            PASS continues to the next step. FAIL follows the selected route.
+          </p>
+        )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!h-2.5 !w-2.5 !bg-primary" />
-    </div>
-  )
-}
-
-function DecisionNode({ data, selected }) {
-  return (
-    <div
-      className={cn(
-        'w-[300px] rounded-xl border border-amber-300/70 bg-amber-50/60 p-3 shadow-sm transition-shadow',
-        selected && 'ring-2 ring-amber-500 shadow-md',
+      {isDecision ? (
+        <>
+          <Handle type="source" id="pass" position={Position.Bottom} className="!h-2.5 !w-2.5 !bg-emerald-600" />
+          <Handle type="source" id="fail" position={Position.Right} className="!h-2.5 !w-2.5 !bg-amber-600" />
+        </>
+      ) : (
+        <Handle type="source" position={Position.Bottom} className="!h-2.5 !w-2.5 !bg-primary" />
       )}
-    >
-      <Handle type="target" position={Position.Top} className="!h-2.5 !w-2.5 !bg-amber-600" />
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Badge variant="secondary" className="text-[10px]">
-            Step {data.stepIndex}
-          </Badge>
-          <Badge variant="warning" className="text-[10px]">
-            DECISION
-          </Badge>
-        </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="nodrag nopan h-7 w-7"
-          disabled={!data.canRemove}
-          onClick={(e) => {
-            e.stopPropagation()
-            data.onRemove?.()
-          }}
-          aria-label="Remove step"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      <div className="space-y-2">
-        <div className="space-y-1">
-          <Label className="text-[11px]">Step label</Label>
-          <Input
-            className="nodrag nopan h-8"
-            placeholder="Inspection result"
-            value={data.label}
-            onChange={(e) => data.onUpdate?.({ label: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[11px]">Role</Label>
-          <RoleSelect
-            value={data.roleCode}
-            roles={data.roles}
-            onChange={(v) => data.onUpdate?.({ roleCode: v })}
-          />
-        </div>
-        <p className="rounded-md border border-amber-200 bg-white/70 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-          PASS continues down · FAIL goes to reject end
-        </p>
-      </div>
-      <Handle
-        type="source"
-        id="pass"
-        position={Position.Bottom}
-        className="!h-2.5 !w-2.5 !bg-emerald-600"
-      />
-      <Handle
-        type="source"
-        id="fail"
-        position={Position.Right}
-        className="!h-2.5 !w-2.5 !bg-amber-600"
-      />
-    </div>
-  )
-}
-
-function FailEndNode({ data }) {
-  return (
-    <div className="min-w-[180px] rounded-lg border border-rose-300/80 bg-rose-50 px-3 py-2.5 text-center shadow-sm">
-      <Handle
-        type="target"
-        id="fail"
-        position={Position.Left}
-        className="!h-2.5 !w-2.5 !bg-rose-500"
-      />
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-rose-700/80">
-        END · FAIL
-      </div>
-      <div className="mt-0.5 text-xs font-medium text-foreground">{data.label}</div>
     </div>
   )
 }
 
 const nodeTypes = {
   terminal: TerminalNode,
-  taskStep: TaskNode,
-  decisionStep: DecisionNode,
-  failEnd: FailEndNode,
+  workflowStep: WorkflowStepNode,
 }
 
 function buildGraph({ steps, startRole, endRole, roles, masterForms, onUpdateStep, onRemoveStep }) {
@@ -287,14 +241,27 @@ function buildGraph({ steps, startRole, endRole, roles, masterForms, onUpdateSte
     if (step.type === 'DECISION') {
       nodes.push({
         id,
-        type: 'decisionStep',
+        type: 'workflowStep',
         position: { x: MAIN_X, y },
         draggable: true,
         data: {
           stepIndex,
+          nodeType: step.type,
           label: step.label,
           roleCode: step.roleCode,
+          formKey: step.formKey,
           roles,
+          masterForms,
+          failureTarget: step.failureTarget || 'end',
+          failureTargets: [
+            ...steps
+              .filter((candidate) => candidate.id !== id)
+              .map((candidate) => ({
+                value: candidate.id,
+                label: `Step ${steps.indexOf(candidate) + 1} · ${candidate.label?.trim() || candidate.type}`,
+              })),
+            { value: 'end', label: 'Complete workflow' },
+          ],
           canRemove,
           onUpdate: (patch) => onUpdateStep(id, patch),
           onRemove: () => onRemoveStep(id),
@@ -309,22 +276,15 @@ function buildGraph({ steps, startRole, endRole, roles, masterForms, onUpdateSte
         ...edgeStyle(prevNeedsPass ? 'pass' : 'default'),
       })
 
-      const failId = `fail-${id}`
-      nodes.push({
-        id: failId,
-        type: 'failEnd',
-        position: { x: FAIL_X, y: y + 36 },
-        draggable: true,
-        data: {
-          label: `${step.label?.trim() || `Decision ${stepIndex}`} — FAIL`,
-        },
-      })
+      const failureTargetId = step.failureTarget === 'end'
+        || !steps.some((candidate) => candidate.id === step.failureTarget)
+        ? 'end'
+        : step.failureTarget
       edges.push({
-        id: `e-${id}-${failId}`,
+        id: `e-${id}-fail-${failureTargetId}`,
         source: id,
-        target: failId,
+        target: failureTargetId,
         sourceHandle: 'fail',
-        targetHandle: 'fail',
         label: 'FAIL',
         ...edgeStyle('fail'),
       })
@@ -336,11 +296,12 @@ function buildGraph({ steps, startRole, endRole, roles, masterForms, onUpdateSte
     } else {
       nodes.push({
         id,
-        type: 'taskStep',
+        type: 'workflowStep',
         position: { x: MAIN_X, y },
         draggable: true,
         data: {
           stepIndex,
+          nodeType: step.type,
           label: step.label,
           roleCode: step.roleCode,
           formKey: step.formKey,
@@ -464,7 +425,7 @@ function CanvasInner({
         position="top-left"
         className="rounded-md border bg-card/90 px-2.5 py-1.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur"
       >
-        Drag the canvas · edit fields on nodes · FAIL branches show to the right
+        Drag the canvas · edit node fields and decision routes
       </Panel>
     </ReactFlow>
   )
@@ -474,30 +435,39 @@ function CanvasInner({
  * Editable xyflow canvas for the admin workflow builder.
  * START / END are terminals; TASK and DECISION steps are editable cards.
  */
-export default function WorkflowBuilderCanvas(props) {
+export default function WorkflowBuilderCanvas({
+  steps,
+  startRole,
+  endRole,
+  roles,
+  masterForms,
+  onUpdateStep: updateStep,
+  onRemoveStep: removeStep,
+  className,
+}) {
   const onUpdateStep = useCallback(
-    (id, patch) => props.onUpdateStep?.(id, patch),
-    [props.onUpdateStep],
+    (id, patch) => updateStep?.(id, patch),
+    [updateStep],
   )
   const onRemoveStep = useCallback(
-    (id) => props.onRemoveStep?.(id),
-    [props.onRemoveStep],
+    (id) => removeStep?.(id),
+    [removeStep],
   )
 
   return (
     <div
       className={cn(
         'h-[min(68vh,640px)] min-h-[420px] overflow-hidden rounded-lg border bg-card',
-        props.className,
+        className,
       )}
     >
       <ReactFlowProvider>
         <CanvasInner
-          steps={props.steps}
-          startRole={props.startRole}
-          endRole={props.endRole}
-          roles={props.roles}
-          masterForms={props.masterForms}
+          steps={steps}
+          startRole={startRole}
+          endRole={endRole}
+          roles={roles}
+          masterForms={masterForms}
           onUpdateStep={onUpdateStep}
           onRemoveStep={onRemoveStep}
         />

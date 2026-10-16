@@ -12,5 +12,7 @@ public record AuditEntry(
         String toNode,
         String payloadJson,
         String signaturePlaceholder,
-        Instant createdAt
+        Instant createdAt,
+        String actorDisplayName,
+        String actorUsername
 ) {}

@@ -67,7 +67,7 @@ public class WorkflowController {
     }
 
     /**
-     * Attach an existing Mongo form schema to a TASK node (part of the workflow chart).
+     * Attach an existing Mongo form schema to an executable workflow node.
      */
     @PutMapping("/workflows/{key}/nodes/{nodeKey}/form")
     public Map<String, Object> assignNodeForm(
@@ -115,6 +115,14 @@ public class WorkflowController {
     ) {
         workflowService.submitForm(id, request, user);
         return Map.of("status", "ok");
+    }
+
+    @GetMapping("/instances/{id}/forms/current")
+    public FormPrefillView currentFormValues(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal user
+    ) {
+        return workflowService.currentFormValues(id, user);
     }
 
     @GetMapping("/instances/{id}/audit")

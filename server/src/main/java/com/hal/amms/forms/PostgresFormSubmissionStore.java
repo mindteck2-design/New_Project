@@ -4,6 +4,7 @@ import com.hal.amms.workflow.WorkflowRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -20,5 +21,10 @@ public class PostgresFormSubmissionStore implements FormSubmissionStore {
     @Override
     public void save(UUID id, UUID instanceId, String formKey, String nodeKey, String payloadJson, UUID createdBy) {
         dao.insertForm(id, instanceId, formKey, nodeKey, payloadJson, createdBy);
+    }
+
+    @Override
+    public Optional<String> findLatest(UUID instanceId, String nodeKey, String formKey) {
+        return dao.latestFormPayload(instanceId, nodeKey, formKey);
     }
 }

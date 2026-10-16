@@ -54,11 +54,28 @@ export default function WorkflowBuilderPage() {
   )
 
   const updateStep = useCallback((id, patch) => {
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+    setSteps((prev) => prev.map((s) => {
+      if (s.id !== id) return s
+      const { nodeType, ...changes } = patch
+      const type = nodeType || changes.type || s.type
+      return {
+        ...s,
+        ...changes,
+        type,
+        ...(type === 'DECISION' && !s.failureTarget ? { failureTarget: 'end' } : {}),
+      }
+    }))
   }, [])
 
   const removeStep = useCallback((id) => {
-    setSteps((prev) => (prev.length <= 1 ? prev : prev.filter((s) => s.id !== id)))
+    setSteps((prev) => {
+      if (prev.length <= 1) return prev
+      return prev
+        .filter((s) => s.id !== id)
+        .map((s) => s.type === 'DECISION' && s.failureTarget === id
+          ? { ...s, failureTarget: 'end' }
+          : s)
+    })
   }, [])
 
   const save = useMutation({
@@ -73,51 +90,18 @@ export default function WorkflowBuilderPage() {
         },
       ]
       const transitions = []
-      let prev = 'start'
-      let prevNeedsPass = false
 
       steps.forEach((step, index) => {
         const nodeKey = `step_${index + 1}`
-        if (step.type === 'DECISION') {
-          nodes.push({
-            key: nodeKey,
-            type: 'DECISION',
-            label: step.label.trim() || `Decision ${index + 1}`,
-            roleCode: step.roleCode,
-            options: ['PASS', 'FAIL'],
-            expression: 'decision',
-          })
-          transitions.push(
-            prevNeedsPass
-              ? { from: prev, to: nodeKey, when: 'PASS' }
-              : { from: prev, to: nodeKey },
-          )
-          const failEnd = `end_fail_${index + 1}`
-          nodes.push({
-            key: failEnd,
-            type: 'END',
-            label: `${step.label.trim() || 'Decision'} — FAIL`,
-            roleCode: step.roleCode,
-          })
-          transitions.push({ from: nodeKey, to: failEnd, when: 'FAIL' })
-          prev = nodeKey
-          prevNeedsPass = true
-        } else {
-          nodes.push({
-            key: nodeKey,
-            type: 'TASK',
-            label: step.label.trim() || `Step ${index + 1}`,
-            roleCode: step.roleCode,
-            formKey: step.formKey,
-          })
-          transitions.push(
-            prevNeedsPass
-              ? { from: prev, to: nodeKey, when: 'PASS' }
-              : { from: prev, to: nodeKey },
-          )
-          prev = nodeKey
-          prevNeedsPass = false
-        }
+        const isDecision = step.type === 'DECISION'
+        nodes.push({
+          key: nodeKey,
+          type: isDecision ? 'DECISION' : 'TASK',
+          label: step.label.trim() || `Step ${index + 1}`,
+          roleCode: step.roleCode,
+          formKey: step.formKey,
+          ...(isDecision ? { options: ['PASS', 'FAIL'], expression: 'decision' } : {}),
+        })
       })
 
       nodes.push({
@@ -126,9 +110,25 @@ export default function WorkflowBuilderPage() {
         label: 'Complete',
         roleCode: endRole,
       })
-      transitions.push(
-        prevNeedsPass ? { from: prev, to: 'end', when: 'PASS' } : { from: prev, to: 'end' },
-      )
+
+      const firstNodeKey = 'step_1'
+      transitions.push({ from: 'start', to: firstNodeKey })
+      steps.forEach((step, index) => {
+        const nodeKey = `step_${index + 1}`
+        const nextNodeKey = index + 1 < steps.length ? `step_${index + 2}` : 'end'
+        if (step.type === 'DECISION') {
+          const failureTargetIndex = steps.findIndex((candidate) => candidate.id === step.failureTarget)
+          const failureNodeKey = step.failureTarget === 'end' || failureTargetIndex < 0
+            ? 'end'
+            : `step_${failureTargetIndex + 1}`
+          transitions.push(
+            { from: nodeKey, to: nextNodeKey, when: 'PASS' },
+            { from: nodeKey, to: failureNodeKey, when: 'FAIL' },
+          )
+        } else {
+          transitions.push({ from: nodeKey, to: nextNodeKey })
+        }
+      })
 
       const aircraftList = aircraftTypes
         .split(/[,;]/)
@@ -158,7 +158,19 @@ export default function WorkflowBuilderPage() {
     key.trim() &&
     name.trim() &&
     steps.length > 0 &&
-    steps.every((s) => s.label.trim() && s.roleCode && (s.type !== 'TASK' || s.formKey))
+    steps.every((s) =>
+      s.label.trim()
+      && s.roleCode
+      && s.formKey
+      && (s.type !== 'DECISION'
+        || s.failureTarget === 'end'
+        || steps.some((target) => target.id === s.failureTarget && target.id !== s.id)),
+    )
+  const hasBackwardFailureRoute = steps.some((step, index) => {
+    if (step.type !== 'DECISION' || step.failureTarget === 'end') return false
+    const targetIndex = steps.findIndex((candidate) => candidate.id === step.failureTarget)
+    return targetIndex >= 0 && targetIndex <= index
+  })
 
   return (
     <Shell>
@@ -248,51 +260,30 @@ export default function WorkflowBuilderPage() {
             <div>
               <h2 className="text-sm font-semibold tracking-tight">Canvas</h2>
               <p className="text-xs text-muted-foreground">
-                START → steps → END on xyflow. Decision FAIL branches right to a reject end.
+                Configure each step as a task or decision, attach its form, and set decision routes.
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setSteps((p) => [
-                    ...p,
-                    {
-                      id: crypto.randomUUID(),
-                      type: 'TASK',
-                      label: '',
-                      roleCode: 'INSPECTION',
-                      formKey: masterForms[0]?.formKey || '',
-                    },
-                  ])
-                }
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Task step
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setSteps((p) => [
-                    ...p,
-                    {
-                      id: crypto.randomUUID(),
-                      type: 'DECISION',
-                      label: 'Pass / Fail',
-                      roleCode: 'INSPECTION',
-                      formKey: '',
-                    },
-                  ])
-                }
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Decision
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setSteps((current) => [
+                  ...current,
+                  {
+                    id: crypto.randomUUID(),
+                    type: 'TASK',
+                    label: '',
+                    roleCode: 'INSPECTION',
+                    formKey: masterForms[0]?.formKey || '',
+                    failureTarget: 'end',
+                  },
+                ])
+              }
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add step
+            </Button>
           </div>
 
           <WorkflowBuilderCanvas
@@ -304,6 +295,11 @@ export default function WorkflowBuilderPage() {
             onUpdateStep={updateStep}
             onRemoveStep={removeStep}
           />
+          {hasBackwardFailureRoute && (
+            <p role="status" className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">
+              A FAIL route returns to an earlier step. Ensure the workflow has a valid exit path; repeated failures may loop indefinitely.
+            </p>
+          )}
         </section>
 
         <div className="flex flex-wrap gap-2">

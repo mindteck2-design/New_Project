@@ -10,6 +10,7 @@ import com.hal.amms.workflow.domain.*;
 import com.hal.amms.platform.security.UserPrincipal;
 import com.hal.amms.attachments.AttachmentStorageService;
 import com.hal.amms.forms.FormSubmissionStore;
+import com.hal.amms.forms.MongoFormSchemaService;
 import com.hal.amms.notification.NotificationService;
 import com.hal.amms.workpackage.WorkPackageService;
 import com.hal.amms.platform.web.ApiException;
@@ -32,6 +33,7 @@ public class WorkflowService {
     private final FormSubmissionStore formStore;
     private final NotificationService notifications;
     private final ObjectProvider<WorkPackageService> workPackages;
+    private final ObjectProvider<MongoFormSchemaService> formSchemas;
 
     public WorkflowService(
             WorkflowRepository repository,
@@ -40,7 +42,8 @@ public class WorkflowService {
             AttachmentStorageService attachments,
             FormSubmissionStore formStore,
             NotificationService notifications,
-            ObjectProvider<WorkPackageService> workPackages
+            ObjectProvider<WorkPackageService> workPackages,
+            ObjectProvider<MongoFormSchemaService> formSchemas
     ) {
         this.repository = repository;
         this.decisionEngine = decisionEngine;
@@ -49,6 +52,7 @@ public class WorkflowService {
         this.formStore = formStore;
         this.notifications = notifications;
         this.workPackages = workPackages;
+        this.formSchemas = formSchemas;
     }
 
     public List<WorkflowSummary> listWorkflows(
@@ -211,22 +215,24 @@ public class WorkflowService {
         if (repository.definitionExists(key)) {
             throw ApiException.conflict("Workflow already exists: " + key);
         }
-        boolean hasStart = request.nodes().stream().anyMatch(n -> NodeType.START.matches(n.type()));
-        boolean hasEnd = request.nodes().stream().anyMatch(n -> NodeType.END.matches(n.type()));
+        boolean hasStart = request.nodes().stream().anyMatch(n -> n != null && NodeType.START.matches(n.type()));
+        boolean hasEnd = request.nodes().stream().anyMatch(n -> n != null && NodeType.END.matches(n.type()));
         if (!hasStart || !hasEnd) {
             throw ApiException.badRequest("workflow must include START and END nodes");
         }
         for (WorkflowNodeDraft n : request.nodes()) {
-            if (n.key() == null || n.key().isBlank() || n.type() == null || n.label() == null) {
+            if (n == null || n.key() == null || n.key().isBlank() || n.type() == null || n.label() == null) {
                 throw ApiException.badRequest("each node needs key, type, and label");
             }
-            if (NodeType.TASK.matches(n.type()) && (n.formKey() == null || n.formKey().isBlank())) {
-                throw ApiException.badRequest("TASK node " + n.key() + " must select a master form");
+            if ((NodeType.TASK.matches(n.type()) || NodeType.DECISION.matches(n.type()))
+                    && (n.formKey() == null || n.formKey().isBlank())) {
+                throw ApiException.badRequest(n.type() + " node " + n.key() + " must select a master form");
             }
             if (n.roleCode() == null || n.roleCode().isBlank()) {
                 throw ApiException.badRequest("node " + n.key() + " must have a roleCode");
             }
         }
+        WorkflowGraphValidator.validate(request.nodes(), request.transitions());
 
         int version = request.version() == null ? 1 : request.version();
         try {
@@ -403,7 +409,7 @@ public class WorkflowService {
     }
 
     /**
-     * Attach a Mongo dynamic form schema to a workflow TASK node.
+     * Attach a Mongo dynamic form schema to an executable workflow node.
      * Updates {@code workflow_nodes.form_key} and mirrors into definition JSON.
      */
     @Transactional
@@ -416,8 +422,8 @@ public class WorkflowService {
                 .orElseThrow(() -> ApiException.notFound("Workflow not found: " + workflowKey));
         WorkflowNode node = repository.findNode(def.id(), nodeKey)
                 .orElseThrow(() -> ApiException.notFound("Node not found: " + nodeKey));
-        if (node.nodeType() != NodeType.TASK) {
-            throw ApiException.badRequest("Only TASK nodes can carry a dynamic form (got " + node.nodeType() + ")");
+        if (node.nodeType() != NodeType.TASK && node.nodeType() != NodeType.DECISION) {
+            throw ApiException.badRequest("Only TASK or DECISION nodes can carry a dynamic form (got " + node.nodeType() + ")");
         }
         try {
             repository.updateNodeFormKey(def.id(), nodeKey, normalizedForm);
@@ -516,6 +522,23 @@ public class WorkflowService {
         return toView(instance, def, user);
     }
 
+    public FormPrefillView currentFormValues(UUID id, UserPrincipal user) {
+        WorkflowInstance instance = repository.findInstance(id)
+                .orElseThrow(() -> ApiException.notFound("Instance not found"));
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
+        if (!canViewInstance(instance, def, user)) {
+            throw ApiException.forbidden("Not authorized to view this instance");
+        }
+        WorkflowNode node = repository.findNode(def.id(), instance.currentNodeKey())
+                .orElseThrow(() -> ApiException.conflict("Current node missing"));
+        String formKey = node.formKey() == null ? "generic" : node.formKey();
+        return new FormPrefillView(
+                node.nodeKey(),
+                formKey,
+                latestFormValues(instance.id(), node.nodeKey(), formKey)
+        );
+    }
+
     @Transactional
     public InstanceView transition(UUID id, TransitionRequest request, UserPrincipal user) {
         WorkflowInstance instance = repository.findInstance(id)
@@ -533,39 +556,48 @@ public class WorkflowService {
         String action = request.action() == null ? "" : request.action().trim();
         Map<String, Object> context = readMap(instance.contextJson());
 
-        if (request.formPayload() != null && !request.formPayload().isEmpty()) {
-            Map<String, Object> formPayload = AmmsDateTimes.normalizeFormPayloadDates(request.formPayload(), null);
-            context.putAll(formPayload);
-            saveForm(instance, current, formPayload, user);
-        }
-        if (request.notes() != null) {
-            context.put("lastNotes", request.notes());
-        }
-
         String from = current.nodeKey();
         String to;
+        String decision = null;
 
         if (current.nodeType() == NodeType.DECISION) {
             if (request.decisionValue() == null || request.decisionValue().isBlank()) {
                 throw ApiException.badRequest("decisionValue required for DECISION node");
             }
-            String decision = request.decisionValue().trim().toUpperCase(Locale.ROOT);
-            context.put(expressionKey(current), decision);
-            to = resolveNext(def.id(), from, decision)
-                    .orElseThrow(() -> ApiException.conflict("No transition for decision: " + decision));
-            repository.insertInspection(UUID.randomUUID(), instance.id(), current.nodeKey(), decision, request.notes(), user.getId());
-            writeAudit(instance.id(), user.getId(), "DECISION_" + decision, from, to,
-                    Map.of("decision", decision), request.signaturePlaceholder());
+            String selectedDecision = request.decisionValue().trim().toUpperCase(Locale.ROOT);
+            decision = selectedDecision;
+            context.put(expressionKey(current), selectedDecision);
+            to = resolveNext(def.id(), from, selectedDecision)
+                    .orElseThrow(() -> ApiException.conflict("No transition for decision: " + selectedDecision));
         } else if (StepAction.isCompleteLike(action)) {
             if (current.nodeType() == NodeType.END) {
                 throw ApiException.conflict("Instance already at END");
             }
             to = resolveNext(def.id(), from, null)
                     .orElseThrow(() -> ApiException.conflict("No outgoing transition from " + from));
-            writeAudit(instance.id(), user.getId(), "COMPLETE_STEP", from, to,
-                    request.formPayload(), request.signaturePlaceholder());
         } else {
             throw ApiException.badRequest("Unknown action: " + request.action());
+        }
+
+        Map<String, Object> formPayload = request.formPayload() == null
+                ? Map.of()
+                : AmmsDateTimes.normalizeFormPayloadDates(request.formPayload(), null);
+        if (!formPayload.isEmpty()) {
+            context.putAll(formPayload);
+            saveForm(instance, current, formPayload, user);
+        }
+        Map<String, Object> auditPayload = formAuditPayload(def, current, formPayload, decision);
+        if (request.notes() != null) {
+            context.put("lastNotes", request.notes());
+            auditPayload.put("notes", request.notes());
+        }
+        if (decision != null) {
+            repository.insertInspection(UUID.randomUUID(), instance.id(), current.nodeKey(), decision, request.notes(), user.getId());
+            writeAudit(instance.id(), user.getId(), "DECISION_" + decision, from, to,
+                    auditPayload, request.signaturePlaceholder());
+        } else {
+            writeAudit(instance.id(), user.getId(), "COMPLETE_STEP", from, to,
+                    auditPayload, request.signaturePlaceholder());
         }
 
         InstanceStatus status = instance.status();
@@ -605,9 +637,13 @@ public class WorkflowService {
         WorkflowNode current = repository.findNode(instance.definitionId(), instance.currentNodeKey())
                 .orElseThrow(() -> ApiException.conflict("Current node missing"));
         assertRole(user, current);
-        saveForm(instance, current, request.payload(), user);
+        WorkflowDefinition def = repository.findDefinitionById(instance.definitionId()).orElseThrow();
+        Map<String, Object> formPayload = request.payload() == null
+                ? Map.of()
+                : AmmsDateTimes.normalizeFormPayloadDates(request.payload(), null);
+        saveForm(instance, current, formPayload, user);
         writeAudit(instance.id(), user.getId(), "SUBMIT_FORM", current.nodeKey(), current.nodeKey(),
-                request.payload(), null);
+                formAuditPayload(def, current, formPayload, null), null);
     }
 
     public List<AuditView> audit(UUID id) {
@@ -616,8 +652,71 @@ public class WorkflowService {
         }
         return repository.auditsFor(id).stream()
                 .map(a -> new AuditView(a.id(), a.action(), a.fromNode(), a.toNode(),
-                        a.userId(), a.signaturePlaceholder(), a.createdAt()))
+                        a.userId(), a.actorDisplayName(), a.actorUsername(),
+                        a.signaturePlaceholder(), a.createdAt(),
+                        a.payloadJson() == null ? null : readMap(a.payloadJson())))
                 .toList();
+    }
+
+    private Map<String, Object> latestFormValues(UUID instanceId, String nodeKey, String formKey) {
+        Optional<String> payload = formStore.findLatest(instanceId, nodeKey, formKey);
+        if (payload.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return mapper.readValue(payload.get(), new TypeReference<>() {});
+        } catch (Exception e) {
+            throw ApiException.conflict("Saved form submission is invalid");
+        }
+    }
+
+    private Map<String, Object> formAuditPayload(
+            WorkflowDefinition definition,
+            WorkflowNode node,
+            Map<String, Object> values,
+            String decision
+    ) {
+        String formKey = node.formKey() == null ? "generic" : node.formKey();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("workflowKey", definition.key());
+        payload.put("workflowVersion", definition.version());
+        payload.put("nodeKey", node.nodeKey());
+        payload.put("nodeLabel", node.label());
+        payload.put("formKey", formKey);
+        payload.put("formPayload", new LinkedHashMap<>(values));
+        if (decision != null) {
+            payload.put("decisionValue", decision);
+        }
+
+        MongoFormSchemaService schemas = formSchemas.getIfAvailable();
+        if (schemas != null) {
+            schemas.findByKey(formKey).ifPresent(schema -> {
+                Map<String, Object> schemaApi = schemas.toApi(schema);
+                payload.put("formName", schemaApi.get("name"));
+                payload.put("formSchemaVersion", schemaApi.get("version"));
+                Object fields = schemaApi.get("fields");
+                if (fields instanceof List<?> schemaFields) {
+                    List<Map<String, Object>> snapshotFields = schemaFields.stream()
+                            .filter(Map.class::isInstance)
+                            .map(field -> {
+                                Map<?, ?> source = (Map<?, ?>) field;
+                                Map<String, Object> copy = new LinkedHashMap<>();
+                                for (String key : List.of(
+                                        "name", "label", "type", "placeholder", "required", "options",
+                                        "accept", "multiple", "helpText", "content", "columns"
+                                )) {
+                                    if (source.containsKey(key)) {
+                                        copy.put(key, source.get(key));
+                                    }
+                                }
+                                return copy;
+                            })
+                            .toList();
+                    payload.put("formFields", snapshotFields);
+                }
+            });
+        }
+        return payload;
     }
 
     public List<DocumentView> listDocuments(UUID id, UserPrincipal user) {
@@ -749,7 +848,7 @@ public class WorkflowService {
                             Object payload, String signature) {
         repository.insertAudit(new AuditEntry(
                 UUID.randomUUID(), instanceId, userId, action, from, to,
-                payload == null ? null : writeJson(payload), signature, AmmsDateTimes.now()
+                payload == null ? null : writeJson(payload), signature, AmmsDateTimes.now(), null, null
         ));
     }
 

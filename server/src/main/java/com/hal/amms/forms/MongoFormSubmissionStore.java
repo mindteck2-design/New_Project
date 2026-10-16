@@ -5,9 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import com.hal.amms.shared.AmmsDateTimes;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -38,5 +42,15 @@ public class MongoFormSubmissionStore implements FormSubmissionStore {
                 .append("createdAt", AmmsDateTimes.now());
         mongoTemplate.insert(doc, COLLECTION);
         log.debug("Mongo form_submissions saved formKey={} instanceId={}", formKey, instanceId);
+    }
+
+    @Override
+    public Optional<String> findLatest(UUID instanceId, String nodeKey, String formKey) {
+        Query query = Query.query(Criteria.where("instanceId").is(instanceId.toString())
+                .and("nodeKey").is(nodeKey)
+                .and("formKey").is(formKey))
+                .with(Sort.by(Sort.Direction.DESC, "createdAt"));
+        Document doc = mongoTemplate.findOne(query, Document.class, COLLECTION);
+        return Optional.ofNullable(doc == null ? null : doc.getString("payloadJson"));
     }
 }

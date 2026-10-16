@@ -67,9 +67,90 @@ class WorkflowApiIntegrationTest {
                 {"action":"COMPLETE","formPayload":{"scheduleRef":"SCH-1"}}
                 """);
         JsonNode after = transition(token, instanceId, """
-                {"action":"DECISION","decisionValue":"FAIL"}
+                {"action":"DECISION","decisionValue":"FAIL","formPayload":{"inspectionNotes":"crack observed"}}
                 """);
         assertEquals("repair", after.path("currentNode").path("key").asText());
+        assertEquals("crack observed", after.path("context").path("inspectionNotes").asText());
+    }
+
+    @Test
+    void auditRetainsEachFormAttemptAndPrefillsLatestValuesAfterFailRoute() throws Exception {
+        String token = login("admin");
+        String workflowKey = "retry-" + UUID.randomUUID().toString().replace("-", "");
+        mockMvc.perform(post("/api/v1/workflows")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "key":"%s",
+                                  "name":"Retry form history test",
+                                  "version":1,
+                                  "nodes":[
+                                    {"key":"start","type":"START","label":"Start","roleCode":"PROGRESS"},
+                                    {"key":"prepare","type":"TASK","label":"Prepare","roleCode":"PROGRESS","formKey":"retry-test-form"},
+                                    {"key":"inspect","type":"DECISION","label":"Inspect","roleCode":"INSPECTION","formKey":"retry-test-form","options":["PASS","FAIL"],"expression":"inspection"},
+                                    {"key":"end","type":"END","label":"Complete","roleCode":"PROGRESS"}
+                                  ],
+                                  "transitions":[
+                                    {"from":"start","to":"prepare"},
+                                    {"from":"prepare","to":"inspect"},
+                                    {"from":"inspect","to":"end","when":"PASS"},
+                                    {"from":"inspect","to":"prepare","when":"FAIL"}
+                                  ]
+                                }
+                                """.formatted(workflowKey)))
+                .andExpect(status().isOk());
+        String instanceId = startWorkflow(token, workflowKey);
+
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"serialNumber":"SN-100","condition":"Initial"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"FAIL","formPayload":{"inspectionNotes":"Rework required"}}
+                """);
+        MvcResult firstPrefill = mockMvc.perform(get("/api/v1/instances/" + instanceId + "/forms/current")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode firstValues = mapper.readTree(firstPrefill.getResponse().getContentAsString()).path("values");
+        assertEquals("SN-100", firstValues.path("serialNumber").asText());
+        assertEquals("Initial", firstValues.path("condition").asText());
+        assertFalse(firstValues.has("inspectionNotes"));
+        mockMvc.perform(get("/api/v1/instances/" + instanceId + "/forms/current")
+                        .header("Authorization", "Bearer " + login("stores.user")))
+                .andExpect(status().isForbidden());
+
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"serialNumber":"SN-101","condition":"Reworked"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"FAIL","formPayload":{"inspectionNotes":"Second attempt"}}
+                """);
+        MvcResult latestPrefill = mockMvc.perform(get("/api/v1/instances/" + instanceId + "/forms/current")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode latestValues = mapper.readTree(latestPrefill.getResponse().getContentAsString()).path("values");
+        assertEquals("SN-101", latestValues.path("serialNumber").asText());
+        assertEquals("Reworked", latestValues.path("condition").asText());
+        assertFalse(latestValues.has("inspectionNotes"));
+
+        String freshInstanceId = startWorkflow(token, workflowKey);
+        MvcResult freshPrefill = mockMvc.perform(get("/api/v1/instances/" + freshInstanceId + "/forms/current")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertEquals(0, mapper.readTree(freshPrefill.getResponse().getContentAsString()).path("values").size());
+
+        MvcResult auditResult = mockMvc.perform(get("/api/v1/instances/" + instanceId + "/audit")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode audit = mapper.readTree(auditResult.getResponse().getContentAsString());
+        assertEquals(5, audit.size());
+        assertEquals("SN-100", audit.get(1).path("payload").path("formPayload").path("serialNumber").asText());
+        assertEquals("FAIL", audit.get(2).path("payload").path("decisionValue").asText());
+        assertEquals("Second attempt", audit.get(4).path("payload").path("formPayload").path("inspectionNotes").asText());
     }
 
     @Test
