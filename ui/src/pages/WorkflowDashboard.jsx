@@ -64,93 +64,8 @@ export default function WorkflowDashboard() {
           }
         />
 
-        <RoleWorkBriefing user={user} pendingCount={inbox.length} />
-
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
-          <div className="bg-card px-4 py-3.5">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Waiting on you
-            </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{inbox.length}</div>
-          </div>
-          <div className="bg-card px-4 py-3.5">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Running
-            </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{running}</div>
-          </div>
-          <div className="bg-card px-4 py-3.5">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Completed
-            </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{completed}</div>
-          </div>
-          <div className="bg-card px-4 py-3.5">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Workflows
-            </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">
-              {(workflows.data || []).length}
-            </div>
-          </div>
-        </div>
-
-        <PendingWorkQueue
-          user={user}
-          items={inbox}
-          loading={instances.isLoading}
-          limit={8}
-          heading="Do these next"
-        />
-
-        {inbox.length > 8 && (
-          <div className="-mt-2">
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/inbox">
-                View all {inbox.length} pending actions
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        )}
-
-        <section aria-labelledby="modules-heading">
-          <h2 id="modules-heading" className="mb-3 text-sm font-semibold tracking-tight">
-            Go to
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {QUICK_LINKS.map((item) => {
-              const Icon = item.icon
-              return (
-                <Button
-                  key={item.to}
-                  asChild
-                  variant="outline"
-                  className="h-auto justify-start gap-3 px-4 py-4 text-left font-normal"
-                >
-                  <Link to={item.to}>
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="block text-sm font-medium text-foreground">{item.label}</span>
-                        {item.to === '/inbox' && inbox.length > 0 && (
-                          <Badge className="h-5 px-1.5 text-[10px]">{inbox.length}</Badge>
-                        )}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">{item.description}</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                </Button>
-              )
-            })}
-          </div>
-        </section>
-
         <section aria-labelledby="dash-analytics-heading">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
             <h2 id="dash-analytics-heading" className="text-sm font-semibold tracking-tight">
               Role analytics snapshot
             </h2>
@@ -159,6 +74,102 @@ export default function WorkflowDashboard() {
             </Button>
           </div>
           <RoleAnalytics />
+        </section>
+
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.85fr)]">
+          <div className="min-w-0 space-y-2">
+            <PendingWorkQueue
+              user={user}
+              items={inbox}
+              loading={instances.isLoading}
+              limit={5}
+              heading="Do these next"
+            />
+            {inbox.length > 5 && (
+              <div className="flex justify-end">
+                <Button asChild size="sm" variant="ghost">
+                  <Link to="/inbox">
+                    View all {inbox.length} pending actions
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <section aria-labelledby="modules-heading" className="min-w-0">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 id="modules-heading" className="text-sm font-semibold tracking-tight">
+                Work areas
+              </h2>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+              {QUICK_LINKS.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Button
+                    key={item.to}
+                    asChild
+                    variant="outline"
+                    className="h-auto min-h-14 justify-start gap-2.5 px-3 py-2.5 text-left font-normal"
+                  >
+                    <Link to={item.to}>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="block truncate text-sm font-medium text-foreground">{item.label}</span>
+                          {item.to === '/inbox' && inbox.length > 0 && (
+                            <Badge className="h-5 px-1.5 text-[10px]">{inbox.length}</Badge>
+                          )}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">{item.description}</span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </Button>
+                )
+              })}
+            </div>
+          </section>
+        </div>
+
+        <section aria-labelledby="today-tracker-heading" className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="today-tracker-heading" className="text-sm font-semibold tracking-tight">
+              Today’s tracker
+            </h2>
+          </div>
+          <RoleWorkBriefing user={user} pendingCount={inbox.length} />
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+            <div className="bg-card px-4 py-3">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Waiting on you
+              </div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">{inbox.length}</div>
+            </div>
+            <div className="bg-card px-4 py-3">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Running
+              </div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">{running}</div>
+            </div>
+            <div className="bg-card px-4 py-3">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Completed
+              </div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">{completed}</div>
+            </div>
+            <div className="bg-card px-4 py-3">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Workflows
+              </div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
+                {(workflows.data || []).length}
+              </div>
+            </div>
+          </div>
         </section>
       </PageFrame>
     </Shell>

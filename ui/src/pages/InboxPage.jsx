@@ -42,7 +42,7 @@ export default function InboxPage() {
           }
         />
 
-        <RoleWorkBriefing user={user} pendingCount={inbox.length} />
+        <RoleWorkBriefing user={user} pendingCount={inbox.length} showResponsibilities={false} />
 
         {briefs.length > 1 && (
           <p className="text-xs text-muted-foreground">

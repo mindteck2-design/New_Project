@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, ChevronRight, ClipboardCheck } from 'lucide-react'
+import { Bell, CheckCheck, ChevronRight, ClipboardCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   actionableNotifications,
@@ -30,7 +30,7 @@ function noteKey(userId, item) {
 export default function NotificationCenter() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   const seenRef = useRef(new Set())
   const primedRef = useRef(false)
 
@@ -48,11 +48,6 @@ export default function NotificationCenter() {
     refetchInterval: 8000,
   })
 
-  const markRead = useMutation({
-    mutationFn: markNotificationRead,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
-  })
-
   const persisted = useMemo(() => {
     return (notifications.data || [])
       .filter((n) => !n.read)
@@ -63,7 +58,6 @@ export default function NotificationCenter() {
         description: n.body || '',
         roleCode: n.targetRole,
         href: n.actionPath || `/instances/${n.instanceId}`,
-        persisted: true,
       }))
   }, [notifications.data])
 
@@ -72,11 +66,41 @@ export default function NotificationCenter() {
     [instances.data, user],
   )
 
-  // Prefer durable notifications; fall back to derived inbox when none yet
-  const items = persisted.length > 0 ? persisted : derived
-  const unreadCount = persisted.length > 0
-    ? persisted.length
-    : derived.length
+  const hasPersistedNotifications = (notifications.data || []).length > 0
+  const items = hasPersistedNotifications ? persisted : derived
+  const unreadCount = hasPersistedNotifications ? persisted.length : derived.length
+
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      const results = await Promise.allSettled(
+        persisted.map((notification) => markNotificationRead(notification.id)),
+      )
+      return results.map((result, index) => ({
+        id: persisted[index].id,
+        success: result.status === 'fulfilled',
+      }))
+    },
+    onSuccess: (results) => {
+      const successfulIds = new Set(
+        results.filter((result) => result.success).map((result) => result.id),
+      )
+      const queryKey = queryKeys.notifications.all(user?.id)
+      queryClient.setQueryData(queryKey, (current) =>
+        (current || []).map((notification) =>
+          successfulIds.has(notification.id) ? { ...notification, read: true } : notification,
+        ),
+      )
+      queryClient.invalidateQueries({ queryKey })
+
+      const failedCount = results.length - successfulIds.size
+      if (failedCount > 0) {
+        toast.error(`${failedCount} notification${failedCount === 1 ? '' : 's'} could not be marked as read.`)
+      } else if (results.length > 0) {
+        toast.success('All notifications marked as read.')
+      }
+    },
+    onError: () => toast.error('Could not mark notifications as read.'),
+  })
 
   useEffect(() => {
     primedRef.current = false
@@ -99,19 +123,15 @@ export default function NotificationCenter() {
         action: {
           label: 'Open',
           onClick: () => {
-            if (item.persisted) markRead.mutate(item.id)
             navigate(item.href)
           },
         },
         duration: 7000,
       })
     }
-  }, [items, user, navigate, markRead])
+  }, [items, user, navigate])
 
   function openItem(item) {
-    if (item.persisted) {
-      markRead.mutate(item.id)
-    }
     navigate(item.href)
   }
 
@@ -127,40 +147,60 @@ export default function NotificationCenter() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between">
+      <DropdownMenuContent
+        align="end"
+        className="flex max-h-[min(70vh,32rem)] w-80 flex-col overflow-hidden p-0"
+      >
+        <DropdownMenuLabel className="flex shrink-0 items-center justify-between px-3 py-2">
           <span>Your actions</span>
-          <Badge variant="secondary">{unreadCount}</Badge>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {items.length === 0 && (
-          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-            Nothing waiting on your role right now.
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{unreadCount}</Badge>
+            {persisted.length > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 px-2 text-xs"
+                disabled={markAllRead.isPending}
+                onClick={() => markAllRead.mutate()}
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                {markAllRead.isPending ? 'Marking…' : 'Mark all as read'}
+              </Button>
+            )}
           </div>
-        )}
-        {items.map((item) => (
-          <DropdownMenuItem
-            key={item.id}
-            className="flex cursor-pointer flex-col items-stretch gap-1 py-3"
-            onSelect={() => openItem(item)}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2">
-                <ClipboardCheck className="mt-0.5 h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium leading-snug">{item.title}</div>
-                  <div className="text-xs text-muted-foreground">{item.description}</div>
-                  {item.roleCode && (
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      Requires {ROLE_LABELS[item.roleCode] || item.roleCode}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator className="my-0 shrink-0" />
+        <div className="min-h-0 overflow-y-auto overscroll-contain">
+          {items.length === 0 && (
+            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Nothing waiting on your role right now.
             </div>
-          </DropdownMenuItem>
-        ))}
+          )}
+          {items.map((item) => (
+            <DropdownMenuItem
+              key={item.id}
+              className="flex cursor-pointer flex-col items-stretch gap-1 px-3 py-2.5"
+              onSelect={() => openItem(item)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <div className="font-medium leading-snug">{item.title}</div>
+                    <div className="text-xs text-muted-foreground">{item.description}</div>
+                    {item.roleCode && (
+                      <div className="mt-1 text-[11px] text-muted-foreground">
+                        Requires {ROLE_LABELS[item.roleCode] || item.roleCode}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

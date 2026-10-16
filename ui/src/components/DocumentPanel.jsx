@@ -25,7 +25,7 @@ const uploadSchema = z.object({
     .refine((files) => files?.[0]?.size > 0, 'File is empty'),
 })
 
-export default function DocumentPanel({ instanceId }) {
+export default function DocumentPanel({ instanceId, nodeKey, nodeLabel, readOnly = false }) {
   const qc = useQueryClient()
   const docs = useQuery({
     queryKey: queryKeys.instances.documents(instanceId),
@@ -37,6 +37,9 @@ export default function DocumentPanel({ instanceId }) {
     resolver: zodResolver(uploadSchema),
     defaultValues: { file: undefined },
   })
+  const nodeDocuments = (docs.data || []).filter(
+    (document) => !nodeKey || document.nodeKey === nodeKey,
+  )
 
   const upload = useMutation({
     mutationFn: (file) => uploadDocument(instanceId, file),
@@ -55,48 +58,56 @@ export default function DocumentPanel({ instanceId }) {
   }
 
   return (
-    <section aria-labelledby="attachments-heading">
-      <div className="mb-3">
-        <h2 id="attachments-heading" className="text-sm font-semibold tracking-tight">
-          Attachments
-        </h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Secure upload; download requires sign-in.
+    <section aria-labelledby="attachments-heading" className="space-y-3 border-t pt-4">
+      <div>
+        <h3 id="attachments-heading" className="text-sm font-semibold tracking-tight">
+          Step attachments
+        </h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {nodeLabel ? `Files for ${nodeLabel}` : 'Files for this workflow step'}
         </p>
       </div>
-      <div className="space-y-4 rounded-lg border bg-card p-4">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onUpload)} className="space-y-3" noValidate>
-            <FormField
-              control={form.control}
-              name="file"
-              render={({ field: { onChange, value: _value, ...field } }) => (
-                <FormItem>
-                  <FormLabel>File</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      disabled={upload.isPending || form.formState.isSubmitting}
-                      {...field}
-                      onChange={(e) => onChange(e.target.files)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" size="sm" variant="outline" disabled={upload.isPending || form.formState.isSubmitting}>
-              <Upload className="h-3.5 w-3.5" />
-              {upload.isPending ? 'Uploading…' : 'Upload'}
-            </Button>
-          </form>
-        </Form>
+      <div className="space-y-3">
+        {!readOnly && (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onUpload)} className="flex flex-wrap items-end gap-3" noValidate>
+              <FormField
+                control={form.control}
+                name="file"
+                render={({ field: { onChange, value: _value, ...field } }) => (
+                  <FormItem className="min-w-0 flex-1">
+                    <FormLabel>Choose file</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        disabled={upload.isPending || form.formState.isSubmitting}
+                        {...field}
+                        onChange={(e) => onChange(e.target.files)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" size="sm" variant="outline" disabled={upload.isPending || form.formState.isSubmitting}>
+                <Upload className="h-3.5 w-3.5" />
+                {upload.isPending ? 'Uploading…' : 'Upload'}
+              </Button>
+            </form>
+          </Form>
+        )}
 
         <div className="space-y-2">
-          {(docs.data || []).length === 0 && (
-            <p className="text-sm text-muted-foreground">No files attached yet.</p>
+          {docs.isLoading && (
+            <p className="text-sm text-muted-foreground">Loading attachments…</p>
           )}
-          {(docs.data || []).map((d) => (
+          {docs.isError && (
+            <p className="text-sm text-destructive">Could not load attachments.</p>
+          )}
+          {!docs.isLoading && !docs.isError && nodeDocuments.length === 0 && (
+            <p className="text-sm text-muted-foreground">No files attached to this step.</p>
+          )}
+          {!docs.isLoading && !docs.isError && nodeDocuments.map((d) => (
             <Button
               key={d.id}
               type="button"

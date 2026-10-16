@@ -1,17 +1,21 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   Controls,
   MarkerType,
-  MiniMap,
   ReactFlow,
   Handle,
   Position,
+  ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 const TYPE_STYLES = {
   START: 'border-emerald-300 bg-emerald-50',
@@ -47,6 +51,83 @@ function WorkflowNodeCard({ data }) {
 }
 
 const nodeTypes = { workflow: WorkflowNodeCard }
+
+function WorkflowChartCanvas({ nodes, edges, onNodesChange, onEdgesChange, className }) {
+  const containerRef = useRef(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const { fitView } = useReactFlow()
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const fullscreen = document.fullscreenElement === containerRef.current
+      setIsFullscreen(fullscreen)
+      if (fullscreen) {
+        requestAnimationFrame(() => fitView({ padding: 0.2 }))
+      }
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [fitView])
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement === containerRef.current) {
+        await document.exitFullscreen()
+        return
+      }
+      await containerRef.current.requestFullscreen()
+    } catch {
+      toast.error('Could not change the workflow full-screen view.')
+    }
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        'relative flex flex-col overflow-hidden border bg-card',
+        className,
+        isFullscreen
+          ? 'h-screen min-h-0 w-screen rounded-none border-0'
+          : 'h-[min(58vh,560px)] min-h-[360px] rounded-lg',
+      )}
+    >
+      <div className="flex shrink-0 justify-end border-b px-2 py-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="bg-card shadow-sm"
+          aria-label={isFullscreen ? 'Exit full screen workflow view' : 'Open full screen workflow view'}
+          title={isFullscreen ? 'Exit full screen' : 'Full screen'}
+          onClick={toggleFullscreen}
+        >
+          {isFullscreen
+            ? <Minimize2 className="h-4 w-4" />
+            : <Maximize2 className="h-4 w-4" />}
+          <span>{isFullscreen ? 'Exit full screen' : 'Full screen'}</span>
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          fitView
+          proOptions={{ hideAttribution: true }}
+          minZoom={0.35}
+          maxZoom={1.5}
+        >
+          <Background gap={20} size={1} color="#e4e4e7" />
+          <Controls showInteractive={false} className="!rounded-lg !border-border !shadow-sm" />
+        </ReactFlow>
+      </div>
+    </div>
+  )
+}
 
 function layoutNodes(nodes) {
   const cols = 3
@@ -115,27 +196,14 @@ export default function WorkflowChart({ definition, currentNodeKey, className })
   }
 
   return (
-    <div
-      className={cn(
-        'h-[min(58vh,560px)] min-h-[360px] overflow-hidden rounded-lg border bg-card',
-        className,
-      )}
-    >
-      <ReactFlow
+    <ReactFlowProvider>
+      <WorkflowChartCanvas
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        fitView
-        proOptions={{ hideAttribution: true }}
-        minZoom={0.35}
-        maxZoom={1.5}
-      >
-        <Background gap={20} size={1} color="#e4e4e7" />
-        <MiniMap pannable zoomable className="!border-border !bg-muted/60" />
-        <Controls showInteractive={false} className="!rounded-lg !border-border !shadow-sm" />
-      </ReactFlow>
-    </div>
+        className={className}
+      />
+    </ReactFlowProvider>
   )
 }

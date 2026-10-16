@@ -15,9 +15,9 @@ export default function PageHeader({
   className,
 }) {
   return (
-    <div className={cn('mb-5 space-y-3 border-b border-border/70 pb-4', className)}>
+    <div className={cn('space-y-2 border-b border-border/70 pb-3', className)}>
       {breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-1 text-xs">
           {breadcrumbs.map((crumb, idx) => {
             const last = idx === breadcrumbs.length - 1
             return (
@@ -47,13 +47,13 @@ export default function PageHeader({
         </nav>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 space-y-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-0.5">
           {title && (
-            <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+            <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
           )}
           {description && (
-            <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>
+            <p className="max-w-3xl text-xs text-muted-foreground">{description}</p>
           )}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

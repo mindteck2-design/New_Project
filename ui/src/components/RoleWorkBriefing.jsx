@@ -13,7 +13,11 @@ import { Button } from '@/components/ui/button'
  * Post-login curated briefing — tells the operator what their roles own
  * and what to do next without searching the app.
  */
-export default function RoleWorkBriefing({ user, pendingCount = 0 }) {
+export default function RoleWorkBriefing({
+  user,
+  pendingCount = 0,
+  showResponsibilities = true,
+}) {
   const roles = user?.roles || []
   const briefs = guidanceForRoles(roles)
   const primary = primaryRoleGuidance(roles)
@@ -22,91 +26,75 @@ export default function RoleWorkBriefing({ user, pendingCount = 0 }) {
   return (
     <section
       aria-labelledby="role-briefing-heading"
-      className="relative overflow-hidden rounded-xl border bg-card"
+      className="overflow-hidden rounded-lg border bg-card"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(720px_280px_at_0%_0%,rgba(15,118,110,0.10),transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.9),transparent)]"
-      />
-      <div className="relative grid gap-6 p-5 sm:p-6 lg:grid-cols-[1.4fr_1fr] lg:gap-10">
-        <div className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="font-normal">
-              Your briefing
-            </Badge>
-            {roles.map((r) => (
-              <Badge key={r} variant="outline">
-                {ROLE_LABELS[r] || r}
+      <div className="flex flex-col gap-3 border-b bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary" className="font-normal">Today</Badge>
+            {roles.map((role) => (
+              <Badge key={role} variant="outline" className="font-normal">
+                {ROLE_LABELS[role] || role}
               </Badge>
             ))}
           </div>
-
-          <div>
-            <h2
-              id="role-briefing-heading"
-              className="text-balance text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
-            >
-              {headline}
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
-              {primary?.charge ||
-                'Complete steps assigned to your active roles. The workflow engine selects the next node — you only act when the current step requires you.'}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {pendingCount > 0 ? (
-              <Button asChild>
-                <Link to="/inbox">
-                  <ListChecks className="h-3.5 w-3.5" />
-                  Review {pendingCount} pending
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            ) : (
-              primary?.primaryWhenClear && (
-                <Button asChild>
-                  <Link to={primary.primaryWhenClear.to}>
-                    {primary.primaryWhenClear.label}
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              )
-            )}
-            <Button asChild variant="outline">
-              <Link to="/inbox">Pending actions</Link>
-            </Button>
-          </div>
-        </div>
-
-        <div className="min-w-0 space-y-3 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            What you own
+          <h2 id="role-briefing-heading" className="text-base font-semibold tracking-tight text-foreground">
+            {headline}
+          </h2>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            {primary?.charge ||
+              'Complete steps assigned to your active roles. The workflow engine selects the next node — you only act when the current step requires you.'}
           </p>
-          {briefs.length === 0 && (
-            <p className="text-sm text-muted-foreground">No roles on this session.</p>
-          )}
-          {briefs.map((b) => (
-            <div key={b.code} className="space-y-1.5">
-              <p className="text-sm font-medium text-foreground">{b.title}</p>
-              <ul className="space-y-1">
-                {(b.typicalDuties || []).slice(0, 3).map((duty) => (
-                  <li
-                    key={duty}
-                    className="flex gap-2 text-xs leading-relaxed text-muted-foreground sm:text-[13px]"
-                  >
-                    <span
-                      aria-hidden
-                      className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary/70"
-                    />
-                    <span>{duty}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
         </div>
+        {pendingCount > 0 ? (
+          <Button asChild size="sm" className="shrink-0">
+            <Link to="/inbox">
+              <ListChecks className="h-3.5 w-3.5" />
+              Review {pendingCount} pending
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        ) : primary?.primaryWhenClear ? (
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <Link to={primary.primaryWhenClear.to}>
+              {primary.primaryWhenClear.label}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        ) : null}
       </div>
+
+      {showResponsibilities && (
+        <div className="px-4 py-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Role responsibilities
+            </h3>
+            {briefs.length > 0 && (
+              <span className="text-[11px] text-muted-foreground">{briefs.length} assigned</span>
+            )}
+          </div>
+          {briefs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No roles on this session.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {briefs.map((brief) => (
+                <div key={brief.code} className="rounded-md border bg-background/70 px-3 py-2">
+                  <p className="mb-1 text-xs font-medium text-foreground">{brief.title}</p>
+                  <ul className="space-y-1">
+                    {(brief.typicalDuties || []).slice(0, 3).map((duty) => (
+                      <li key={duty} className="flex gap-1.5 text-xs leading-snug text-muted-foreground">
+                        <span aria-hidden className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary/70" />
+                        <span>{duty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }

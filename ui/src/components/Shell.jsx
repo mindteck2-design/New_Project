@@ -188,7 +188,7 @@ export default function Shell({ children }) {
 
         <main
           key={location.pathname}
-          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8"
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-6 lg:px-8"
         >
           {children}
         </main>
