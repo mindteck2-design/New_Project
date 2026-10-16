@@ -13,11 +13,7 @@ public enum PackageStatus {
         return EnumCodes.parse(PackageStatus.class, raw);
     }
 
-    public boolean isClosed() {
-        return this == COMPLETED || this == CANCELLED;
-    }
-
     public boolean canAcceptParts() {
-        return this == READY || this == DRAFT || this == IN_PROGRESS;
+        return this != CANCELLED;
     }
 }

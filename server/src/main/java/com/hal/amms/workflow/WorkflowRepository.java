@@ -309,6 +309,17 @@ public class WorkflowRepository {
                 .execute();
     }
 
+    public Optional<InspectionResult> latestPassFailResult(UUID instanceId) {
+        return dsl.select(INSPECTION_RECORDS.RESULT)
+                .from(INSPECTION_RECORDS)
+                .where(INSPECTION_RECORDS.INSTANCE_ID.eq(instanceId)
+                        .and(org.jooq.impl.DSL.upper(INSPECTION_RECORDS.RESULT).in("PASS", "FAIL")))
+                .orderBy(INSPECTION_RECORDS.RECORDED_AT.desc())
+                .limit(1)
+                .fetchOptional(INSPECTION_RECORDS.RESULT)
+                .flatMap(InspectionResult::tryParse);
+    }
+
     public void insertDocument(DocumentEntry d) {
         dsl.insertInto(DOCUMENTS)
                 .columns(DOCUMENTS.ID, DOCUMENTS.INSTANCE_ID, DOCUMENTS.NODE_KEY, DOCUMENTS.FILE_NAME, DOCUMENTS.CONTENT_TYPE, DOCUMENTS.STORAGE_KEY, DOCUMENTS.UPLOADED_BY, DOCUMENTS.UPLOADED_AT)

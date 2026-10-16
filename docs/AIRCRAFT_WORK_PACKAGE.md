@@ -40,7 +40,9 @@ Selecting the type on the package picks the **default master workflow**. Advance
    - Reassemble
    - Report / endorse
 6. Attachments + form submissions become the **part test record**.
-7. When all parts COMPLETED (or failed with disposition), package status → COMPLETED and **package test report** is available (Excel/PDF later; MVP = consolidated table + exports).
+7. Each part reaches its own terminal status from its workflow. Completing all current parts does not complete the work order; more parts may be added while the work order is not cancelled. The **package test report** remains available as a roll-up (Excel/PDF later; MVP = consolidated table + exports).
+
+The work order is an open container for part-level workflow instances, not a workflow instance itself. Adding a part to a legacy `COMPLETED` work order reopens its operational status to `IN_PROGRESS`; cancelled work orders remain closed.
 
 ## Data model (Postgres)
 

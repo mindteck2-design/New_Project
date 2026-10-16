@@ -5,6 +5,7 @@ import com.hal.amms.workpackage.WorkPackageRepository.WorkPackageRow;
 import com.hal.amms.workflow.WorkflowRepository;
 import com.hal.amms.shared.EnumCodes;
 import com.hal.amms.workflow.domain.InstanceStatus;
+import com.hal.amms.workflow.domain.InspectionResult;
 import com.hal.amms.workflow.domain.WorkflowDefinition;
 import com.hal.amms.workflow.domain.WorkflowInstance;
 import com.hal.amms.platform.security.UserPrincipal;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -97,7 +99,7 @@ public class WorkPackageService {
     public Map<String, Object> addPart(UUID packageId, Map<String, Object> body) {
         WorkPackageRow pkg = packages.findPackage(packageId)
                 .orElseThrow(() -> ApiException.notFound("Work package not found"));
-        if (pkg.status().isClosed()) {
+        if (!pkg.status().canAcceptParts()) {
             throw ApiException.conflict("Cannot add parts to a closed package");
         }
         String partNo = str(body, "partNo");
@@ -118,6 +120,8 @@ public class WorkPackageService {
         ));
         if (pkg.status() == PackageStatus.READY || pkg.status() == PackageStatus.DRAFT) {
             packages.updatePackageStatus(packageId, PackageStatus.READY);
+        } else if (pkg.status() == PackageStatus.COMPLETED) {
+            packages.updatePackageStatus(packageId, PackageStatus.IN_PROGRESS);
         }
         return get(packageId);
     }
@@ -202,22 +206,9 @@ public class WorkPackageService {
             return;
         }
         if (instance.status() == InstanceStatus.COMPLETED) {
-            packages.updatePartStatus(part.id(), PartStatus.PASSED);
-            maybeCompletePackage(part.packageId());
+            packages.updatePartStatus(part.id(), partStatusFromInstance(instanceId).orElse(PartStatus.PASSED));
         } else if (instance.status() == InstanceStatus.CANCELLED) {
             packages.updatePartStatus(part.id(), PartStatus.SKIPPED);
-            maybeCompletePackage(part.packageId());
-        }
-    }
-
-    private void maybeCompletePackage(UUID packageId) {
-        List<PartRow> parts = packages.partsFor(packageId);
-        if (parts.isEmpty()) {
-            return;
-        }
-        boolean allDone = parts.stream().allMatch(p -> p.status().isTerminal());
-        if (allDone) {
-            packages.updatePackageStatus(packageId, PackageStatus.COMPLETED);
         }
     }
 
@@ -288,14 +279,22 @@ public class WorkPackageService {
             workflows.findInstance(p.instanceId()).ifPresent(inst -> {
                 m.put("instanceStatus", EnumCodes.code(inst.status()));
                 m.put("currentNodeKey", inst.currentNodeKey());
-                if (inst.status() == InstanceStatus.COMPLETED && p.status() == PartStatus.IN_TEST) {
-                    // lazy sync for UI
-                    packages.updatePartStatus(p.id(), PartStatus.PASSED);
-                    m.put("status", PartStatus.PASSED.name());
+                if (inst.status() == InstanceStatus.COMPLETED) {
+                    PartStatus resolvedStatus = partStatusFromInstance(inst.id())
+                            .orElse(p.status() == PartStatus.IN_TEST ? PartStatus.PASSED : p.status());
+                    if (resolvedStatus != p.status()) {
+                        packages.updatePartStatus(p.id(), resolvedStatus);
+                    }
+                    m.put("status", EnumCodes.code(resolvedStatus));
                 }
             });
         }
         return m;
+    }
+
+    private Optional<PartStatus> partStatusFromInstance(UUID instanceId) {
+        return workflows.latestPassFailResult(instanceId)
+                .map(result -> result == InspectionResult.FAIL ? PartStatus.FAILED : PartStatus.PASSED);
     }
 
     private static String str(Map<String, Object> body, String key) {

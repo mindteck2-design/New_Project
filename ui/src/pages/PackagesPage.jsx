@@ -425,7 +425,7 @@ function PackageDetail() {
   })
 
   const parts = data?.parts || []
-  const closed = data?.status === 'COMPLETED' || data?.status === 'CANCELLED'
+  const closed = data?.status === 'CANCELLED'
 
   return (
     <Shell>

@@ -73,6 +73,78 @@ class WorkflowApiIntegrationTest {
     }
 
     @Test
+    void failedWorkPackagePartRemainsFailedInReport() throws Exception {
+        String token = login("admin");
+        String poNumber = "WP-FAIL-" + UUID.randomUUID();
+        MvcResult createdPackage = mockMvc.perform(post("/api/v1/packages")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"aircraftId":"A-1","poNumber":"%s","testingType":"REPAIR","workflowKey":"accessories-bench-check"}
+                                """.formatted(poNumber)))
+                .andExpect(status().isOk())
+                .andReturn();
+        String packageId = mapper.readTree(createdPackage.getResponse().getContentAsString()).path("id").asText();
+
+        MvcResult addedPart = mockMvc.perform(post("/api/v1/packages/" + packageId + "/parts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"partNo":"A-1-TEST","serialNo":"SN-FAIL-1"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        String partId = mapper.readTree(addedPart.getResponse().getContentAsString())
+                .path("parts").get(0).path("id").asText();
+
+        MvcResult openedPart = mockMvc.perform(post("/api/v1/packages/" + packageId + "/parts/" + partId + "/open")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        String instanceId = mapper.readTree(openedPart.getResponse().getContentAsString())
+                .path("openedInstanceId").asText();
+
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"sparesRequired":"No"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"scheduleRef":"SCH-FAIL"}}
+                """);
+        transition(token, instanceId, """
+                {"action":"DECISION","decisionValue":"FAIL"}
+                """);
+        transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"repairCompleted":"Yes"}}
+                """);
+        JsonNode done = transition(token, instanceId, """
+                {"action":"COMPLETE","formPayload":{"retestResult":"Failed"}}
+                """);
+        assertEquals("COMPLETED", done.path("status").asText());
+
+        MvcResult addedSecondPart = mockMvc.perform(post("/api/v1/packages/" + packageId + "/parts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"partNo":"A-1-SECOND","serialNo":"SN-2"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode updatedPackage = mapper.readTree(addedSecondPart.getResponse().getContentAsString());
+        assertEquals("IN_PROGRESS", updatedPackage.path("status").asText());
+        assertEquals(2, updatedPackage.path("parts").size());
+
+        MvcResult report = mockMvc.perform(get("/api/v1/packages/" + packageId + "/report")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode reportJson = mapper.readTree(report.getResponse().getContentAsString());
+        assertEquals("FAILED", reportJson.path("parts").get(0).path("status").asText());
+        assertEquals(0, reportJson.path("summary").path("passed").asInt());
+        assertEquals(1, reportJson.path("summary").path("failed").asInt());
+        assertEquals(1, reportJson.path("summary").path("pending").asInt());
+    }
+
+    @Test
     void completedInstanceRejectsTransitionWith409() throws Exception {
         String token = login("admin");
         String instanceId = startWorkflow(token, "accessories-bench-check");
