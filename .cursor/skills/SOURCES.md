@@ -11,6 +11,7 @@ Downloaded for AMMS Dynamic Workflow Engine development. Project skills live in 
 | `anti-ui-slop` | https://github.com/github/awesome-copilot | Prevent toy/generic UI |
 | `postgresql-optimization` | https://github.com/github/awesome-copilot | PG/JSONB/index patterns |
 | `postgresql-code-review` | https://github.com/github/awesome-copilot | SQL review |
+| `data-architecture` | VS Code Copilot installed skill, copied to this workspace | Database configuration, ownership boundaries, entity model, and persistence assessment |
 | `java-springboot` | https://github.com/github/awesome-copilot | Spring Boot practices |
 | `spring-boot-enterprise` | Adapted from https://github.com/jdubois/dr-jskill | Security/DB/React/Test refs |
 | `amms-enterprise-stack` | Project-authored | Binds skills to AMMS locked stack |

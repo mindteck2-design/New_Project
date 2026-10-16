@@ -31,10 +31,12 @@ createRoot(document.getElementById('root')).render(
         <App />
         <Toaster
           richColors
-          position="top-right"
+          position="bottom-left"
           closeButton
+          style={{ '--width': '320px' }}
           toastOptions={{
-            className: 'font-sans',
+            className: 'font-sans !min-h-0 !px-3 !py-2 !text-sm',
+            descriptionClassName: '!text-xs',
           }}
         />
       </BrowserRouter>

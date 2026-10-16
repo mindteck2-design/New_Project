@@ -74,3 +74,7 @@ form_documents(id UUID PK, instance_id, form_key, node_key, payload_json JSONB, 
 2. `V5__user_management_foundation.sql` — `ADMIN`, forced-password-change flag, and user-administration audit table/indexes
 3. Later versions for additive schema changes only; never edit an applied migration
 4. Workflow and demo-user seed data is confined to non-production profiles
+
+## Architecture assessment and roadmap
+
+The detailed persistence inventory, entity relationships, and normalization assessment are in [the data architecture assessment](../.github/modernize/assessment/engines/facts/data-architecture.md). The phased integrity, performance, security, and operations roadmap is in the [database enterprise architecture plan](DATABASE_ENTERPRISE_PLAN.md). Both are based on repository migrations and source configuration; live database conformance remains to be verified.

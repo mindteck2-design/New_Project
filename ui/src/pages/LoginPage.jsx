@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Workflow } from 'lucide-react'
+import { Eye, EyeOff, Workflow } from 'lucide-react'
 import { useAuth } from '@/stores/authStore'
 import { DEMO_USERS, ROLE_LABELS } from '@/lib/demoUsers'
 import { primaryRoleGuidance } from '@/lib/roleGuidance'
@@ -39,6 +39,7 @@ export default function LoginPage() {
   const [selectedDemoUser, setSelectedDemoUser] = useState(
     import.meta.env.DEV ? 'admin' : '',
   )
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -156,7 +157,27 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" autoComplete="current-password" {...field} />
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            aria-pressed={showPassword}
+                            onClick={() => setShowPassword((visible) => !visible)}
+                          >
+                            {showPassword
+                              ? <EyeOff className="h-4 w-4" aria-hidden="true" />
+                              : <Eye className="h-4 w-4" aria-hidden="true" />}
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
